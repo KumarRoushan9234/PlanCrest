@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, UserPlus, Mail, Shield } from "lucide-react";
+import { X, Mail, Shield, ChevronDown } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 const InviteMemberModal = ({ isOpen, onClose }) => {
   const { currentWorkspace, inviteToWorkspace, loading } = useWorkspace();
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     role: "employee",
@@ -58,9 +60,8 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black bg-opacity-30 z-50"
-            style={{ backdropFilter: "blur(12px)" }}
-          />
+            className="fixed inset-0 bg-black/40 backdrop-blur-lg z-50"
+          ></motion.div>
 
           {/* Modal */}
           <motion.div
@@ -70,29 +71,17 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <div
-              className="rounded-xl shadow-2xl border w-full max-w-5xl max-h-[75vh] overflow-y-auto scrollbar-hide"
+              className="rounded-2xl border w-full max-w-4xl max-h-[70vh] overflow-y-auto scrollbar-hide shadow-inner shadow-black/20"
               style={{
                 background:
-                  "linear-gradient(135deg, rgba(10, 10, 12, 0.92) 0%, rgba(5, 5, 8, 0.95) 50%, rgba(3, 3, 5, 0.92) 100%)",
-                backdropFilter: "blur(20px)",
+                  "linear-gradient(135deg, rgba(13, 13, 13, 0.6), rgba(26, 26, 46, 0.65), rgba(46, 26, 54, 0.6))", // lower opacity
+                backdropFilter: "blur(100px)", // keep strong blur for glass effect
                 borderColor: "rgba(255, 255, 255, 0.08)",
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-600">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-blue-600 rounded-lg flex items-center justify-center">
-                    <UserPlus className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">
-                      Invite Member
-                    </h2>
-                    <p className="text-sm text-gray-400">
-                      Invite someone to {currentWorkspace?.name}
-                    </p>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between p-4 border-b border-gray-600">
+                <h2 className="text-lg font-bold text-white">Invite Member</h2>
                 <button
                   onClick={onClose}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
@@ -102,18 +91,18 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <form onSubmit={handleSubmit} className="p-4 space-y-4">
                 {/* Email */}
                 <div>
                   <label
                     htmlFor="email"
                     className="block text-sm font-medium text-gray-300 mb-2"
                   >
-                    Email Address <span className="text-red-500">*</span>
+                    Invite by email
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-gray-400" />
+                      <Mail className="h-4 w-4 text-gray-400" />
                     </div>
                     <input
                       type="email"
@@ -123,47 +112,34 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
                       onChange={handleChange}
                       required
                       placeholder="colleague@example.com"
-                      className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
+                      className="w-full pl-9 pr-4 py-2.5 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm text-sm"
                     />
                   </div>
                 </div>
 
-                {/* Role Selection */}
+                {/* Role Selection - Dropdown */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">
-                    Role <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Role
                   </label>
-                  <div className="space-y-2">
-                    {roles.map((role) => (
-                      <label
-                        key={role.value}
-                        className={`flex items-start p-4 border rounded-lg cursor-pointer transition-all backdrop-blur-sm ${
-                          formData.role === role.value
-                            ? "bg-blue-900 bg-opacity-30 border-blue-500"
-                            : "bg-gray-800 bg-opacity-50 border-gray-700 hover:border-gray-600"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="role"
-                          value={role.value}
-                          checked={formData.role === role.value}
-                          onChange={handleChange}
-                          className="mt-1 text-blue-600 focus:ring-blue-500"
-                        />
-                        <div className="ml-3 flex-1">
-                          <div className="flex items-center gap-2">
-                            <Shield className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-white">
-                              {role.label}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-400 mt-1">
-                            {role.description}
-                          </p>
-                        </div>
-                      </label>
-                    ))}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Shield className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <select
+                      name="role"
+                      value={formData.role}
+                      onChange={handleChange}
+                      className="w-full pl-9 pr-10 py-2.5 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm text-sm appearance-none"
+                    >
+                      <option value="member">Member</option>
+                      <option value="admin">Admin</option>
+                      <option value="employee">Employee</option>
+                      <option value="client">Client</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    </div>
                   </div>
                 </div>
 
@@ -173,40 +149,32 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
                     htmlFor="message"
                     className="block text-sm font-medium text-gray-300 mb-2"
                   >
-                    Personal Message (Optional)
+                    Optional Message
                   </label>
                   <textarea
                     id="message"
                     name="message"
                     value={formData.message}
                     onChange={handleChange}
-                    rows={3}
+                    rows={2}
                     placeholder="Add a personal message to the invitation..."
-                    className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none backdrop-blur-sm"
+                    className="w-full px-4 py-2.5 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none backdrop-blur-sm text-sm"
                   />
                 </div>
 
-                {/* Info Box */}
-                <div className="bg-blue-900 bg-opacity-20 border border-blue-500 border-opacity-30 rounded-lg p-4">
-                  <p className="text-sm text-blue-200">
-                    <strong>Note:</strong> An invitation email will be sent to
-                    the provided address. The invitation will expire in 14 days.
-                  </p>
-                </div>
-
                 {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-600 border-opacity-50">
+                <div className="flex justify-end gap-3 pt-3 border-t border-gray-600 border-opacity-50">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-6 py-3 bg-gray-800 bg-opacity-50 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors backdrop-blur-sm"
+                    className="px-4 py-2 bg-gray-800 bg-opacity-50 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors backdrop-blur-sm text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading || !formData.email}
-                    className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-sm"
                   >
                     {loading ? "Sending..." : "Send Invitation"}
                   </button>

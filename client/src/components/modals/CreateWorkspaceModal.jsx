@@ -71,11 +71,11 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <div
-              className="rounded-xl shadow-2xl border w-full max-w-6xl max-h-[75vh] overflow-y-auto scrollbar-hide"
+              className="rounded-2xl border w-full max-w-4xl max-h-[70vh] overflow-y-auto scrollbar-hide shadow-inner shadow-black/20"
               style={{
                 background:
-                  "linear-gradient(135deg, #0d0d0d, #1a1a2e, #2e1a36)", // dark base with subtle muted colors
-                backdropFilter: "blur(20px)",
+                  "linear-gradient(135deg, rgba(13, 13, 13, 0.6), rgba(26, 26, 46, 0.65), rgba(46, 26, 54, 0.6))", // lower opacity
+                backdropFilter: "blur(100px)", // keep strong blur for glass effect
                 borderColor: "rgba(255, 255, 255, 0.08)",
               }}
             >
@@ -151,7 +151,7 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
                         htmlFor="name"
                         className="block text-sm font-medium text-gray-300 mb-2"
                       >
-                        Workspace Name <span className="text-red-500">*</span>
+                        Workspace Name
                       </label>
                       <input
                         type="text"
