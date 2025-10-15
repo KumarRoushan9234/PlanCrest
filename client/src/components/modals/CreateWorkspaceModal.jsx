@@ -114,7 +114,7 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Middle - Tagline */}
-                <div className="absolute inset-x-0 top-6 flex justify-center -translate-y-1/2 z-50">
+                {/* <div className="absolute inset-x-0 top-6 flex justify-center -translate-y-1/2 z-50">
                   <div
                     className="px-6 py-2 rounded-2xl border border-gray-600 backdrop-blur-sm"
                     style={{
@@ -129,7 +129,7 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
                       Set up a new workspace for your team
                     </span>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Right - Welcome Message and Close Button */}
                 <div className="flex items-center gap-4">

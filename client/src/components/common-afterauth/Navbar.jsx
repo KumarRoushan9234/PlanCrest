@@ -23,7 +23,7 @@ import CreateWorkspaceModal from "../modals/CreateWorkspaceModal";
 import InviteMemberModal from "../modals/InviteMemberModal";
 import WorkspaceMembersModal from "../modals/WorkspaceMembersModal";
 
-const Navbar = () => {
+const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
   const navigate = useNavigate();
   const { user: currentUser, logout } = useAuth();
   const { workspaces, currentWorkspace, workspaceMembers, switchWorkspace } =
@@ -94,6 +94,10 @@ const Navbar = () => {
     setIsWorkspaceOpen(false);
   };
 
+  const handleMobileSidebarToggle = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
+  };
+
   return (
     <nav
       className="px-4 py-1 relative z-30"
@@ -109,9 +113,15 @@ const Navbar = () => {
         >
           {/* Animated Logo */}
           <motion.div
-            className="flex items-center gap-2 group"
+            className="flex items-center gap-2 group cursor-pointer md:cursor-default"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              // Only handle click on mobile screens
+              if (window.innerWidth < 768) {
+                handleMobileSidebarToggle();
+              }
+            }}
           >
             <motion.div
               className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
