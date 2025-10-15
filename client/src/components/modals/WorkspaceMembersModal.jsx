@@ -84,7 +84,9 @@ const WorkspaceMembersModal = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black bg-opacity-20 z-50 backdrop-blur-md"
+            // className="fixed inset-0 bg-black bg-opacity-30 z-50"
+            // style={{ backdropFilter: "blur(12px)" }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-md z-50"
           />
 
           {/* Modal */}
@@ -95,8 +97,13 @@ const WorkspaceMembersModal = ({ isOpen, onClose }) => {
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <div
-              className="rounded-xl shadow-2xl border w-full max-w-5xl max-h-[70vh] overflow-hidden flex flex-col"
-              style={{ backgroundColor: "#0a0a0a" }}
+              className="rounded-xl shadow-2xl border w-full max-w-6xl max-h-[75vh] overflow-hidden flex flex-col"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(10, 10, 12, 0.92) 0%, rgba(5, 5, 8, 0.95) 50%, rgba(3, 3, 5, 0.92) 100%)",
+                backdropFilter: "blur(20px)",
+                borderColor: "rgba(255, 255, 255, 0.08)",
+              }}
             >
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-600">
@@ -142,7 +149,7 @@ const WorkspaceMembersModal = ({ isOpen, onClose }) => {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
+                        className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-lg hover:bg-gray-750 transition-colors backdrop-blur-sm"
                       >
                         <div className="flex items-center gap-4 flex-1 min-w-0">
                           {/* Avatar */}
@@ -197,7 +204,7 @@ const WorkspaceMembersModal = ({ isOpen, onClose }) => {
                                     }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                    className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10"
+                                    className="absolute right-0 mt-2 w-48 bg-gray-800 bg-opacity-95 border border-gray-700 rounded-lg shadow-xl z-10 backdrop-blur-md"
                                   >
                                     <div className="py-2">
                                       <div className="px-3 py-2 text-xs text-gray-400 font-semibold">
@@ -249,13 +256,15 @@ const WorkspaceMembersModal = ({ isOpen, onClose }) => {
               </div>
 
               {/* Footer */}
-              <div className="p-6 border-t border-gray-600">
-                <button
-                  onClick={onClose}
-                  className="w-full px-6 py-3 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  Close
-                </button>
+              <div className="p-6 border-t border-gray-600 border-opacity-50">
+                <div className="flex justify-end">
+                  <button
+                    onClick={onClose}
+                    className="px-8 py-3 bg-gray-800 bg-opacity-50 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors backdrop-blur-sm"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

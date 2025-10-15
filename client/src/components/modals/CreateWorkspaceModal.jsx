@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Building2, Upload } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 const CreateWorkspaceModal = ({ isOpen, onClose }) => {
   const { createWorkspace, loading } = useWorkspace();
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -58,8 +60,8 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black bg-opacity-20 z-50 backdrop-blur-md"
-          />
+            className="fixed inset-0 bg-black/40 backdrop-blur-lg z-50"
+          ></motion.div>
 
           {/* Modal */}
           <motion.div
@@ -69,157 +71,207 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <div
-              className="rounded-xl shadow-2xl border w-full max-w-4xl max-h-[70vh] overflow-y-auto scrollbar-hide"
-              style={{ backgroundColor: "#0a0a0a" }}
+              className="rounded-xl shadow-2xl border w-full max-w-6xl max-h-[75vh] overflow-y-auto scrollbar-hide"
+              style={{
+                background:
+                  "linear-gradient(135deg, #0d0d0d, #1a1a2e, #2e1a36)", // dark base with subtle muted colors
+                backdropFilter: "blur(20px)",
+                borderColor: "rgba(255, 255, 255, 0.08)",
+              }}
             >
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-600">
+                {/* Left - Logo and Company Name */}
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">
-                      Create Workspace
-                    </h2>
-                    <p className="text-sm text-gray-400">
+                  <motion.div
+                    className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center"
+                    animate={{
+                      scale: [1, 1.05, 1],
+                      rotate: [0, 5, -5, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      repeatDelay: 2,
+                    }}
+                  >
+                    <motion.div
+                      className="w-4 h-4 bg-white rounded-sm"
+                      animate={{
+                        rotate: [0, 360],
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        repeatDelay: 3,
+                      }}
+                    ></motion.div>
+                  </motion.div>
+                  <span className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    PlanCrest
+                  </span>
+                </div>
+
+                {/* Middle - Tagline */}
+                <div className="flex-1 flex justify-center px-4 -mt-2">
+                  <div className="bg-black px-6 py-2 rounded-lg border border-gray-600">
+                    <span className="text-sm text-white font-medium">
                       Set up a new workspace for your team
-                    </p>
+                    </span>
                   </div>
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+
+                {/* Right - Welcome Message and Close Button */}
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-300">
+                    Welcome,{" "}
+                    <span className="font-semibold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
+                      {currentUser?.name || "User"}
+                    </span>
+                  </span>
+                  <button
+                    onClick={onClose}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                {/* Workspace Name */}
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    Workspace Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    placeholder="e.g., Acme Corporation"
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label
-                    htmlFor="description"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    rows={3}
-                    placeholder="Brief description of your workspace..."
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
-                  />
-                </div>
-
-                {/* Company Info Section */}
-                <div className="border-t border-gray-600 pt-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">
-                    Company Information (Optional)
-                  </h3>
-
-                  <div className="space-y-4">
-                    {/* Industry */}
+              <form onSubmit={handleSubmit} className="p-6">
+                {/* Two Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left Column - Workspace Name and Description */}
+                  <div className="space-y-6">
+                    {/* Workspace Name */}
                     <div>
                       <label
-                        htmlFor="companyInfo.industry"
+                        htmlFor="name"
                         className="block text-sm font-medium text-gray-300 mb-2"
                       >
-                        Industry
+                        Workspace Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        id="companyInfo.industry"
-                        name="companyInfo.industry"
-                        value={formData.companyInfo.industry}
+                        id="name"
+                        name="name"
+                        value={formData.name}
                         onChange={handleChange}
-                        placeholder="e.g., Technology, Finance, Healthcare"
-                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                        placeholder="e.g., Acme Corporation"
+                        className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
                       />
                     </div>
 
-                    {/* Company Size */}
+                    {/* Description */}
                     <div>
                       <label
-                        htmlFor="companyInfo.size"
+                        htmlFor="description"
                         className="block text-sm font-medium text-gray-300 mb-2"
                       >
-                        Company Size
+                        Description
                       </label>
-                      <select
-                        id="companyInfo.size"
-                        name="companyInfo.size"
-                        value={formData.companyInfo.size}
+                      <textarea
+                        id="description"
+                        name="description"
+                        value={formData.description}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      >
-                        <option value="">Select size</option>
-                        <option value="1-10">1-10 employees</option>
-                        <option value="11-50">11-50 employees</option>
-                        <option value="51-200">51-200 employees</option>
-                        <option value="201-500">201-500 employees</option>
-                        <option value="500+">500+ employees</option>
-                      </select>
-                    </div>
-
-                    {/* Website */}
-                    <div>
-                      <label
-                        htmlFor="companyInfo.website"
-                        className="block text-sm font-medium text-gray-300 mb-2"
-                      >
-                        Website
-                      </label>
-                      <input
-                        type="url"
-                        id="companyInfo.website"
-                        name="companyInfo.website"
-                        value={formData.companyInfo.website}
-                        onChange={handleChange}
-                        placeholder="https://example.com"
-                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        rows={8}
+                        placeholder="Brief description of your workspace..."
+                        className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none backdrop-blur-sm"
                       />
+                    </div>
+                  </div>
+
+                  {/* Right Column - Company Information */}
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-4">
+                        Company Information (Optional)
+                      </h3>
+
+                      <div className="space-y-4">
+                        {/* Industry */}
+                        <div>
+                          <label
+                            htmlFor="companyInfo.industry"
+                            className="block text-sm font-medium text-gray-300 mb-2"
+                          >
+                            Industry
+                          </label>
+                          <input
+                            type="text"
+                            id="companyInfo.industry"
+                            name="companyInfo.industry"
+                            value={formData.companyInfo.industry}
+                            onChange={handleChange}
+                            placeholder="e.g., Technology, Finance, Healthcare"
+                            className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
+                          />
+                        </div>
+
+                        {/* Company Size */}
+                        <div>
+                          <label
+                            htmlFor="companyInfo.size"
+                            className="block text-sm font-medium text-gray-300 mb-2"
+                          >
+                            Company Size
+                          </label>
+                          <select
+                            id="companyInfo.size"
+                            name="companyInfo.size"
+                            value={formData.companyInfo.size}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
+                          >
+                            <option value="">Select size</option>
+                            <option value="1-10">1-10 employees</option>
+                            <option value="11-50">11-50 employees</option>
+                            <option value="51-200">51-200 employees</option>
+                            <option value="201-500">201-500 employees</option>
+                            <option value="500+">500+ employees</option>
+                          </select>
+                        </div>
+
+                        {/* Website */}
+                        <div>
+                          <label
+                            htmlFor="companyInfo.website"
+                            className="block text-sm font-medium text-gray-300 mb-2"
+                          >
+                            Website
+                          </label>
+                          <input
+                            type="url"
+                            id="companyInfo.website"
+                            name="companyInfo.website"
+                            value={formData.companyInfo.website}
+                            onChange={handleChange}
+                            placeholder="https://example.com"
+                            className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t border-gray-600">
+                {/* Actions - Bottom Right */}
+                <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-600 border-opacity-50">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex-1 px-6 py-3 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                    className="px-6 py-3 bg-gray-800 bg-opacity-50 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors backdrop-blur-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading || !formData.name}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                   >
                     {loading ? "Creating..." : "Create Workspace"}
                   </button>

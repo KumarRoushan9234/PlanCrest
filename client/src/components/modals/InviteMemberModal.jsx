@@ -58,7 +58,8 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black bg-opacity-20 z-50 backdrop-blur-md"
+            className="fixed inset-0 bg-black bg-opacity-30 z-50"
+            style={{ backdropFilter: "blur(12px)" }}
           />
 
           {/* Modal */}
@@ -69,8 +70,13 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <div
-              className="rounded-xl shadow-2xl border w-full max-w-4xl max-h-[70vh] overflow-y-auto scrollbar-hide"
-              style={{ backgroundColor: "#0a0a0a" }}
+              className="rounded-xl shadow-2xl border w-full max-w-5xl max-h-[75vh] overflow-y-auto scrollbar-hide"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(10, 10, 12, 0.92) 0%, rgba(5, 5, 8, 0.95) 50%, rgba(3, 3, 5, 0.92) 100%)",
+                backdropFilter: "blur(20px)",
+                borderColor: "rgba(255, 255, 255, 0.08)",
+              }}
             >
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-600">
@@ -117,7 +123,7 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
                       onChange={handleChange}
                       required
                       placeholder="colleague@example.com"
-                      className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className="w-full pl-10 pr-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
                     />
                   </div>
                 </div>
@@ -131,10 +137,10 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
                     {roles.map((role) => (
                       <label
                         key={role.value}
-                        className={`flex items-start p-4 border rounded-lg cursor-pointer transition-all ${
+                        className={`flex items-start p-4 border rounded-lg cursor-pointer transition-all backdrop-blur-sm ${
                           formData.role === role.value
                             ? "bg-blue-900 bg-opacity-30 border-blue-500"
-                            : "bg-gray-800 border-gray-700 hover:border-gray-600"
+                            : "bg-gray-800 bg-opacity-50 border-gray-700 hover:border-gray-600"
                         }`}
                       >
                         <input
@@ -176,7 +182,7 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
                     onChange={handleChange}
                     rows={3}
                     placeholder="Add a personal message to the invitation..."
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                    className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none backdrop-blur-sm"
                   />
                 </div>
 
@@ -189,18 +195,18 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t border-gray-600">
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-600 border-opacity-50">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex-1 px-6 py-3 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                    className="px-6 py-3 bg-gray-800 bg-opacity-50 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors backdrop-blur-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading || !formData.email}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                   >
                     {loading ? "Sending..." : "Send Invitation"}
                   </button>

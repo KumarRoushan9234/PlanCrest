@@ -141,15 +141,6 @@ function App() {
               />
 
               <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
                 path="/profile-settings"
                 element={
                   <ProtectedRoute>
