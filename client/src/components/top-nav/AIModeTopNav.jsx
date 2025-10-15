@@ -66,16 +66,16 @@ const AIModeTopNav = () => {
     >
       <div className="flex items-center justify-between">
         {/* Left Section - Main Navigation */}
-        <div className="flex items-center space-x-6">
-          {/* Page Title */}
-          <motion.div
+        <div className="flex items-center space-x-4">
+          {/* Page Title - Commented Out */}
+          {/* <motion.div
             className="flex items-center space-x-3"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
           >
             <h1 className="text-xl font-semibold text-white">AI Mode</h1>
-          </motion.div>
+          </motion.div> */}
 
           {/* Search Bar */}
           <motion.div

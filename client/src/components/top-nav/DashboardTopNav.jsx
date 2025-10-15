@@ -79,16 +79,18 @@ const DashboardTopNav = () => {
     >
       <div className="flex items-center justify-between">
         {/* Left Section - Main Navigation */}
-        <div className="flex items-center space-x-6">
-          {/* Page Title */}
-          <motion.div
-            className="flex items-center space-x-3"
+        <div className="flex items-center space-x-4">
+          {/* Breadcrumb Style Page Indicator - Commented Out */}
+          {/* <motion.div
+            className="flex items-center space-x-0.5"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <h1 className="text-xl font-semibold text-white">Home</h1>
-          </motion.div>
+            <span className="text-[10px] text-gray-500 font-normal">Home</span>
+            <div className="w-0.5 h-0.5 bg-gray-600 rounded-full"></div>
+            <span className="text-[10px] text-gray-600">Dashboard</span>
+          </motion.div> */}
 
           {/* Search Bar */}
           <motion.div
