@@ -1,0 +1,31 @@
+/z-docs
+client_Mangement.txt
+
+# Ignore documents
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.xls
+*.xlsx
+*.odt
+*.ods
+*.rtf
+*.txt
+
+# Ignore archives and media
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.mp4
+*.mov
+*.avi
+*.mp3
+*.wav
+*.jpg
+*.jpeg
+*.png
+*.svg
