@@ -547,7 +547,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
 
               {/* Integration Grid */}
               <div className="flex-1 p-3 overflow-hidden">
-                <div className="grid grid-cols-3 gap-3 h-full">
+                <div className="grid grid-cols-3 gap-x-2 gap-y-0.1 h-full">
                   {integrationItems.map((item, index) => {
                     const Icon = item.icon;
                     const isSelected = selectedButton === item.name;
