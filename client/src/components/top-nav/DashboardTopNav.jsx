@@ -78,64 +78,12 @@ const DashboardTopNav = () => {
       transition={{ duration: 0.3 }}
     >
       <div className="flex items-center justify-between">
-        {/* Left Section - Main Navigation */}
-        <div className="flex items-center space-x-4">
-          {/* Breadcrumb Style Page Indicator - Commented Out */}
-          {/* <motion.div
-            className="flex items-center space-x-0.5"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <span className="text-[10px] text-gray-500 font-normal">Home</span>
-            <div className="w-0.5 h-0.5 bg-gray-600 rounded-full"></div>
-            <span className="text-[10px] text-gray-600">Dashboard</span>
-          </motion.div> */}
-
-          {/* Search Bar */}
-          <motion.div
-            className="relative"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search in Home..."
-              className="pl-10 pr-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 w-64"
-            />
-          </motion.div>
-
-          {/* Quick Actions */}
-          <motion.div
-            className="flex items-center space-x-2"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <motion.button
-              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-purple-500/25 text-sm"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              >
-                <Plus className="w-4 h-4" />
-              </motion.div>
-              <span>Create New Task</span>
-            </motion.button>
-          </motion.div>
-        </div>
-
-        {/* Center Section - Navigation Items */}
+        {/* Left Section - Navigation Items */}
         <div className="flex items-center space-x-1">
           {/* Inbox */}
           <motion.button
             onClick={() => handleItemClick("inbox")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group relative ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group relative ${
               activeItem === "inbox"
                 ? "bg-gray-800 text-white"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -144,7 +92,7 @@ const DashboardTopNav = () => {
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.1 }}
           >
             <motion.div
               animate={{ rotate: [0, 5, -5, 0] }}
@@ -152,9 +100,9 @@ const DashboardTopNav = () => {
             >
               <Inbox className="w-4 h-4" />
             </motion.div>
-            <span className="font-medium text-sm">Inbox</span>
+            <span className="font-medium text-xs">Inbox</span>
             <motion.div
-              className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full"
+              className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full"
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
             >
@@ -165,7 +113,7 @@ const DashboardTopNav = () => {
           {/* Assigned Comments */}
           <motion.button
             onClick={() => handleItemClick("comments")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group ${
               activeItem === "comments"
                 ? "bg-gray-800 text-white"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -174,7 +122,7 @@ const DashboardTopNav = () => {
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.2 }}
           >
             <motion.div
               animate={{ rotate: [0, 5, -5, 0] }}
@@ -182,9 +130,9 @@ const DashboardTopNav = () => {
             >
               <MessageCircle className="w-4 h-4" />
             </motion.div>
-            <span className="font-medium text-sm">Assigned Comments</span>
+            <span className="font-medium text-xs">Comments</span>
             <motion.div
-              className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full"
+              className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full"
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 1, repeat: Infinity, repeatDelay: 3 }}
             >
@@ -196,7 +144,7 @@ const DashboardTopNav = () => {
           <div className="relative">
             <motion.button
               onClick={() => toggleSection("myTasks")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group ${
                 activeItem === "myTasks"
                   ? "bg-gray-800 text-white"
                   : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -205,7 +153,7 @@ const DashboardTopNav = () => {
               whileTap={{ scale: 0.98 }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
+              transition={{ delay: 0.3 }}
             >
               <motion.div
                 animate={{ rotate: [0, 5, -5, 0] }}
@@ -213,9 +161,9 @@ const DashboardTopNav = () => {
               >
                 <User className="w-4 h-4" />
               </motion.div>
-              <span className="font-semibold text-sm">My Tasks</span>
+              <span className="font-semibold text-xs">My Tasks</span>
               <motion.div
-                className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full"
+                className="bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full"
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ duration: 1, repeat: Infinity, repeatDelay: 4 }}
               >
@@ -225,7 +173,7 @@ const DashboardTopNav = () => {
                 animate={{ rotate: expandedSections.myTasks ? 180 : 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3" />
               </motion.div>
             </motion.button>
 
@@ -282,8 +230,69 @@ const DashboardTopNav = () => {
           {/* More Tools */}
           <motion.button
             onClick={() => handleItemClick("more")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group ${
               activeItem === "more"
+                ? "bg-gray-800 text-white"
+                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+            }`}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+            <span className="font-medium text-xs">More</span>
+          </motion.button>
+        </div>
+
+        {/* Center Section - Search Bar */}
+        <div className="flex items-center justify-center">
+          <motion.div
+            className="relative"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search in Home..."
+              className="pl-10 pr-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 w-80"
+            />
+          </motion.div>
+        </div>
+
+        {/* Right Section - Actions and Favorites */}
+        <div className="flex items-center space-x-4">
+          {/* Chat Button */}
+          <motion.button
+            onClick={() => handleItemClick("chat")}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group ${
+              activeItem === "chat"
+                ? "bg-gray-800 text-white"
+                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+            }`}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <motion.div
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 8 }}
+            >
+              <MessageCircle className="w-4 h-4" />
+            </motion.div>
+            <span className="font-medium text-xs">Chat</span>
+          </motion.button>
+
+          {/* Client Button */}
+          <motion.button
+            onClick={() => handleItemClick("client")}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group ${
+              activeItem === "client"
                 ? "bg-gray-800 text-white"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
             }`}
@@ -293,13 +302,37 @@ const DashboardTopNav = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
           >
-            <MoreHorizontal className="w-4 h-4" />
-            <span className="font-medium text-sm">More Tools</span>
+            <motion.div
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 9 }}
+            >
+              <Users className="w-4 h-4" />
+            </motion.div>
+            <span className="font-medium text-xs">Client</span>
           </motion.button>
-        </div>
 
-        {/* Right Section - Actions and Favorites */}
-        <div className="flex items-center space-x-4">
+          {/* Create New Task Button */}
+          <motion.div
+            className="flex items-center space-x-2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <motion.button
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-purple-500/25 text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+              >
+                <Plus className="w-4 h-4" />
+              </motion.div>
+              <span>Create New Task</span>
+            </motion.button>
+          </motion.div>
+
           {/* Favorites Dropdown */}
           <div className="relative">
             <motion.button
@@ -309,7 +342,7 @@ const DashboardTopNav = () => {
               whileTap={{ scale: 0.98 }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              transition={{ delay: 0.9 }}
             >
               <Star className="w-4 h-4 text-yellow-500" />
               <span className="font-medium text-sm">Favorites</span>
@@ -372,28 +405,17 @@ const DashboardTopNav = () => {
             </AnimatePresence>
           </div>
 
-          {/* Additional Actions */}
-          <motion.div
-            className="flex items-center space-x-2"
+          {/* Settings Button */}
+          <motion.button
+            className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200"
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            whileTap={{ scale: 0.9 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 }}
+            transition={{ delay: 1.0 }}
           >
-            <motion.button
-              className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <Bell className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <Settings className="w-4 h-4" />
-            </motion.button>
-          </motion.div>
+            <Settings className="w-4 h-4" />
+          </motion.button>
         </div>
       </div>
 
