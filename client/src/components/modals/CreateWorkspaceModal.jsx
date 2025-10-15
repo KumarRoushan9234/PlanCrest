@@ -114,9 +114,18 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Middle - Tagline */}
-                <div className="flex-1 flex justify-center px-4 -mt-2">
-                  <div className="bg-black px-6 py-2 rounded-lg border border-gray-600">
-                    <span className="text-sm text-white font-medium">
+                <div className="absolute inset-x-0 top-6 flex justify-center -translate-y-1/2 z-50">
+                  <div
+                    className="px-6 py-2 rounded-2xl border border-gray-600 backdrop-blur-sm"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(0,0,0,0.7), rgba(50,40,30,0.6), rgba(255,180,50,0.15))",
+                      color: "white",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                      backdropFilter: "blur(12px)",
+                    }}
+                  >
+                    <span className="text-sm font-medium">
                       Set up a new workspace for your team
                     </span>
                   </div>

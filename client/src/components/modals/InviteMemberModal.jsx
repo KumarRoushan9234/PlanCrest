@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mail, Shield, ChevronDown } from "lucide-react";
+import { X, Mail, Shield, ChevronDown, UserRound } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -33,6 +33,11 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
   };
 
   const roles = [
+    {
+      value: "member",
+      label: "Member",
+      description: "Basic access to workspace features",
+    },
     {
       value: "admin",
       label: "Admin",
@@ -123,19 +128,20 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
                     Role
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Shield className="h-4 w-4 text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                      <UserRound className="h-4 w-4 text-gray-300" />
                     </div>
                     <select
                       name="role"
                       value={formData.role}
                       onChange={handleChange}
-                      className="w-full pl-9 pr-10 py-2.5 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm text-sm appearance-none"
+                      className="w-full pl-9 pr-10 py-2.5 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm text-sm appearance-none relative"
                     >
-                      <option value="member">Member</option>
-                      <option value="admin">Admin</option>
-                      <option value="employee">Employee</option>
-                      <option value="client">Client</option>
+                      {roles.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label} - {role.description}
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <ChevronDown className="h-4 w-4 text-gray-400" />
