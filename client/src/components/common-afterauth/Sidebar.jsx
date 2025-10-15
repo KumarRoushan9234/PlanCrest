@@ -23,6 +23,16 @@ import {
   FileSpreadsheet,
   Grid3X3,
 } from "lucide-react";
+import {
+  FaGithub,
+  FaGoogle,
+  FaFigma,
+  FaSlack,
+  FaCalendarWeek,
+} from "react-icons/fa";
+import { BiLogoZoom } from "react-icons/bi";
+import { CiCloud } from "react-icons/ci";
+import { SiJfrogpipelines } from "react-icons/si";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
@@ -174,51 +184,51 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
 
   const integrationItems = [
     {
-      name: "Google Workspace",
+      name: "Google",
       href: "/integrations/google",
-      icon: FileSpreadsheet,
+      icon: FaGoogle,
       features: ["Gmail", "Drive", "Calendar", "Docs"],
     },
     {
-      name: "GitHub/GitLab",
+      name: "GitHub",
       href: "/integrations/git",
-      icon: Grid3X3,
+      icon: FaGithub,
       features: ["Repositories", "Issues", "Pull Requests", "CI/CD"],
     },
     {
       name: "Figma",
       href: "/integrations/figma",
-      icon: FileText,
+      icon: FaFigma,
       features: ["Design Files", "Prototypes", "Components", "Comments"],
     },
     {
       name: "Slack",
       href: "/integrations/slack",
-      icon: MessageSquareDot,
+      icon: FaSlack,
       features: ["Channels", "Messages", "Notifications", "Bots"],
     },
     {
       name: "Zoom",
       href: "/integrations/zoom",
-      icon: Video,
+      icon: BiLogoZoom,
       features: ["Meetings", "Webinars", "Recordings", "Settings"],
     },
     {
       name: "Cloud Storage",
       href: "/integrations/storage",
-      icon: Dock,
+      icon: CiCloud,
       features: ["Dropbox", "OneDrive", "Box", "Google Drive"],
     },
     {
       name: "CI/CD",
       href: "/integrations/cicd",
-      icon: Blocks,
+      icon: SiJfrogpipelines,
       features: ["Jenkins", "GitHub Actions", "GitLab CI", "Azure DevOps"],
     },
     {
       name: "Calendar",
       href: "/integrations/calendar",
-      icon: CalendarFold,
+      icon: FaCalendarWeek,
       features: ["Google Calendar", "Outlook", "Apple Calendar", "Calendly"],
     },
   ];
@@ -513,51 +523,46 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
       <AnimatePresence>
         {isIntegrationOpen && (
           <motion.div
-            className="fixed top-5 left-20 bottom-5 w-72 z-50 rounded-2xl overflow-hidden md:block"
-            style={{ backgroundColor: "#0d0d0e" }}
-            initial={{ opacity: 0, x: -300, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -300, scale: 0.9 }}
+            className="fixed left-17 bottom-17 w-90 z-50 rounded-2xl overflow-hidden md:block"
+            style={{
+              backgroundColor: "#0d0d0e",
+              height: "450px",
+              top: "auto",
+            }}
+            initial={{ opacity: 0, y: 300, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 300, scale: 0.9 }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
           >
             <div className="flex flex-col h-full">
               {/* Header */}
-              <div className="p-4 border-b border-gray-700">
-                <div className="flex items-center gap-3">
-                  <motion.div
-                    className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center"
-                    whileHover={{ rotate: 360 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Blocks className="w-4 h-4 text-white" />
-                  </motion.div>
-                  <div>
-                    <h2 className="text-base font-semibold text-white">
-                      Integrations
-                    </h2>
-                    <p className="text-xs text-gray-400">Connect your tools</p>
-                  </div>
+              <div className="p-4 border-b border-gray-800">
+                <div className="">
+                  <h2 className="text-base font-semibold text-white">
+                    Integrations
+                  </h2>
+                  <p className="text-xs text-gray-400">Connect your tools</p>
                 </div>
               </div>
 
               {/* Integration Grid */}
-              <div className="flex-1 overflow-y-auto p-3">
-                <div className="grid grid-cols-3 gap-3">
+              <div className="flex-1 p-3 overflow-hidden">
+                <div className="grid grid-cols-3 gap-3 h-full">
                   {integrationItems.map((item, index) => {
                     const Icon = item.icon;
                     const isSelected = selectedButton === item.name;
 
-                    // Professional brand colors for each integration
+                    // Vibrant brand colors for each integration
                     const getBrandColor = (name) => {
                       const colors = {
-                        "Google Workspace": "bg-blue-500",
-                        "GitHub/GitLab": "bg-gray-600",
-                        Figma: "bg-purple-500",
-                        Slack: "bg-green-500",
-                        Zoom: "bg-blue-600",
-                        "Cloud Storage": "bg-indigo-500",
-                        "CI/CD": "bg-orange-500",
-                        Calendar: "bg-green-600",
+                        "Google Workspace": "bg-red-500",
+                        GitHub: "bg-gray-800",
+                        Figma: "bg-purple-600",
+                        Slack: "bg-green-600",
+                        Zoom: "bg-blue-500",
+                        "Cloud Storage": "bg-indigo-600",
+                        "CI/CD": "bg-orange-600",
+                        Calendar: "bg-blue-600",
                       };
                       return colors[name] || "bg-gray-600";
                     };
@@ -579,15 +584,15 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                       >
                         <motion.button
                           onClick={() => handleButtonClick(item)}
-                          className={`w-full p-3 rounded-lg transition-all duration-300 ${
+                          className={`w-full p-2 rounded-lg transition-all duration-300 ${
                             isSelected
                               ? "bg-gray-800 border border-blue-500 shadow-lg shadow-blue-500/20"
                               : "bg-gray-800/30 hover:bg-gray-700/50"
                           }`}
                         >
-                          <div className="flex flex-col items-center gap-2">
+                          <div className="flex flex-col items-center gap-1">
                             <motion.div
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                                 isSelected
                                   ? getBrandColor(item.name)
                                   : "bg-gray-700"
@@ -595,9 +600,9 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                               whileHover={{ rotate: 5 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <Icon className="w-5 h-5 text-white" />
+                              <Icon className="w-4 h-4 text-white" />
                             </motion.div>
-                            <h3 className="text-xs font-medium text-white text-center leading-tight">
+                            <h3 className="text-[10px] font-medium text-white text-center leading-tight">
                               {item.name}
                             </h3>
                           </div>
@@ -622,18 +627,6 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Footer */}
-              <div className="p-3 border-t border-gray-700">
-                <motion.button
-                  className="w-full flex items-center gap-2 py-2 px-3 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-all duration-300"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Settings className="w-4 h-4" />
-                  Customize integrations
-                </motion.button>
               </div>
             </div>
           </motion.div>
