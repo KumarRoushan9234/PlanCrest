@@ -20,7 +20,7 @@ import RegisterPage from "./pages/RegisterPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import UserDashboard from "./pages/UserDashboard";
+import Dashboard from "./pages/Dashboard";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
 import AIModePage from "./pages/AIModePage";
 import CalendarPage from "./pages/CalendarPage";
@@ -134,7 +134,7 @@ function App() {
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <UserDashboard />
+                    <Dashboard />
                   </ProtectedRoute>
                 }
               />

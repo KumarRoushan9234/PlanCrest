@@ -23,7 +23,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-const UserDashboard = () => {
+const Dashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
@@ -163,7 +163,7 @@ const UserDashboard = () => {
   return (
     <Layout>
       <div
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
         style={{ backgroundColor: "#171819" }}
       >
         {/* Welcome Section */}
@@ -371,4 +371,4 @@ const UserDashboard = () => {
   );
 };
 
-export default UserDashboard;
+export default Dashboard;

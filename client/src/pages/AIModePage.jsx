@@ -4,9 +4,7 @@ import Layout from "../components/common-afterauth/Layout";
 const AIModePage = () => {
   return (
     <Layout>
-      <div className="min-h-screen" style={{ backgroundColor: "#171819" }}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-white mb-2">AI Mode</h1>
@@ -134,8 +132,6 @@ const AIModePage = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
       </div>
     </Layout>
   );

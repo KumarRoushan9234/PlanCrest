@@ -36,74 +36,37 @@ import { SiJfrogpipelines } from "react-icons/si";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
-import {
-  DashboardSidebar,
-  CalendarSidebar,
-  AIModeSidebar,
-} from "./page-sidebars";
+// Page sidebars removed - now using top navigation
 import InviteMemberModal from "../modals/InviteMemberModal";
 
 const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isIntegrationOpen, setIsIntegrationOpen] = useState(false);
-  const [isSecondarySidebarOpen, setIsSecondarySidebarOpen] = useState(false);
-  const [activePage, setActivePage] = useState(null);
   const [selectedButton, setSelectedButton] = useState("Home");
   const [wasSidebarOpenBeforeIntegration, setWasSidebarOpenBeforeIntegration] =
     useState(false);
+  const [tappedButton, setTappedButton] = useState(null);
   const { currentUser } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Initialize page sidebar based on current route
+  // Initialize selected button based on current route
   useEffect(() => {
     const currentPath = location.pathname;
     const pageMap = {
-      "/dashboard": {
-        name: "Home",
-        href: "/dashboard",
-        icon: House,
-        features: [],
-      },
-      "/documents": {
-        name: "Documents",
-        href: "/documents",
-        icon: Dock,
-        features: [],
-      },
-      "/calendar": {
-        name: "Calendar",
-        href: "/calendar",
-        icon: CalendarFold,
-        features: [],
-      },
-      "/ai-mode": {
-        name: "AI Mode",
-        href: "/ai-mode",
-        icon: Container,
-        features: [],
-      },
-      "/chat": {
-        name: "Chat Channel",
-        href: "/chat",
-        icon: MessageSquareDot,
-        features: [],
-      },
-      "/analytics": {
-        name: "Analytics",
-        href: "/analytics",
-        icon: ChartBarBig,
-        features: [],
-      },
+      "/dashboard": "Home",
+      "/documents": "Documents",
+      "/calendar": "Calendar",
+      "/ai-mode": "AI Mode",
+      "/chat": "Chat Channel",
+      "/analytics": "Analytics",
     };
 
-    const currentPage = pageMap[currentPath];
-    if (currentPage) {
-      setActivePage(currentPage);
-      setSelectedButton(currentPage.name);
-      setIsSecondarySidebarOpen(true);
+    const currentPageName = pageMap[currentPath];
+    if (currentPageName) {
+      setSelectedButton(currentPageName);
     }
   }, [location.pathname]);
 
@@ -234,9 +197,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
   ];
 
   const handleButtonClick = (item) => {
-    setActivePage(item);
     setSelectedButton(item.name);
-    setIsSecondarySidebarOpen(true);
     navigate(item.href);
     // Close mobile sidebar when navigating (only on mobile screens)
     if (window.innerWidth < 768) {
@@ -244,31 +205,23 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
     }
   };
 
-  const renderPageSidebar = () => {
-    if (!isSecondarySidebarOpen || !activePage) return null;
-
-    switch (activePage.name) {
-      case "Home":
-        return <DashboardSidebar onClose={closeSecondarySidebar} />;
-      case "Calendar":
-        return <CalendarSidebar onClose={closeSecondarySidebar} />;
-      case "AI Mode":
-        return <AIModeSidebar onClose={closeSecondarySidebar} />;
-      default:
-        return null;
+  const handleMobileTap = (buttonName) => {
+    if (window.innerWidth < 768) {
+      setTappedButton(buttonName);
+      // Hide tooltip after 2 seconds
+      setTimeout(() => {
+        setTappedButton(null);
+      }, 2000);
     }
   };
 
-  const closeSecondarySidebar = () => {
-    setIsSecondarySidebarOpen(false);
-    setActivePage(null);
-  };
+  // Page sidebar functionality removed - now using top navigation
 
   return (
     <>
       {/* Main Sidebar */}
       <motion.div
-        className="fixed top-5 left-0.6 bottom-0.5 z-40 rounded-lg"
+        className="fixed top-5 left-0.6 bottom-0.5 z-20 rounded-lg"
         style={{
           backgroundColor: "#0d0d0e",
           width: "64px",
@@ -318,7 +271,10 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                     transition={{ delay: index * 0.1, duration: 0.3 }}
                   >
                     <motion.button
-                      onClick={() => handleButtonClick(item)}
+                      onClick={() => {
+                        handleButtonClick(item);
+                        handleMobileTap(item.name);
+                      }}
                       className={`flex items-center justify-center text-sm font-medium rounded-xl transition-colors ${
                         isSelected
                           ? "bg-gray-900 text-white shadow-lg border border-gray-700"
@@ -341,7 +297,15 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                     </motion.button>
 
                     {/* Tooltip */}
-                    <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
+                    <div
+                      className={`absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] ${
+                        window.innerWidth >= 768
+                          ? "opacity-0 group-hover:opacity-100"
+                          : tappedButton === item.name
+                          ? "opacity-100"
+                          : "opacity-0"
+                      }`}
+                    >
                       {item.name}
                       <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
                     </div>
@@ -376,6 +340,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                       }
                     }
                     setIsIntegrationOpen(!isIntegrationOpen);
+                    handleMobileTap("Integration");
                   }}
                   className="flex items-center justify-center text-sm font-medium rounded-xl transition-colors text-gray-500 hover:bg-gray-700 hover:text-white"
                   style={{ width: "56px", height: "48px", margin: "0 auto" }}
@@ -391,7 +356,15 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                 </motion.button>
 
                 {/* Tooltip */}
-                <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
+                <div
+                  className={`absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] ${
+                    window.innerWidth >= 768
+                      ? "opacity-0 group-hover:opacity-100"
+                      : tappedButton === "Integration"
+                      ? "opacity-100"
+                      : "opacity-0"
+                  }`}
+                >
                   Integration
                   <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
                 </div>
@@ -418,6 +391,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                   if (window.innerWidth < 768) {
                     setIsMobileSidebarOpen(false);
                   }
+                  handleMobileTap("Settings");
                 }}
                 className="flex items-center justify-center text-sm font-medium rounded-xl transition-colors text-gray-500 hover:bg-gray-700 hover:text-white"
                 style={{ width: "56px", height: "48px", margin: "0 auto" }}
@@ -428,7 +402,15 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
               </motion.button>
 
               {/* Tooltip */}
-              <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
+              <div
+                className={`absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] ${
+                  window.innerWidth >= 768
+                    ? "opacity-0 group-hover:opacity-100"
+                    : tappedButton === "Settings"
+                    ? "opacity-100"
+                    : "opacity-0"
+                }`}
+              >
                 Settings
                 <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
               </div>
@@ -442,7 +424,10 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
               transition={{ delay: 0.5, duration: 0.3 }}
             >
               <motion.button
-                onClick={() => setIsInviteOpen(true)}
+                onClick={() => {
+                  setIsInviteOpen(true);
+                  handleMobileTap("Invite");
+                }}
                 className="flex items-center justify-center text-sm font-medium rounded-xl transition-colors text-gray-500 hover:bg-gray-700 hover:text-white"
                 style={{ width: "56px", height: "48px", margin: "0 auto" }}
                 whileHover={{ scale: 1.05 }}
@@ -452,7 +437,15 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
               </motion.button>
 
               {/* Tooltip */}
-              <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
+              <div
+                className={`absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] ${
+                  window.innerWidth >= 768
+                    ? "opacity-0 group-hover:opacity-100"
+                    : tappedButton === "Invite"
+                    ? "opacity-100"
+                    : "opacity-0"
+                }`}
+              >
                 Invite
                 <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
               </div>
@@ -466,7 +459,10 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
               transition={{ delay: 0.6, duration: 0.3 }}
             >
               <motion.button
-                onClick={() => setIsUpgradeOpen(!isUpgradeOpen)}
+                onClick={() => {
+                  setIsUpgradeOpen(!isUpgradeOpen);
+                  handleMobileTap("Upgrade");
+                }}
                 className="flex items-center justify-center text-sm font-medium rounded-xl transition-colors text-gray-500 hover:bg-gray-700 hover:text-white"
                 style={{ width: "56px", height: "48px", margin: "0 auto" }}
                 whileHover={{ scale: 1.05 }}
@@ -476,7 +472,15 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
               </motion.button>
 
               {/* Tooltip */}
-              <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999]">
+              <div
+                className={`absolute left-full ml-3 top-1/2 transform -translate-y-1/2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] ${
+                  window.innerWidth >= 768
+                    ? "opacity-0 group-hover:opacity-100"
+                    : tappedButton === "Upgrade"
+                    ? "opacity-100"
+                    : "opacity-0"
+                }`}
+              >
                 Upgrade
                 <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
               </div>
@@ -633,19 +637,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
         )}
       </AnimatePresence>
 
-      {/* Page-Specific Sidebar */}
-      <AnimatePresence>
-        {isSecondarySidebarOpen && activePage && (
-          <motion.div
-            initial={{ opacity: 0, x: -300 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -300 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            {renderPageSidebar()}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Page-Specific Sidebar removed - now using top navigation */}
 
       {/* Click outside to close popups */}
       <AnimatePresence>

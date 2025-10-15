@@ -86,7 +86,12 @@ const InviteMemberModal = ({ isOpen, onClose }) => {
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-600">
-                <h2 className="text-lg font-bold text-white">Invite Member</h2>
+                <h2 className="text-lg font-bold text-white">
+                  Invite people to{" "}
+                  <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    {currentWorkspace?.name || "Workspace"}
+                  </span>
+                </h2>
                 <button
                   onClick={onClose}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
