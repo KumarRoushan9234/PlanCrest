@@ -24,6 +24,7 @@ import Dashboard from "./pages/Dashboard";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
 import AIModePage from "./pages/AIModePage";
 import CalendarPage from "./pages/CalendarPage";
+import InvitationHandler from "./components/InvitationHandler";
 
 // Public Route Component (redirects to dashboard if already authenticated)
 const PublicRoute = ({ children }) => {
@@ -165,6 +166,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              {/* Invitation Route */}
+              <Route path="/invite/:token" element={<InvitationHandler />} />
 
               {/* Catch all route */}
               <Route path="*" element={<Navigate to="/" replace />} />

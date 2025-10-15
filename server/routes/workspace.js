@@ -15,6 +15,8 @@ import {
   getWorkspaceInvitations,
   respondToInvitation,
   getLastSelected,
+  getInvitationDetails,
+  acceptInvitation,
 } from "../controllers/workspace.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -105,6 +107,20 @@ router.get(
   "/last-selected",
   requireSignin,
   getLastSelected,
+  handleAuthError
+);
+
+// Invitation routes (public endpoints)
+router.get(
+  "/invitations/details/:token",
+  getInvitationDetails,
+  handleAuthError
+);
+
+router.post(
+  "/invitations/accept/:token",
+  requireSignin,
+  acceptInvitation,
   handleAuthError
 );
 

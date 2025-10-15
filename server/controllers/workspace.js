@@ -696,6 +696,205 @@ export const getLastSelected = async (req, res) => {
   }
 };
 
+/**
+ * Get invitation details by token (public endpoint)
+ */
+export const getInvitationDetails = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Find invitation
+    const invitation = await WorkspaceInvitation.findOne({ token })
+      .populate("workspace", "name description slug")
+      .populate("invitedBy", "name email");
+
+    if (!invitation) {
+      return res.status(404).json({ error: "Invitation not found" });
+    }
+
+    if (invitation.status !== "pending") {
+      return res.status(400).json({ 
+        error: `Invitation already ${invitation.status}`,
+        status: invitation.status 
+      });
+    }
+
+    if (new Date() > invitation.expiresAt) {
+      invitation.status = "expired";
+      await invitation.save();
+      return res.status(400).json({ error: "Invitation has expired" });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        invitation: {
+          _id: invitation._id,
+          email: invitation.email,
+          role: invitation.role,
+          message: invitation.message,
+          expiresAt: invitation.expiresAt,
+          workspace: invitation.workspace,
+          invitedBy: invitation.invitedBy
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching invitation details:", error);
+    res.status(500).json({ error: "Failed to fetch invitation details" });
+  }
+};
+
+/**
+ * Accept invitation by token (public endpoint)
+ */
+export const acceptInvitation = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const userId = req.auth._id;
+
+    // Find invitation
+    const invitation = await WorkspaceInvitation.findOne({ token });
+
+    if (!invitation) {
+      return res.status(404).json({ error: "Invitation not found" });
+    }
+
+    if (invitation.status !== "pending") {
+      return res.status(400).json({ 
+        error: `Invitation already ${invitation.status}`,
+        status: invitation.status 
+      });
+    }
+
+    if (new Date() > invitation.expiresAt) {
+      invitation.status = "expired";
+      await invitation.save();
+      return res.status(400).json({ error: "Invitation has expired" });
+    }
+
+    // Verify user email matches invitation
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (user.email !== invitation.email) {
+      return res.status(403).json({ 
+        error: "This invitation is not for you",
+        invitedEmail: invitation.email,
+        yourEmail: user.email
+      });
+    }
+
+    // Verify workspace exists
+    const workspace = await Workspace.findById(invitation.workspace);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    // Check if user is already a member
+    const existingMember = await WorkspaceMember.findOne({
+      workspace: invitation.workspace,
+      user: userId,
+    });
+
+    if (existingMember) {
+      if (existingMember.status === "active") {
+        // Update invitation status but don't create duplicate member
+        invitation.status = "accepted";
+        invitation.acceptedBy = userId;
+        invitation.acceptedAt = new Date();
+        await invitation.save();
+
+        return res.json({
+          success: true,
+          message: "You are already a member of this workspace",
+          data: { 
+            workspaceId: invitation.workspace,
+            workspace: {
+              _id: workspace._id,
+              name: workspace.name,
+              slug: workspace.slug
+            }
+          },
+        });
+      } else if (existingMember.status === "removed") {
+        // Reactivate removed member
+        existingMember.status = "active";
+        existingMember.role = invitation.role;
+        existingMember.joinedAt = new Date();
+        existingMember.invitedBy = invitation.invitedBy;
+        await existingMember.save();
+
+        invitation.status = "accepted";
+        invitation.acceptedBy = userId;
+        invitation.acceptedAt = new Date();
+        await invitation.save();
+
+        return res.json({
+          success: true,
+          message: "Invitation accepted successfully. Your membership has been reactivated.",
+          data: { 
+            workspaceId: invitation.workspace,
+            workspace: {
+              _id: workspace._id,
+              name: workspace.name,
+              slug: workspace.slug
+            },
+            member: existingMember
+          },
+        });
+      }
+    }
+
+    // Create new workspace member
+    const member = new WorkspaceMember({
+      workspace: invitation.workspace,
+      user: userId,
+      role: invitation.role,
+      invitedBy: invitation.invitedBy,
+      status: "active",
+      joinedAt: new Date(),
+    });
+
+    await member.save();
+
+    // Update invitation status
+    invitation.status = "accepted";
+    invitation.acceptedBy = userId;
+    invitation.acceptedAt = new Date();
+    await invitation.save();
+
+    // Update user's last selected workspace
+    await updateLastSelectedWorkspace(userId, {
+      id: workspace._id,
+      name: workspace.name,
+    });
+
+    res.json({
+      success: true,
+      message: "Invitation accepted successfully",
+      data: { 
+        workspaceId: invitation.workspace,
+        workspace: {
+          _id: workspace._id,
+          name: workspace.name,
+          slug: workspace.slug
+        },
+        member: {
+          _id: member._id,
+          role: member.role,
+          joinedAt: member.joinedAt
+        }
+      },
+    });
+  } catch (error) {
+    console.error("Error accepting invitation:", error);
+    res.status(500).json({ error: "Failed to accept invitation" });
+  }
+};
+
 export default {
   createWorkspace,
   getUserWorkspaces,

@@ -142,6 +142,24 @@ export const workspaceService = {
       throw error.response?.data || error;
     }
   },
+
+  acceptInvitation: async (token) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/invitations/accept/${token}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  getInvitationDetails: async (token) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/invitations/details/${token}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
 };
 
 export default workspaceService;

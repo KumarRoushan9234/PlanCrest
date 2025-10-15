@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { workspaceService } from "../services/workspaceService";
 import toast from "react-hot-toast";
 import { useAuth } from "./AuthContext";
@@ -32,15 +38,15 @@ export const WorkspaceProvider = ({ children }) => {
     }
   }, [currentWorkspace?._id]);
 
-  const fetchUserWorkspaces = async () => {
+  const fetchUserWorkspaces = useCallback(async () => {
     try {
       setLoading(true);
       const response = await workspaceService.getUserWorkspaces();
       setWorkspaces(response.data || []);
 
       // Set first workspace as current if no current workspace
-      if (!currentWorkspace && response.data && response.data.length > 0) {
-        setCurrentWorkspace(response.data[0]);
+      if (response.data && response.data.length > 0) {
+        setCurrentWorkspace((prev) => prev || response.data[0]);
       }
     } catch (error) {
       console.error("Error fetching workspaces:", error);
@@ -48,7 +54,7 @@ export const WorkspaceProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array to prevent infinite loops
 
   const createWorkspace = async (workspaceData) => {
     try {
@@ -219,6 +225,42 @@ export const WorkspaceProvider = ({ children }) => {
     }
   };
 
+  const acceptInvitation = useCallback(
+    async (token) => {
+      try {
+        setLoading(true);
+        const response = await workspaceService.acceptInvitation(token);
+
+        // Refresh workspaces after accepting invitation
+        await fetchUserWorkspaces();
+
+        toast.success("Successfully joined the workspace!");
+        return response;
+      } catch (error) {
+        console.error("Error accepting invitation:", error);
+        toast.error(error.error || "Failed to accept invitation");
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchUserWorkspaces]
+  ); // Include fetchUserWorkspaces since it's used inside
+
+  const getInvitationDetails = useCallback(async (token) => {
+    try {
+      setLoading(true);
+      const response = await workspaceService.getInvitationDetails(token);
+      return response;
+    } catch (error) {
+      console.error("Error fetching invitation details:", error);
+      toast.error(error.error || "Failed to fetch invitation details");
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []); // Empty dependency array to prevent infinite loops
+
   const value = {
     workspaces,
     currentWorkspace,
@@ -234,6 +276,8 @@ export const WorkspaceProvider = ({ children }) => {
     addWorkspaceMember,
     removeWorkspaceMember,
     updateWorkspaceMember,
+    acceptInvitation,
+    getInvitationDetails,
   };
 
   return (

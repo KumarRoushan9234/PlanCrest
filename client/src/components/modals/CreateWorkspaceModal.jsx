@@ -4,7 +4,7 @@ import { X, Building2, Upload } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useAuth } from "../../contexts/AuthContext";
 
-const CreateWorkspaceModal = ({ isOpen, onClose }) => {
+const CreateWorkspaceModal = ({ isOpen, onClose, onSuccess }) => {
   const { createWorkspace, loading } = useWorkspace();
   const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
@@ -22,6 +22,10 @@ const CreateWorkspaceModal = ({ isOpen, onClose }) => {
     try {
       await createWorkspace(formData);
       onClose();
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
       // Reset form
       setFormData({
         name: "",

@@ -1,7 +1,8 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import LoadingSpinner from './LoadingSpinner';
+import React from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import LoadingSpinner from "./LoadingSpinner";
+import WorkspaceGuard from "./WorkspaceGuard";
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -14,11 +15,11 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requireAdmin && (!user?.role?.includes('admin'))) {
+  if (requireAdmin && !user?.role?.includes("admin")) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return children;
+  return <WorkspaceGuard>{children}</WorkspaceGuard>;
 };
 
 export default ProtectedRoute;
