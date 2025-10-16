@@ -20,8 +20,9 @@ import {
   Bell,
   Settings,
 } from "lucide-react";
+import ProjectSelector from "./ProjectSelector";
 
-const DashboardTopNav = () => {
+const DashboardTopNav = ({ onCreateProject }) => {
   const [expandedSections, setExpandedSections] = useState({
     myTasks: false,
     spaces: false,
@@ -310,6 +311,9 @@ const DashboardTopNav = () => {
             </motion.div>
             <span className="font-medium text-xs">Client</span>
           </motion.button>
+
+          {/* Project Selector */}
+          <ProjectSelector onCreateProject={onCreateProject} />
 
           {/* Create New Task Button */}
           <motion.div

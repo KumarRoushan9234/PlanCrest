@@ -17,6 +17,8 @@ import {
   createColumn,
   updateColumn,
   deleteColumn,
+  getPreMadeProjects,
+  createProjectFromTemplate,
 } from "../controllers/project.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -136,6 +138,21 @@ router.delete(
   "/columns/:columnId",
   requireSignin,
   deleteColumn,
+  handleAuthError
+);
+
+// Pre-made projects and templates
+router.get(
+  "/templates",
+  requireSignin,
+  getPreMadeProjects,
+  handleAuthError
+);
+router.post(
+  "/workspaces/:workspaceId/projects/template",
+  requireSignin,
+  requireWorkspaceMember,
+  createProjectFromTemplate,
   handleAuthError
 );
 

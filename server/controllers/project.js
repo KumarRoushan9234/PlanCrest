@@ -628,6 +628,405 @@ export const deleteColumn = async (req, res) => {
   }
 };
 
+/**
+ * Get pre-made project templates
+ */
+export const getPreMadeProjects = async (req, res) => {
+  try {
+    const preMadeProjects = [
+      {
+        name: "Web Development",
+        key: "WEB",
+        description: "Complete web application development project with frontend and backend components",
+        icon: "🌐",
+        color: "#3b82f6",
+        privacy: "public",
+        settings: {
+          defaultView: "kanban",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: true,
+            notifyOnTaskDue: true,
+          },
+        },
+        template: true,
+      },
+      {
+        name: "Mobile App",
+        key: "MOBILE",
+        description: "Mobile application development for iOS and Android platforms",
+        icon: "📱",
+        color: "#10b981",
+        privacy: "public",
+        settings: {
+          defaultView: "kanban",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: false,
+          },
+          automations: {
+            autoAssignOnCreate: true,
+            autoMoveOnComplete: true,
+            notifyOnTaskDue: true,
+          },
+        },
+        template: true,
+      },
+      {
+        name: "Marketing Campaign",
+        key: "MARKET",
+        description: "Digital marketing campaign with content creation and social media management",
+        icon: "📢",
+        color: "#f59e0b",
+        privacy: "public",
+        settings: {
+          defaultView: "calendar",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: false,
+            notifyOnTaskDue: true,
+          },
+        },
+        template: true,
+      },
+      {
+        name: "Product Design",
+        key: "DESIGN",
+        description: "UI/UX design project with user research and prototyping phases",
+        icon: "🎨",
+        color: "#8b5cf6",
+        privacy: "public",
+        settings: {
+          defaultView: "kanban",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: true,
+            autoMoveOnComplete: false,
+            notifyOnTaskDue: true,
+          },
+        },
+        template: true,
+      },
+      {
+        name: "Data Analysis",
+        key: "DATA",
+        description: "Data science project with collection, analysis, and visualization",
+        icon: "📊",
+        color: "#ef4444",
+        privacy: "public",
+        settings: {
+          defaultView: "list",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: false,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: true,
+            notifyOnTaskDue: true,
+          },
+        },
+        template: true,
+      },
+      {
+        name: "Content Creation",
+        key: "CONTENT",
+        description: "Content marketing project with blog posts, videos, and social media content",
+        icon: "✍️",
+        color: "#06b6d4",
+        privacy: "public",
+        settings: {
+          defaultView: "calendar",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: false,
+            notifyOnTaskDue: true,
+          },
+        },
+        template: true,
+      },
+    ];
+
+    res.json({
+      success: true,
+      message: "Pre-made projects fetched successfully",
+      data: preMadeProjects,
+    });
+  } catch (error) {
+    console.error("Error fetching pre-made projects:", error);
+    res.status(500).json({ error: "Failed to fetch pre-made projects" });
+  }
+};
+
+/**
+ * Create project from template
+ */
+export const createProjectFromTemplate = async (req, res) => {
+  try {
+    const { templateId, name, key, description, icon, color, privacy, lead } = req.body;
+    const { workspaceId } = req.params;
+    const userId = req.auth._id;
+    const workspace = req.workspace;
+
+    // Pre-made project templates
+    const templates = {
+      WEB: {
+        name: "Web Development",
+        key: "WEB",
+        description: "Complete web application development project with frontend and backend components",
+        icon: "🌐",
+        color: "#3b82f6",
+        privacy: "public",
+        settings: {
+          defaultView: "kanban",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: true,
+            notifyOnTaskDue: true,
+          },
+        },
+      },
+      MOBILE: {
+        name: "Mobile App",
+        key: "MOBILE",
+        description: "Mobile application development for iOS and Android platforms",
+        icon: "📱",
+        color: "#10b981",
+        privacy: "public",
+        settings: {
+          defaultView: "kanban",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: false,
+          },
+          automations: {
+            autoAssignOnCreate: true,
+            autoMoveOnComplete: true,
+            notifyOnTaskDue: true,
+          },
+        },
+      },
+      MARKET: {
+        name: "Marketing Campaign",
+        key: "MARKET",
+        description: "Digital marketing campaign with content creation and social media management",
+        icon: "📢",
+        color: "#f59e0b",
+        privacy: "public",
+        settings: {
+          defaultView: "calendar",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: false,
+            notifyOnTaskDue: true,
+          },
+        },
+      },
+      DESIGN: {
+        name: "Product Design",
+        key: "DESIGN",
+        description: "UI/UX design project with user research and prototyping phases",
+        icon: "🎨",
+        color: "#8b5cf6",
+        privacy: "public",
+        settings: {
+          defaultView: "kanban",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: true,
+            autoMoveOnComplete: false,
+            notifyOnTaskDue: true,
+          },
+        },
+      },
+      DATA: {
+        name: "Data Analysis",
+        key: "DATA",
+        description: "Data science project with collection, analysis, and visualization",
+        icon: "📊",
+        color: "#ef4444",
+        privacy: "public",
+        settings: {
+          defaultView: "list",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: false,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: true,
+            notifyOnTaskDue: true,
+          },
+        },
+      },
+      CONTENT: {
+        name: "Content Creation",
+        key: "CONTENT",
+        description: "Content marketing project with blog posts, videos, and social media content",
+        icon: "✍️",
+        color: "#06b6d4",
+        privacy: "public",
+        settings: {
+          defaultView: "calendar",
+          features: {
+            chat: true,
+            documentation: true,
+            timeTracking: true,
+            clientPortal: true,
+          },
+          automations: {
+            autoAssignOnCreate: false,
+            autoMoveOnComplete: false,
+            notifyOnTaskDue: true,
+          },
+        },
+      },
+    };
+
+    const template = templates[templateId];
+    if (!template) {
+      return res.status(400).json({ error: "Invalid template ID" });
+    }
+
+    // Use provided values or fall back to template values
+    const projectData = {
+      name: name || template.name,
+      key: key || template.key,
+      description: description || template.description,
+      icon: icon || template.icon,
+      color: color || template.color,
+      privacy: privacy || template.privacy,
+      settings: template.settings,
+      workspace: workspaceId,
+      createdBy: userId,
+      lead: lead || userId,
+    };
+
+    // Check if key already exists in workspace
+    const existingProject = await Project.findOne({
+      workspace: workspaceId,
+      key: projectData.key.toUpperCase(),
+    });
+
+    if (existingProject) {
+      return res.status(400).json({ error: "Project key already exists in this workspace" });
+    }
+
+    // Create project
+    const project = new Project(projectData);
+    await project.save();
+
+    // Add creator as project admin
+    const projectMember = new ProjectMember({
+      project: project._id,
+      user: userId,
+      role: "admin",
+      addedBy: userId,
+    });
+
+    await projectMember.save();
+
+    // Create default board with columns
+    const board = new Board({
+      name: "Main Board",
+      project: project._id,
+      isDefault: true,
+      createdBy: userId,
+    });
+
+    await board.save();
+
+    // Create default columns
+    const defaultColumns = [
+      { name: "Backlog", type: "backlog", position: 0, color: "#94a3b8" },
+      { name: "To Do", type: "todo", position: 1, color: "#3b82f6" },
+      { name: "In Progress", type: "in_progress", position: 2, color: "#f59e0b" },
+      { name: "In Review", type: "review", position: 3, color: "#8b5cf6" },
+      { name: "Done", type: "done", position: 4, color: "#10b981" },
+    ];
+
+    const columnPromises = defaultColumns.map(col =>
+      new Column({
+        name: col.name,
+        board: board._id,
+        project: project._id,
+        position: col.position,
+        type: col.type,
+        color: col.color,
+      }).save()
+    );
+
+    await Promise.all(columnPromises);
+
+    // Update user's last selected project
+    await updateLastSelectedProject(userId, {
+      id: project._id,
+      name: project.name,
+      workspaceId: workspaceId,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Project created from template successfully",
+      data: {
+        ...project.toObject(),
+        defaultBoard: board._id,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating project from template:", error);
+    res.status(500).json({ error: "Failed to create project from template" });
+  }
+};
+
 export default {
   createProject,
   getWorkspaceProjects,
@@ -644,5 +1043,7 @@ export default {
   createColumn,
   updateColumn,
   deleteColumn,
+  getPreMadeProjects,
+  createProjectFromTemplate,
 };
 

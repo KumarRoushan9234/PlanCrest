@@ -8,6 +8,7 @@ import {
 import { Toaster } from "react-hot-toast";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { WorkspaceProvider } from "./contexts/WorkspaceContext";
+import { ProjectProvider } from "./contexts/ProjectContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoadingSpinner from "./components/LoadingSpinner";
 import Navbar from "./components/Navbar";
@@ -21,6 +22,7 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import Dashboard from "./pages/Dashboard";
+import Projects from "./pages/Projects";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
 import AIModePage from "./pages/AIModePage";
 import CalendarPage from "./pages/CalendarPage";
@@ -50,131 +52,142 @@ function App() {
   return (
     <AuthProvider>
       <WorkspaceProvider>
-        <Router>
-          <div className="App">
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: "#1f2937",
-                  color: "#fff",
-                  border: "1px solid #374151",
-                },
-                success: {
+        <ProjectProvider>
+          <Router>
+            <div className="App">
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
                   style: {
-                    background: "#059669",
+                    background: "#1f2937",
+                    color: "#fff",
+                    border: "1px solid #374151",
                   },
-                },
-                error: {
-                  style: {
-                    background: "#dc2626",
+                  success: {
+                    style: {
+                      background: "#059669",
+                    },
                   },
-                },
-              }}
-            />
-
-            <Routes>
-              {/* Home Route - redirects authenticated users to dashboard */}
-              <Route
-                path="/"
-                element={
-                  <PublicRoute>
-                    <HomePage />
-                  </PublicRoute>
-                }
+                  error: {
+                    style: {
+                      background: "#dc2626",
+                    },
+                  },
+                }}
               />
 
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginPage />
-                  </PublicRoute>
-                }
-              />
+              <Routes>
+                {/* Home Route - redirects authenticated users to dashboard */}
+                <Route
+                  path="/"
+                  element={
+                    <PublicRoute>
+                      <HomePage />
+                    </PublicRoute>
+                  }
+                />
 
-              <Route
-                path="/register"
-                element={
-                  <PublicRoute>
-                    <RegisterPage />
-                  </PublicRoute>
-                }
-              />
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <LoginPage />
+                    </PublicRoute>
+                  }
+                />
 
-              <Route
-                path="/verify-email"
-                element={
-                  <PublicRoute>
-                    <VerifyEmailPage />
-                  </PublicRoute>
-                }
-              />
+                <Route
+                  path="/register"
+                  element={
+                    <PublicRoute>
+                      <RegisterPage />
+                    </PublicRoute>
+                  }
+                />
 
-              <Route
-                path="/forgot-password"
-                element={
-                  <PublicRoute>
-                    <ForgotPasswordPage />
-                  </PublicRoute>
-                }
-              />
+                <Route
+                  path="/verify-email"
+                  element={
+                    <PublicRoute>
+                      <VerifyEmailPage />
+                    </PublicRoute>
+                  }
+                />
 
-              <Route
-                path="/reset-password"
-                element={
-                  <PublicRoute>
-                    <ResetPasswordPage />
-                  </PublicRoute>
-                }
-              />
+                <Route
+                  path="/forgot-password"
+                  element={
+                    <PublicRoute>
+                      <ForgotPasswordPage />
+                    </PublicRoute>
+                  }
+                />
 
-              {/* Protected Routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/reset-password"
+                  element={
+                    <PublicRoute>
+                      <ResetPasswordPage />
+                    </PublicRoute>
+                  }
+                />
 
-              <Route
-                path="/profile-settings"
-                element={
-                  <ProtectedRoute>
-                    <ProfileSettingsPage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Protected Routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/ai-mode"
-                element={
-                  <ProtectedRoute>
-                    <AIModePage />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/projects"
+                  element={
+                    <ProtectedRoute>
+                      <Projects />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/calendar"
-                element={
-                  <ProtectedRoute>
-                    <CalendarPage />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/profile-settings"
+                  element={
+                    <ProtectedRoute>
+                      <ProfileSettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Invitation Route */}
-              <Route path="/invite/:token" element={<InvitationHandler />} />
+                <Route
+                  path="/ai-mode"
+                  element={
+                    <ProtectedRoute>
+                      <AIModePage />
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Catch all route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
-        </Router>
+                <Route
+                  path="/calendar"
+                  element={
+                    <ProtectedRoute>
+                      <CalendarPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Invitation Route */}
+                <Route path="/invite/:token" element={<InvitationHandler />} />
+
+                {/* Catch all route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
+          </Router>
+        </ProjectProvider>
       </WorkspaceProvider>
     </AuthProvider>
   );
