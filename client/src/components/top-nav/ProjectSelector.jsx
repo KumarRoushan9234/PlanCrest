@@ -7,6 +7,22 @@ import {
   FolderPlus,
   MoreHorizontal,
   Grid3X3,
+  Globe,
+  Smartphone,
+  Palette,
+  BarChart3,
+  PenTool,
+  Megaphone,
+  Wrench,
+  Rocket,
+  Lightbulb,
+  Target,
+  Activity,
+  Building,
+  Database,
+  Bug,
+  Map,
+  Zap,
 } from "lucide-react";
 import { useProject } from "../../contexts/ProjectContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
@@ -23,8 +39,30 @@ const ProjectSelector = ({ onCreateProject }) => {
     setIsOpen(false);
   };
 
-  const getProjectIcon = (icon) => {
-    return icon || "📁";
+  // Helper function to render icon components
+  const renderIcon = (iconName, size = 16) => {
+    const iconMap = {
+      Folder,
+      Globe,
+      Smartphone,
+      Palette,
+      BarChart3,
+      PenTool,
+      Megaphone,
+      Wrench,
+      Rocket,
+      Lightbulb,
+      Target,
+      Activity,
+      Building,
+      Database,
+      Bug,
+      Map,
+      Zap,
+    };
+
+    const IconComponent = iconMap[iconName] || Folder;
+    return <IconComponent size={size} />;
   };
 
   const getProjectColor = (color) => {
@@ -130,12 +168,12 @@ const ProjectSelector = ({ onCreateProject }) => {
                       whileTap={{ scale: 0.98 }}
                     >
                       <div
-                        className="w-6 h-6 rounded flex items-center justify-center text-sm"
+                        className="w-6 h-6 rounded flex items-center justify-center text-white"
                         style={{
                           backgroundColor: getProjectColor(project.color),
                         }}
                       >
-                        {getProjectIcon(project.icon)}
+                        {renderIcon(project.icon, 14)}
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="font-medium truncate">

@@ -23,6 +23,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
 import AIModePage from "./pages/AIModePage";
 import CalendarPage from "./pages/CalendarPage";
@@ -148,6 +149,15 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Projects />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/project/:maskedId"
+                  element={
+                    <ProtectedRoute>
+                      <ProjectDetail />
                     </ProtectedRoute>
                   }
                 />

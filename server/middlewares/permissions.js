@@ -187,12 +187,23 @@ export const requireProjectAccess = async (req, res, next) => {
   }
 };
 
-/**
- * Check if user can manage project (admin/owner)
- */
+export const requireWorkspaceOwnerOrAdmin = async (req, res, next) => {
+  try {
+    if (req.isWorkspaceOwner || (req.workspaceMember && req.workspaceMember.role === "admin")) {
+      return next();
+    }
+
+    return res.status(403).json({
+      error: "Access denied. Workspace owner or admin privileges required.",
+    });
+  } catch (error) {
+    console.error("Error checking workspace owner/admin:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export const requireProjectAdmin = async (req, res, next) => {
   try {
-    // If data already attached, check it
     if (req.project && (req.isWorkspaceOwner || 
         (req.workspaceMember && req.workspaceMember.role === "admin") ||
         (req.projectMember && req.projectMember.role === "admin"))) {

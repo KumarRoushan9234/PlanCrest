@@ -1,8 +1,11 @@
 import Project from "../models/project.js";
 import ProjectMember from "../models/projectMember.js";
+import ProjectTemplate from "../models/projectTemplate.js";
 import Board from "../models/board.js";
 import Column from "../models/column.js";
+import Task from "../models/task.js";
 import WorkspaceMember from "../models/workspaceMember.js";
+import Workspace from "../models/workspace.js";
 import { updateLastSelectedProject, updateLastSelectedBoard, updateLastSelectedColumn } from "../utils/lastSelected.js";
 
 /**
@@ -36,7 +39,7 @@ export const createProject = async (req, res) => {
       key: key.toUpperCase(),
       description,
       workspace: workspaceId,
-      icon: icon || "📁",
+      icon: icon || "Folder",
       color: color || "#6366f1",
       privacy: privacy || "public",
       createdBy: userId,
@@ -52,8 +55,18 @@ export const createProject = async (req, res) => {
       role: "admin",
       addedBy: userId,
     });
-
     await projectMember.save();
+
+    // Add workspace owner as admin if different from creator
+    if (workspace.owner.toString() !== userId.toString()) {
+      const ownerMember = new ProjectMember({
+        project: project._id,
+        user: workspace.owner,
+        role: "admin",
+        addedBy: userId,
+      });
+      await ownerMember.save();
+    }
 
     // Create default board with columns
     const board = new Board({
@@ -226,18 +239,29 @@ export const updateProject = async (req, res) => {
  */
 export const deleteProject = async (req, res) => {
   try {
-    const project = req.project; // Already fetched
+    const project = req.project; // Already fetched by middleware
 
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    // Archive the project instead of deleting
     project.status = "archived";
+    project.archivedAt = new Date();
     await project.save();
 
     res.json({
       success: true,
       message: "Project archived successfully",
+      data: project,
     });
   } catch (error) {
-    console.error("Error deleting project:", error);
-    res.status(500).json({ error: "Failed to delete project" });
+    console.error("Error archiving project:", error);
+    console.error("Error details:", error.message, error.stack);
+    res.status(500).json({ 
+      error: "Internal server error",
+      message: error.message 
+    });
   }
 };
 
@@ -384,6 +408,23 @@ export const updateProjectMember = async (req, res) => {
 export const removeProjectMember = async (req, res) => {
   try {
     const { userId, projectId } = req.params;
+    const project = req.project;
+    const currentUserId = req.auth._id;
+
+    // Prevent removing the project creator
+    if (project.createdBy && project.createdBy.toString() === userId) {
+      return res.status(403).json({ 
+        error: "Cannot remove the project creator" 
+      });
+    }
+
+    // Prevent removing the workspace owner
+    const workspace = await Workspace.findById(project.workspace);
+    if (workspace && workspace.owner.toString() === userId) {
+      return res.status(403).json({ 
+        error: "Cannot remove the workspace owner" 
+      });
+    }
 
     const member = await ProjectMember.findOne({
       project: projectId,
@@ -628,160 +669,60 @@ export const deleteColumn = async (req, res) => {
   }
 };
 
-/**
- * Get pre-made project templates
- */
-export const getPreMadeProjects = async (req, res) => {
+export const getProjectTemplates = async (req, res) => {
   try {
-    const preMadeProjects = [
-      {
-        name: "Web Development",
-        key: "WEB",
-        description: "Complete web application development project with frontend and backend components",
-        icon: "🌐",
-        color: "#3b82f6",
-        privacy: "public",
-        settings: {
-          defaultView: "kanban",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: true,
-            notifyOnTaskDue: true,
-          },
-        },
-        template: true,
-      },
-      {
-        name: "Mobile App",
-        key: "MOBILE",
-        description: "Mobile application development for iOS and Android platforms",
-        icon: "📱",
-        color: "#10b981",
-        privacy: "public",
-        settings: {
-          defaultView: "kanban",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: false,
-          },
-          automations: {
-            autoAssignOnCreate: true,
-            autoMoveOnComplete: true,
-            notifyOnTaskDue: true,
-          },
-        },
-        template: true,
-      },
-      {
-        name: "Marketing Campaign",
-        key: "MARKET",
-        description: "Digital marketing campaign with content creation and social media management",
-        icon: "📢",
-        color: "#f59e0b",
-        privacy: "public",
-        settings: {
-          defaultView: "calendar",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: false,
-            notifyOnTaskDue: true,
-          },
-        },
-        template: true,
-      },
-      {
-        name: "Product Design",
-        key: "DESIGN",
-        description: "UI/UX design project with user research and prototyping phases",
-        icon: "🎨",
-        color: "#8b5cf6",
-        privacy: "public",
-        settings: {
-          defaultView: "kanban",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: true,
-            autoMoveOnComplete: false,
-            notifyOnTaskDue: true,
-          },
-        },
-        template: true,
-      },
-      {
-        name: "Data Analysis",
-        key: "DATA",
-        description: "Data science project with collection, analysis, and visualization",
-        icon: "📊",
-        color: "#ef4444",
-        privacy: "public",
-        settings: {
-          defaultView: "list",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: false,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: true,
-            notifyOnTaskDue: true,
-          },
-        },
-        template: true,
-      },
-      {
-        name: "Content Creation",
-        key: "CONTENT",
-        description: "Content marketing project with blog posts, videos, and social media content",
-        icon: "✍️",
-        color: "#06b6d4",
-        privacy: "public",
-        settings: {
-          defaultView: "calendar",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: false,
-            notifyOnTaskDue: true,
-          },
-        },
-        template: true,
-      },
-    ];
+    const { workspaceId } = req.params;
+    
+    const globalTemplates = await ProjectTemplate.find({ isGlobal: true })
+      .select("-__v")
+      .sort({ usageCount: -1, createdAt: -1 });
+
+    let workspaceTemplates = [];
+    if (workspaceId) {
+      workspaceTemplates = await ProjectTemplate.find({
+        workspace: workspaceId,
+        isGlobal: false,
+      })
+        .select("-__v")
+        .sort({ createdAt: -1 });
+    }
 
     res.json({
       success: true,
-      message: "Pre-made projects fetched successfully",
+      data: {
+        global: globalTemplates,
+        workspace: workspaceTemplates,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching templates:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getPreMadeProjects = async (req, res) => {
+  try {
+    const templates = await ProjectTemplate.find({ isGlobal: true })
+      .select("name key description category icon color")
+      .sort({ usageCount: -1 });
+
+    const preMadeProjects = templates.map(t => ({
+      name: t.name,
+      key: t.key,
+      description: t.description,
+      icon: t.icon,
+      color: t.color,
+      privacy: "public",
+      template: true,
+    }));
+
+    res.json({
+      success: true,
       data: preMadeProjects,
     });
   } catch (error) {
-    console.error("Error fetching pre-made projects:", error);
-    res.status(500).json({ error: "Failed to fetch pre-made projects" });
+    console.error("Error fetching templates:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -790,178 +731,45 @@ export const getPreMadeProjects = async (req, res) => {
  */
 export const createProjectFromTemplate = async (req, res) => {
   try {
-    const { templateId, name, key, description, icon, color, privacy, lead } = req.body;
+    const { templateId, templateKey, name, key, description, icon, color, privacy, lead } = req.body;
     const { workspaceId } = req.params;
     const userId = req.auth._id;
-    const workspace = req.workspace;
 
-    // Pre-made project templates
-    const templates = {
-      WEB: {
-        name: "Web Development",
-        key: "WEB",
-        description: "Complete web application development project with frontend and backend components",
-        icon: "🌐",
-        color: "#3b82f6",
-        privacy: "public",
-        settings: {
-          defaultView: "kanban",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: true,
-            notifyOnTaskDue: true,
-          },
-        },
-      },
-      MOBILE: {
-        name: "Mobile App",
-        key: "MOBILE",
-        description: "Mobile application development for iOS and Android platforms",
-        icon: "📱",
-        color: "#10b981",
-        privacy: "public",
-        settings: {
-          defaultView: "kanban",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: false,
-          },
-          automations: {
-            autoAssignOnCreate: true,
-            autoMoveOnComplete: true,
-            notifyOnTaskDue: true,
-          },
-        },
-      },
-      MARKET: {
-        name: "Marketing Campaign",
-        key: "MARKET",
-        description: "Digital marketing campaign with content creation and social media management",
-        icon: "📢",
-        color: "#f59e0b",
-        privacy: "public",
-        settings: {
-          defaultView: "calendar",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: false,
-            notifyOnTaskDue: true,
-          },
-        },
-      },
-      DESIGN: {
-        name: "Product Design",
-        key: "DESIGN",
-        description: "UI/UX design project with user research and prototyping phases",
-        icon: "🎨",
-        color: "#8b5cf6",
-        privacy: "public",
-        settings: {
-          defaultView: "kanban",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: true,
-            autoMoveOnComplete: false,
-            notifyOnTaskDue: true,
-          },
-        },
-      },
-      DATA: {
-        name: "Data Analysis",
-        key: "DATA",
-        description: "Data science project with collection, analysis, and visualization",
-        icon: "📊",
-        color: "#ef4444",
-        privacy: "public",
-        settings: {
-          defaultView: "list",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: false,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: true,
-            notifyOnTaskDue: true,
-          },
-        },
-      },
-      CONTENT: {
-        name: "Content Creation",
-        key: "CONTENT",
-        description: "Content marketing project with blog posts, videos, and social media content",
-        icon: "✍️",
-        color: "#06b6d4",
-        privacy: "public",
-        settings: {
-          defaultView: "calendar",
-          features: {
-            chat: true,
-            documentation: true,
-            timeTracking: true,
-            clientPortal: true,
-          },
-          automations: {
-            autoAssignOnCreate: false,
-            autoMoveOnComplete: false,
-            notifyOnTaskDue: true,
-          },
-        },
-      },
-    };
-
-    const template = templates[templateId];
-    if (!template) {
-      return res.status(400).json({ error: "Invalid template ID" });
+    let template;
+    
+    if (templateKey) {
+      template = await ProjectTemplate.findOne({ key: templateKey.toUpperCase() });
+    } else if (templateId) {
+      template = await ProjectTemplate.findById(templateId);
     }
 
-    // Use provided values or fall back to template values
-    const projectData = {
-      name: name || template.name,
-      key: key || template.key,
-      description: description || template.description,
-      icon: icon || template.icon,
-      color: color || template.color,
-      privacy: privacy || template.privacy,
-      settings: template.settings,
-      workspace: workspaceId,
-      createdBy: userId,
-      lead: lead || userId,
-    };
+    if (!template) {
+      return res.status(404).json({ error: "Template not found" });
+    }
 
-    // Check if key already exists in workspace
+    const projectKey = key || template.key;
     const existingProject = await Project.findOne({
       workspace: workspaceId,
-      key: projectData.key.toUpperCase(),
+      key: projectKey.toUpperCase(),
     });
 
     if (existingProject) {
       return res.status(400).json({ error: "Project key already exists in this workspace" });
     }
 
-    // Create project
-    const project = new Project(projectData);
+    const project = new Project({
+      name: name || template.name,
+      key: projectKey.toUpperCase(),
+      description: description || template.description,
+      icon: icon || template.icon,
+      color: color || template.color,
+      privacy: privacy || "public",
+      workspace: workspaceId,
+      createdBy: userId,
+      lead: lead || userId,
+      templateUsed: template._id,
+    });
+
     await project.save();
 
     // Add creator as project admin
@@ -971,42 +779,62 @@ export const createProjectFromTemplate = async (req, res) => {
       role: "admin",
       addedBy: userId,
     });
-
     await projectMember.save();
 
-    // Create default board with columns
+    // Add workspace owner as admin if different from creator
+    const workspace = await Workspace.findById(workspaceId);
+    if (workspace && workspace.owner.toString() !== userId.toString()) {
+      const ownerMember = new ProjectMember({
+        project: project._id,
+        user: workspace.owner,
+        role: "admin",
+        addedBy: userId,
+      });
+      await ownerMember.save();
+    }
+
     const board = new Board({
       name: "Main Board",
       project: project._id,
       isDefault: true,
       createdBy: userId,
     });
-
     await board.save();
 
-    // Create default columns
-    const defaultColumns = [
-      { name: "Backlog", type: "backlog", position: 0, color: "#94a3b8" },
-      { name: "To Do", type: "todo", position: 1, color: "#3b82f6" },
-      { name: "In Progress", type: "in_progress", position: 2, color: "#f59e0b" },
-      { name: "In Review", type: "review", position: 3, color: "#8b5cf6" },
-      { name: "Done", type: "done", position: 4, color: "#10b981" },
-    ];
-
-    const columnPromises = defaultColumns.map(col =>
-      new Column({
-        name: col.name,
-        board: board._id,
-        project: project._id,
-        position: col.position,
-        type: col.type,
-        color: col.color,
-      }).save()
+    const columns = await Promise.all(
+      template.defaultColumns.map((col) =>
+        new Column({
+          name: col.name,
+          board: board._id,
+          project: project._id,
+          position: col.position,
+          color: col.color,
+          limit: col.limit,
+        }).save()
+      )
     );
 
-    await Promise.all(columnPromises);
+    if (template.defaultTasks && template.defaultTasks.length > 0) {
+      await Promise.all(
+        template.defaultTasks.map((task) =>
+          new Task({
+            title: task.title,
+            description: task.description,
+            column: columns[task.columnIndex]?._id,
+            board: board._id,
+            project: project._id,
+            priority: task.priority,
+            position: task.position,
+            createdBy: userId,
+          }).save()
+        )
+      );
+    }
 
-    // Update user's last selected project
+    await ProjectTemplate.findByIdAndUpdate(template._id, {
+      $inc: { usageCount: 1 },
+    });
+
     await updateLastSelectedProject(userId, {
       id: project._id,
       name: project.name,
@@ -1015,7 +843,6 @@ export const createProjectFromTemplate = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Project created from template successfully",
       data: {
         ...project.toObject(),
         defaultBoard: board._id,
@@ -1023,7 +850,271 @@ export const createProjectFromTemplate = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating project from template:", error);
-    res.status(500).json({ error: "Failed to create project from template" });
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const updateProjectSettings = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { settings } = req.body;
+    const project = req.project;
+
+    if (!settings) {
+      return res.status(400).json({ error: "Settings are required" });
+    }
+
+    project.settings = { ...project.settings, ...settings };
+    await project.save();
+
+    res.json({
+      success: true,
+      data: project,
+    });
+  } catch (error) {
+    console.error("Error updating project settings:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const createWorkspaceTemplate = async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    const { name, key, description, category, icon, color, defaultColumns, defaultTasks } = req.body;
+    const userId = req.auth._id;
+
+    if (!name || !key || !category) {
+      return res.status(400).json({ error: "Name, key, and category are required" });
+    }
+
+    const existingTemplate = await ProjectTemplate.findOne({
+      key: key.toUpperCase(),
+    });
+
+    if (existingTemplate) {
+      return res.status(400).json({ error: "Template key already exists" });
+    }
+
+    const template = new ProjectTemplate({
+      name,
+      key: key.toUpperCase(),
+      description,
+      category,
+      icon: icon || "Folder",
+      color: color || "#6366f1",
+      isGlobal: false,
+      workspace: workspaceId,
+      defaultColumns: defaultColumns || [],
+      defaultTasks: defaultTasks || [],
+      createdBy: userId,
+    });
+
+    await template.save();
+
+    res.status(201).json({
+      success: true,
+      data: template,
+    });
+  } catch (error) {
+    console.error("Error creating workspace template:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const addProjectMembers = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userIds } = req.body;
+    const project = req.project;
+    const userId = req.auth._id;
+    const { workspaceId } = req.params;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: "User IDs array is required" });
+    }
+
+    // First check if all users are workspace members
+    const workspaceMembers = await WorkspaceMember.find({
+      workspace: project.workspace,
+      user: { $in: userIds },
+      status: "active",
+    });
+
+    if (workspaceMembers.length !== userIds.length) {
+      return res.status(400).json({
+        error: "Some users are not members of this workspace",
+      });
+    }
+
+    // Check which users are already active project members
+    const existingMembers = await ProjectMember.find({
+      project: projectId,
+      user: { $in: userIds },
+      status: { $ne: "removed" },
+    }).select("user");
+
+    const existingUserIds = existingMembers.map((m) => m.user.toString());
+    
+    // Find users who were previously removed
+    const removedMembers = await ProjectMember.find({
+      project: projectId,
+      user: { $in: userIds },
+      status: "removed",
+    });
+
+    // Reactivate removed members
+    for (const removedMember of removedMembers) {
+      removedMember.status = "active";
+      removedMember.addedBy = userId;
+      await removedMember.save();
+    }
+
+    // Find truly new users
+    const allExistingUserIds = [...existingUserIds, ...removedMembers.map(m => m.user.toString())];
+    const newUserIds = userIds.filter(
+      (id) => !allExistingUserIds.includes(id.toString())
+    );
+
+    // If all users are already members, return success
+    if (newUserIds.length === 0 && removedMembers.length === 0) {
+      return res.status(200).json({
+        message: "All users are already members of this project",
+        members: existingMembers,
+      });
+    }
+
+    // Insert truly new members
+    let newMembers = [];
+    if (newUserIds.length > 0) {
+      newMembers = await ProjectMember.insertMany(
+        newUserIds.map((uid) => ({
+          project: projectId,
+          user: uid,
+          role: "member",
+          addedBy: userId,
+        }))
+      );
+    }
+
+    // Get all member IDs to populate (new + reactivated)
+    const allMemberIds = [
+      ...newMembers.map((m) => m._id),
+      ...removedMembers.map((m) => m._id)
+    ];
+
+    const populatedMembers = await ProjectMember.find({
+      _id: { $in: allMemberIds },
+    }).populate("user", "name email profilePicture");
+
+    res.status(201).json({
+      success: true,
+      message: removedMembers.length > 0 
+        ? `${newUserIds.length} new member(s) added, ${removedMembers.length} member(s) reactivated` 
+        : `${newUserIds.length} member(s) added`,
+      data: populatedMembers,
+    });
+  } catch (error) {
+    console.error("Error adding project members:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get project activity
+export const getProjectActivity = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { timeRange = '7d' } = req.query;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    // Calculate date range
+    let startDate = new Date();
+    switch (timeRange) {
+      case '24h':
+        startDate.setHours(startDate.getHours() - 24);
+        break;
+      case '7d':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case '30d':
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+      case 'all':
+        startDate = new Date(0);
+        break;
+      default:
+        startDate.setDate(startDate.getDate() - 7);
+    }
+
+    const { getItemActivity } = await import('../utils/activityLogger.js');
+    const activities = await getItemActivity(projectId, 'project');
+
+    // Filter by date range
+    const filteredActivities = activities.filter(
+      activity => new Date(activity.createdAt) >= startDate
+    );
+
+    res.json({
+      success: true,
+      data: filteredActivities,
+    });
+  } catch (error) {
+    console.error("Error fetching project activity:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get project statistics
+export const getProjectStats = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { Task } = await import('../models/index.js');
+
+    const project = await Project.findById(projectId).populate('members');
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    // Get task statistics
+    const tasks = await Task.find({ project: projectId });
+    const completedTasks = tasks.filter(t => t.status === 'completed').length;
+    const totalTasks = tasks.length;
+
+    // Calculate progress rate
+    const progressRate = totalTasks > 0 
+      ? Math.round((completedTasks / totalTasks) * 100) 
+      : 0;
+
+    // Get active members (members who have activity in the last 7 days)
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    const { getItemActivity } = await import('../utils/activityLogger.js');
+    const recentActivities = await getItemActivity(projectId, 'project');
+    const activeUserIds = new Set(
+      recentActivities
+        .filter(a => new Date(a.createdAt) >= weekAgo)
+        .map(a => a.user?.toString())
+    );
+
+    const stats = {
+      totalTasks,
+      completedTasks,
+      progressRate,
+      activeMembers: activeUserIds.size,
+      totalMembers: project.members?.length || 0,
+    };
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error("Error fetching project stats:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -1037,13 +1128,19 @@ export default {
   addProjectMember,
   updateProjectMember,
   removeProjectMember,
+  addProjectMembers,
   getProjectBoards,
   createBoard,
   getBoardColumns,
   createColumn,
   updateColumn,
   deleteColumn,
+  getProjectTemplates,
   getPreMadeProjects,
   createProjectFromTemplate,
+  updateProjectSettings,
+  createWorkspaceTemplate,
+  getProjectActivity,
+  getProjectStats,
 };
 

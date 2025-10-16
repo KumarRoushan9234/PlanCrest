@@ -1,6 +1,34 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FolderPlus, Palette, Eye, EyeOff, Sparkles } from "lucide-react";
+import {
+  X,
+  FolderPlus,
+  Palette,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Zap,
+  Bug,
+  Megaphone,
+  Map,
+  PenTool,
+  Palette as PaletteIcon,
+  Users,
+  BarChart3,
+  Folder,
+  Globe,
+  Smartphone,
+  Target,
+  Database,
+  FileText,
+  Wrench,
+  Rocket,
+  Lightbulb,
+  Search,
+  Zap as ZapIcon,
+  Activity,
+  Building,
+} from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useProject } from "../../contexts/ProjectContext";
@@ -9,14 +37,16 @@ import { projectService } from "../../services/projectService";
 const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
   const { currentWorkspace } = useWorkspace();
   const { user: currentUser } = useAuth();
-  const { fetchProjects } = useProject();
+  const { fetchWorkspaceProjects, getProjectTemplates } = useProject();
   const [loading, setLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     key: "",
     description: "",
-    icon: "📁",
+    icon: "Folder",
     color: "#6366f1",
     privacy: "public",
   });
@@ -33,139 +63,59 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
     { name: "Indigo", value: "#6366f1", bg: "bg-indigo-500" },
   ];
 
-  // Pre-created project templates
-  const preCreatedProjects = [
-    {
-      name: "Web Development",
-      key: "WEB",
-      description:
-        "Complete web application development project with frontend and backend components",
-      icon: "🌐",
-      color: "#3b82f6",
-      privacy: "public",
-      features: [
-        "Frontend Development",
-        "Backend API",
-        "Database Design",
-        "Testing",
-        "Deployment",
-      ],
-    },
-    {
-      name: "Mobile App",
-      key: "MOBILE",
-      description:
-        "Mobile application development for iOS and Android platforms",
-      icon: "📱",
-      color: "#10b981",
-      privacy: "public",
-      features: [
-        "UI/UX Design",
-        "Cross-platform Development",
-        "App Store Submission",
-        "Push Notifications",
-      ],
-    },
-    {
-      name: "Marketing Campaign",
-      key: "MARKET",
-      description:
-        "Digital marketing campaign with content creation and social media management",
-      icon: "📢",
-      color: "#f59e0b",
-      privacy: "public",
-      features: [
-        "Content Strategy",
-        "Social Media",
-        "Email Marketing",
-        "Analytics",
-        "SEO",
-      ],
-    },
-    {
-      name: "Product Design",
-      key: "DESIGN",
-      description:
-        "UI/UX design project with user research and prototyping phases",
-      icon: "🎨",
-      color: "#8b5cf6",
-      privacy: "public",
-      features: [
-        "User Research",
-        "Wireframing",
-        "Prototyping",
-        "Visual Design",
-        "Usability Testing",
-      ],
-    },
-    {
-      name: "Data Analysis",
-      key: "DATA",
-      description:
-        "Data science project with collection, analysis, and visualization",
-      icon: "📊",
-      color: "#ef4444",
-      privacy: "public",
-      features: [
-        "Data Collection",
-        "Data Cleaning",
-        "Statistical Analysis",
-        "Visualization",
-        "Reporting",
-      ],
-    },
-    {
-      name: "Content Creation",
-      key: "CONTENT",
-      description:
-        "Content marketing project with blog posts, videos, and social media content",
-      icon: "✍️",
-      color: "#06b6d4",
-      privacy: "public",
-      features: [
-        "Blog Writing",
-        "Video Production",
-        "Social Media",
-        "SEO",
-        "Content Calendar",
-      ],
-    },
-  ];
-
   // Predefined icon options
   const iconOptions = [
-    "📁",
-    "🌐",
-    "📱",
-    "🎨",
-    "📊",
-    "✍️",
-    "📢",
-    "🔧",
-    "🚀",
-    "💡",
-    "🎯",
-    "📈",
-    "🔍",
-    "⚡",
-    "🎪",
-    "🏗️",
+    { name: "Folder", component: Folder },
+    { name: "Globe", component: Globe },
+    { name: "Smartphone", component: Smartphone },
+    { name: "Palette", component: PaletteIcon },
+    { name: "BarChart3", component: BarChart3 },
+    { name: "PenTool", component: PenTool },
+    { name: "Megaphone", component: Megaphone },
+    { name: "Wrench", component: Wrench },
+    { name: "Rocket", component: Rocket },
+    { name: "Lightbulb", component: Lightbulb },
+    { name: "Target", component: Target },
+    { name: "Activity", component: Activity },
+    { name: "Search", component: Search },
+    { name: "Zap", component: ZapIcon },
+    { name: "Building", component: Building },
+    { name: "Database", component: Database },
   ];
 
-  // Reset form when modal opens
+  // Fetch templates when modal opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && currentWorkspace?._id) {
       setFormData({
         name: "",
         key: "",
         description: "",
-        icon: "📁",
+        icon: "Folder",
         color: "#6366f1",
         privacy: "public",
       });
       setSelectedTemplate(null);
+      fetchTemplates();
     }
-  }, [isOpen]);
+  }, [isOpen, currentWorkspace?._id]);
+
+  const fetchTemplates = async () => {
+    try {
+      setLoadingTemplates(true);
+      const templatesData = await getProjectTemplates(currentWorkspace._id);
+      // Combine global and workspace templates
+      const allTemplates = [
+        ...(templatesData.global || []),
+        ...(templatesData.workspace || []),
+      ];
+      setTemplates(allTemplates);
+    } catch (error) {
+      console.error("Error fetching templates:", error);
+      setTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -175,13 +125,14 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       const payload = selectedTemplate
         ? {
-            templateId: selectedTemplate.key,
+            templateId: selectedTemplate._id || selectedTemplate.key,
+            templateKey: selectedTemplate.key,
             name: formData.name || selectedTemplate.name,
             key: formData.key || selectedTemplate.key,
             description: formData.description || selectedTemplate.description,
             icon: formData.icon || selectedTemplate.icon,
             color: formData.color || selectedTemplate.color,
-            privacy: formData.privacy || selectedTemplate.privacy,
+            privacy: formData.privacy || "public",
           }
         : formData;
 
@@ -194,7 +145,7 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
 
       if (data.success) {
         // Refresh projects list
-        await fetchProjects();
+        await fetchWorkspaceProjects();
         onClose();
         if (onSuccess) {
           onSuccess();
@@ -204,7 +155,7 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
           name: "",
           key: "",
           description: "",
-          icon: "📁",
+          icon: "Folder",
           color: "#6366f1",
           privacy: "public",
         });
@@ -243,10 +194,38 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
       name: "",
       key: "",
       description: "",
-      icon: "📁",
+      icon: "Folder",
       color: "#6366f1",
       privacy: "public",
     });
+  };
+
+  // Helper function to render icon components
+  const renderIcon = (iconName, size = 24) => {
+    const iconMap = {
+      Folder,
+      Globe,
+      Smartphone,
+      Palette: PaletteIcon,
+      BarChart3,
+      PenTool,
+      Megaphone,
+      Wrench,
+      Rocket,
+      Lightbulb,
+      Target,
+      Activity,
+      Search,
+      Zap: ZapIcon,
+      Building,
+      Database,
+      Bug,
+      Map,
+      Users,
+    };
+
+    const IconComponent = iconMap[iconName] || Folder;
+    return <IconComponent size={size} />;
   };
 
   return (
@@ -325,36 +304,20 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
                     Choose a Template or Start Custom
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    {/* Custom Project Option */}
-                    <motion.button
-                      onClick={handleCustomProject}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        !selectedTemplate
-                          ? "border-green-500 bg-green-500/10"
-                          : "border-gray-600 hover:border-gray-500"
-                      }`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="text-center">
-                        <div className="text-2xl mb-2">📁</div>
-                        <div className="font-medium text-white">
-                          Custom Project
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          Start from scratch
-                        </div>
-                      </div>
-                    </motion.button>
-
-                    {/* Template Options */}
-                    {preCreatedProjects.map((template) => (
+                  {loadingTemplates ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                      <span className="ml-3 text-gray-400">
+                        Loading templates...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      {/* Custom Project Option */}
                       <motion.button
-                        key={template.key}
-                        onClick={() => handleTemplateSelect(template)}
+                        onClick={handleCustomProject}
                         className={`p-4 rounded-lg border-2 transition-all ${
-                          selectedTemplate?.key === template.key
+                          !selectedTemplate
                             ? "border-green-500 bg-green-500/10"
                             : "border-gray-600 hover:border-gray-500"
                         }`}
@@ -362,17 +325,51 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
                         whileTap={{ scale: 0.98 }}
                       >
                         <div className="text-center">
-                          <div className="text-2xl mb-2">{template.icon}</div>
-                          <div className="font-medium text-white">
-                            {template.name}
+                          <div className="flex justify-center mb-2 text-gray-300">
+                            {renderIcon("Folder", 32)}
                           </div>
-                          <div className="text-sm text-gray-400 truncate">
-                            {template.description}
+                          <div className="font-medium text-white">
+                            Custom Project
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            Start from scratch
                           </div>
                         </div>
                       </motion.button>
-                    ))}
-                  </div>
+
+                      {/* Template Options */}
+                      {templates.map((template) => (
+                        <motion.button
+                          key={template._id || template.key}
+                          onClick={() => handleTemplateSelect(template)}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            selectedTemplate?.key === template.key
+                              ? "border-green-500 bg-green-500/10"
+                              : "border-gray-600 hover:border-gray-500"
+                          }`}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <div className="text-center">
+                            <div className="flex justify-center mb-2 text-gray-300">
+                              {renderIcon(template.icon, 32)}
+                            </div>
+                            <div className="font-medium text-white">
+                              {template.name}
+                            </div>
+                            <div className="text-sm text-gray-400 truncate">
+                              {template.description}
+                            </div>
+                            {template.category && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {template.category}
+                              </div>
+                            )}
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Form */}
@@ -442,18 +439,23 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
                         <div className="grid grid-cols-8 gap-2">
                           {iconOptions.map((icon) => (
                             <button
-                              key={icon}
+                              key={icon.name}
                               type="button"
                               onClick={() =>
-                                setFormData((prev) => ({ ...prev, icon }))
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  icon: icon.name,
+                                }))
                               }
-                              className={`p-2 text-lg rounded-lg border transition-all ${
-                                formData.icon === icon
+                              className={`p-2 rounded-lg border transition-all flex items-center justify-center ${
+                                formData.icon === icon.name
                                   ? "border-green-500 bg-green-500/20"
                                   : "border-gray-600 hover:border-gray-500"
                               }`}
                             >
-                              {icon}
+                              <div className="text-gray-300">
+                                {renderIcon(icon.name, 20)}
+                              </div>
                             </button>
                           ))}
                         </div>

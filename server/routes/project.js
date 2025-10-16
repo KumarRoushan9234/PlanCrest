@@ -11,14 +11,20 @@ import {
   addProjectMember,
   updateProjectMember,
   removeProjectMember,
+  addProjectMembers,
   getProjectBoards,
   createBoard,
   getBoardColumns,
   createColumn,
   updateColumn,
   deleteColumn,
+  getProjectTemplates,
   getPreMadeProjects,
   createProjectFromTemplate,
+  updateProjectSettings,
+  createWorkspaceTemplate,
+  getProjectActivity,
+  getProjectStats,
 } from "../controllers/project.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -26,6 +32,7 @@ import {
   requireWorkspaceMember,
   requireProjectAccess,
   requireProjectAdmin,
+  requireWorkspaceOwnerOrAdmin,
 } from "../middlewares/permissions.js";
 
 // Project CRUD
@@ -54,7 +61,7 @@ router.put(
   "/projects/:projectId",
   requireSignin,
   requireProjectAccess,
-  requireProjectAdmin,
+  requireWorkspaceOwnerOrAdmin,
   updateProject,
   handleAuthError
 );
@@ -62,7 +69,7 @@ router.delete(
   "/projects/:projectId",
   requireSignin,
   requireProjectAccess,
-  requireProjectAdmin,
+  requireWorkspaceOwnerOrAdmin,
   deleteProject,
   handleAuthError
 );
@@ -141,11 +148,26 @@ router.delete(
   handleAuthError
 );
 
-// Pre-made projects and templates
+// Templates
+router.get(
+  "/workspaces/:workspaceId/templates",
+  requireSignin,
+  requireWorkspaceMember,
+  getProjectTemplates,
+  handleAuthError
+);
 router.get(
   "/templates",
   requireSignin,
   getPreMadeProjects,
+  handleAuthError
+);
+router.post(
+  "/workspaces/:workspaceId/templates",
+  requireSignin,
+  requireWorkspaceMember,
+  requireWorkspaceOwnerOrAdmin,
+  createWorkspaceTemplate,
   handleAuthError
 );
 router.post(
@@ -156,7 +178,43 @@ router.post(
   handleAuthError
 );
 
-// Error handler
+// Project Settings
+router.put(
+  "/projects/:projectId/settings",
+  requireSignin,
+  requireProjectAccess,
+  requireWorkspaceOwnerOrAdmin,
+  updateProjectSettings,
+  handleAuthError
+);
+
+// Bulk Add Members
+router.post(
+  "/projects/:projectId/members/bulk",
+  requireSignin,
+  requireProjectAccess,
+  requireProjectAdmin,
+  addProjectMembers,
+  handleAuthError
+);
+
+// Activity and Stats
+router.get(
+  "/projects/:projectId/activity",
+  requireSignin,
+  requireProjectAccess,
+  getProjectActivity,
+  handleAuthError
+);
+
+router.get(
+  "/projects/:projectId/stats",
+  requireSignin,
+  requireProjectAccess,
+  getProjectStats,
+  handleAuthError
+);
+
 router.use(handleAuthError);
 
 export default router;

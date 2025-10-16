@@ -6,8 +6,8 @@ import { readdirSync } from "fs";
 import mongoose from "mongoose";
 import csrf from "csurf";
 import cookieParser from "cookie-parser";
+import { seedProjectTemplates } from "./utils/seedTemplates.js";
 
-// Load environment variables
 dotenv.config();
 
 const csrfProtection = csrf({ cookie: true });
@@ -15,10 +15,12 @@ const csrfProtection = csrf({ cookie: true });
 // Create express app
 const app = express();
 
-// Connect to MongoDB
 mongoose
   .connect(process.env.DATABASE, {})
-  .then(() => console.log("**DB CONNECTED**"))
+  .then(async () => {
+    console.log("**DB CONNECTED**");
+    await seedProjectTemplates();
+  })
   .catch((err) => console.error("DB CONNECTION ERR =>", err));
 
 // Apply middlewares

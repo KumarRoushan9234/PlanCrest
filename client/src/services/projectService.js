@@ -70,10 +70,50 @@ export const projectService = {
     }
   },
 
-  // Get pre-made project templates
+  // Get pre-made project templates (global templates)
   getPreMadeProjects: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/projects/templates`);
+      const response = await axios.get(`${API_BASE_URL}/templates`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get project templates (workspace-specific + global)
+  getProjectTemplates: async (workspaceId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/workspaces/${workspaceId}/templates`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Create workspace template
+  createWorkspaceTemplate: async (workspaceId, templateData) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/workspaces/${workspaceId}/templates`, templateData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Update project settings
+  updateProjectSettings: async (projectId, settingsData) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/projects/${projectId}/settings`, settingsData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Bulk add members to project
+  addProjectMembersBulk: async (projectId, userIds) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/projects/${projectId}/members/bulk`, { userIds });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -174,6 +214,91 @@ export const projectService = {
   deleteColumn: async (columnId) => {
     try {
       const response = await axios.delete(`${API_BASE_URL}/columns/${columnId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Task Management
+  getProjectTasks: async (projectId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/tasks`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  createTask: async (projectId, taskData) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/projects/${projectId}/tasks`, taskData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  getTask: async (taskId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  updateTask: async (taskId, taskData) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}`, taskData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  deleteTask: async (taskId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/tasks/${taskId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Workspace Members
+  getWorkspaceMembers: async (workspaceId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/workspaces/${workspaceId}/members`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Project Members (new methods)
+  addProjectMembers: async (projectId, userIds) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/projects/${projectId}/members/bulk`, { userIds });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Activity & Stats
+  getProjectActivity: async (projectId, timeRange = '7d') => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/activity?timeRange=${timeRange}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  getProjectStats: async (projectId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/stats`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

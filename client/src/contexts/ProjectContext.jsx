@@ -268,6 +268,65 @@ export const ProjectProvider = ({ children }) => {
     }
   };
 
+  const updateProjectSettings = async (projectId, settingsData) => {
+    try {
+      setLoading(true);
+      const response = await projectService.updateProjectSettings(
+        projectId,
+        settingsData
+      );
+      const updatedProject = response.data;
+
+      setProjects((prev) =>
+        prev.map((project) =>
+          project._id === projectId ? updatedProject : project
+        )
+      );
+
+      if (currentProject?._id === projectId) {
+        setCurrentProject(updatedProject);
+      }
+
+      toast.success("Project settings updated successfully!");
+      return updatedProject;
+    } catch (error) {
+      console.error("Error updating project settings:", error);
+      toast.error(error.error || "Failed to update project settings");
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addProjectMembersBulk = async (projectId, userIds) => {
+    try {
+      const response = await projectService.addProjectMembersBulk(
+        projectId,
+        userIds
+      );
+      const addedMembers = response.data;
+
+      setProjectMembers((prev) => [...prev, ...addedMembers]);
+      toast.success(`${addedMembers.length} member(s) added successfully!`);
+      return addedMembers;
+    } catch (error) {
+      console.error("Error adding project members:", error);
+      toast.error(error.error || "Failed to add members");
+      throw error;
+    }
+  };
+
+  const getProjectTemplates = async (workspaceId) => {
+    try {
+      const response = await projectService.getProjectTemplates(workspaceId);
+      return response.data || { global: [], workspace: [] };
+    } catch (error) {
+      console.error("Error fetching project templates:", error);
+      toast.error("Failed to fetch project templates");
+      throw error;
+    }
+  };
+
   const value = {
     projects,
     currentProject,
@@ -285,6 +344,9 @@ export const ProjectProvider = ({ children }) => {
     removeProjectMember,
     getProjectBoards,
     createBoard,
+    updateProjectSettings,
+    addProjectMembersBulk,
+    getProjectTemplates,
   };
 
   return (

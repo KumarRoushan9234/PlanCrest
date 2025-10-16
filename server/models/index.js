@@ -7,6 +7,7 @@ export { default as WorkspaceInvitation } from "./workspaceInvitation.js";
 // Project Management Models
 export { default as Project } from "./project.js";
 export { default as ProjectMember } from "./projectMember.js";
+export { default as ProjectTemplate } from "./projectTemplate.js";
 export { default as Board } from "./board.js";
 export { default as Column } from "./column.js";
 export { default as Task } from "./task.js";

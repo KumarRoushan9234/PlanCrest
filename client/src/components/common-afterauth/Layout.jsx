@@ -7,10 +7,11 @@ import {
   CalendarTopNav,
   AIModeTopNav,
   ProjectsTopNav,
+  ProjectDetailTopNav,
 } from "../top-nav";
 import { CreateProjectModal } from "../modals";
 
-const Layout = ({ children }) => {
+const Layout = ({ children, projectsPageProps, projectDetailPageProps }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const location = useLocation();
@@ -43,12 +44,28 @@ const Layout = ({ children }) => {
           {location.pathname === "/dashboard" && (
             <DashboardTopNav onCreateProject={handleCreateProject} />
           )}
-          {location.pathname === "/projects" && (
-            <ProjectsTopNav onCreateProject={handleCreateProject} />
+          {location.pathname === "/projects" && projectsPageProps && (
+            <ProjectsTopNav
+              onCreateProject={handleCreateProject}
+              {...projectsPageProps}
+            />
           )}
+          {location.pathname.startsWith("/project/") &&
+            projectDetailPageProps && (
+              <ProjectDetailTopNav {...projectDetailPageProps} />
+            )}
           {location.pathname === "/calendar" && <CalendarTopNav />}
           {location.pathname === "/ai-mode" && <AIModeTopNav />}
-          <div className="p-6">{children}</div>
+          <div
+            className={
+              location.pathname === "/projects" ||
+              location.pathname.startsWith("/project/")
+                ? ""
+                : "p-6"
+            }
+          >
+            {children}
+          </div>
         </main>
       </div>
 

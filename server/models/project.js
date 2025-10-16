@@ -28,7 +28,7 @@ const projectSchema = new Schema(
     },
     icon: {
       type: String,
-      default: "📁",
+      default: "Folder",
     },
     color: {
       type: String,
@@ -82,6 +82,10 @@ const projectSchema = new Schema(
     lead: {
       type: Schema.Types.ObjectId,
       ref: "User",
+    },
+    templateUsed: {
+      type: Schema.Types.ObjectId,
+      ref: "ProjectTemplate",
     },
   },
   { timestamps: true }
