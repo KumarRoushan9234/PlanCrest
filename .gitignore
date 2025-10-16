@@ -1,6 +1,7 @@
 /z-docs
 client_Mangement.txt
 /z-page-sidebars
+.md 
 
 # Ignore documents
 *.pdf
