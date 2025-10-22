@@ -22,6 +22,7 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import Dashboard from "./pages/Dashboard";
+import TaskBoardPage from "./pages/dashboard/TaskBoardPage";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
@@ -140,6 +141,15 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/tasks"
+                  element={
+                    <ProtectedRoute>
+                      <TaskBoardPage />
                     </ProtectedRoute>
                   }
                 />

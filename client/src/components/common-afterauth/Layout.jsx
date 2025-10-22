@@ -41,7 +41,8 @@ const Layout = ({ children, projectsPageProps, projectDetailPageProps }) => {
         {/* Main Content */}
         <main className="flex-1 transition-all duration-300 relative z-10 mt-9 ml-0 md:ml-16 lg:ml-16">
           {/* Page-specific top navigation */}
-          {location.pathname === "/dashboard" && (
+          {(location.pathname === "/dashboard" ||
+            location.pathname === "/tasks") && (
             <DashboardTopNav onCreateProject={handleCreateProject} />
           )}
           {location.pathname === "/projects" && projectsPageProps && (

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -19,15 +20,31 @@ import {
   List,
   Bell,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import ProjectSelector from "./ProjectSelector";
 
 const DashboardTopNav = ({ onCreateProject }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [expandedSections, setExpandedSections] = useState({
     myTasks: false,
     spaces: false,
   });
-  const [activeItem, setActiveItem] = useState("inbox");
+
+  // Determine active item based on current route
+  const getActiveItem = () => {
+    if (location.pathname === "/tasks") return "allTasks";
+    if (location.pathname === "/dashboard") return "inbox";
+    return "inbox";
+  };
+
+  const [activeItem, setActiveItem] = useState(getActiveItem());
+
+  // Update active item when location changes
+  React.useEffect(() => {
+    setActiveItem(getActiveItem());
+  }, [location.pathname]);
 
   const toggleSection = (section) => {
     setExpandedSections((prev) => ({
@@ -68,6 +85,13 @@ const DashboardTopNav = ({ onCreateProject }) => {
 
   const handleItemClick = (itemName) => {
     setActiveItem(itemName);
+
+    // Navigate to specific pages
+    if (itemName === "allTasks") {
+      navigate("/tasks");
+    } else if (itemName === "inbox") {
+      navigate("/dashboard");
+    }
   };
 
   return (
@@ -81,7 +105,7 @@ const DashboardTopNav = ({ onCreateProject }) => {
       <div className="flex items-center justify-between">
         {/* Left Section - Navigation Items */}
         <div className="flex items-center space-x-1">
-          {/* Inbox */}
+          {/* Dashboard */}
           <motion.button
             onClick={() => handleItemClick("inbox")}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group relative ${
@@ -99,11 +123,11 @@ const DashboardTopNav = ({ onCreateProject }) => {
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
             >
-              <Inbox className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4" />
             </motion.div>
-            <span className="font-medium text-xs">Inbox</span>
+            <span className="font-medium text-xs">Dashboard</span>
             <motion.div
-              className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full"
+              className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full"
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
             >
@@ -228,6 +252,36 @@ const DashboardTopNav = ({ onCreateProject }) => {
             </AnimatePresence>
           </div>
 
+          {/* All Tasks */}
+          <motion.button
+            onClick={() => handleItemClick("allTasks")}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 group ${
+              activeItem === "allTasks"
+                ? "bg-gray-800 text-white"
+                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+            }`}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <motion.div
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 7 }}
+            >
+              <List className="w-4 h-4" />
+            </motion.div>
+            <span className="font-medium text-xs">All Tasks</span>
+            <motion.div
+              className="bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full"
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 1, repeat: Infinity, repeatDelay: 4 }}
+            >
+              12
+            </motion.div>
+          </motion.button>
+
           {/* More Tools */}
           <motion.button
             onClick={() => handleItemClick("more")}
@@ -240,7 +294,7 @@ const DashboardTopNav = ({ onCreateProject }) => {
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.5 }}
           >
             <MoreHorizontal className="w-4 h-4" />
             <span className="font-medium text-xs">More</span>
