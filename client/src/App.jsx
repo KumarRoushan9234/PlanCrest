@@ -22,7 +22,12 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import Dashboard from "./pages/Dashboard";
+import OverviewPage from "./pages/dashboard/OverviewPage";
 import TaskBoardPage from "./pages/dashboard/TaskBoardPage";
+import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
+import TeamPage from "./pages/dashboard/TeamPage";
+import DashboardCalendarPage from "./pages/dashboard/CalendarPage";
+import ActivityPage from "./pages/dashboard/ActivityPage";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
@@ -140,16 +145,52 @@ function App() {
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
-                      <Dashboard />
+                      <OverviewPage />
                     </ProtectedRoute>
                   }
                 />
 
                 <Route
-                  path="/tasks"
+                  path="/dashboard/tasks"
                   element={
                     <ProtectedRoute>
                       <TaskBoardPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <AnalyticsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/team"
+                  element={
+                    <ProtectedRoute>
+                      <TeamPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/calendar"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardCalendarPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/activity"
+                  element={
+                    <ProtectedRoute>
+                      <ActivityPage />
                     </ProtectedRoute>
                   }
                 />

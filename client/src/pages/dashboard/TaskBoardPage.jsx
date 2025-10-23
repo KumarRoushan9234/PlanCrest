@@ -323,7 +323,7 @@ const TaskBoardPage = () => {
       <Layout>
         <div
           className="min-h-screen flex items-center justify-center"
-          style={{ backgroundColor: "#171819" }}
+          style={{ backgroundColor: "#0a0a0b" }}
         >
           <LoadingSpinner fullScreen text="Loading tasks..." />
         </div>
@@ -333,36 +333,17 @@ const TaskBoardPage = () => {
 
   return (
     <Layout>
-      <div
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
-        style={{ backgroundColor: "#171819" }}
-      >
-        {/* Header Section */}
-        <motion.div
-          className="mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-white mb-2">Task Board</h2>
-              <p className="text-gray-400">
-                Manage and track your tasks across all projects.
-              </p>
-            </div>
-
+      <div className="flex h-screen" style={{ backgroundColor: "#0a0a0b" }}>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Top Action Bar */}
+          <motion.div
+            className="flex items-center justify-between px-6 py-4 border-b border-gray-800"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="flex items-center space-x-3">
-              <motion.button
-                onClick={refreshTasks}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200 border border-gray-700"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span className="text-sm">Refresh</span>
-              </motion.button>
-
               <motion.button
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200"
                 whileHover={{ scale: 1.02 }}
@@ -371,47 +352,86 @@ const TaskBoardPage = () => {
                 <Plus className="w-4 h-4" />
                 <span className="text-sm font-medium">New Task</span>
               </motion.button>
+
+              <TaskFilters
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                projects={projects}
+                currentWorkspace={currentWorkspace}
+              />
+
+              <motion.button
+                onClick={refreshTasks}
+                className="flex items-center space-x-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200 border border-gray-700"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </motion.button>
             </div>
+
+            <div className="text-sm text-gray-400">
+              {filteredTasks.length} tasks
+            </div>
+          </motion.div>
+
+          {/* Kanban Board - Full Width */}
+          <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-4">
+            <motion.div
+              className="h-full"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <TaskBoard
+                tasks={filteredTasks}
+                onTaskUpdate={handleTaskUpdate}
+                onTaskMove={handleTaskMove}
+                currentUser={user}
+              />
+            </motion.div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Stats Grid */}
+        {/* Right Sidebar - Compact Stats */}
         <motion.div
-          className="mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <TaskStats stats={stats} />
-        </motion.div>
-
-        {/* Filters Section */}
-        <motion.div
-          className="mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          className="w-64 border-l border-gray-800 overflow-y-auto"
+          style={{ backgroundColor: "#0d0d0e" }}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <TaskFilters
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            projects={projects}
-            currentWorkspace={currentWorkspace}
-          />
-        </motion.div>
-
-        {/* Kanban Board */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <TaskBoard
-            tasks={filteredTasks}
-            onTaskUpdate={handleTaskUpdate}
-            onTaskMove={handleTaskMove}
-            currentUser={user}
-          />
+          <div className="p-4 space-y-4">
+            {/* Stats */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                Statistics
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { label: "Total", value: stats.total, icon: BarChart3, color: "text-blue-400" },
+                  { label: "Completed", value: stats.completed, icon: CheckCircle2, color: "text-green-400" },
+                  { label: "In Progress", value: stats.inProgress, icon: Clock, color: "text-yellow-400" },
+                  { label: "Overdue", value: stats.overdue, icon: AlertCircle, color: "text-red-400" },
+                  { label: "Assigned to Me", value: stats.assignedToMe, icon: Users, color: "text-purple-400" },
+                ].map((stat, index) => (
+                  <motion.div
+                    key={stat.label}
+                    className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-gray-800"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + index * 0.05, duration: 0.3 }}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                      <span className="text-xs text-gray-400">{stat.label}</span>
+                    </div>
+                    <span className="text-lg font-bold text-white">{stat.value}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </Layout>

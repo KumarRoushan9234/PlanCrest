@@ -42,7 +42,7 @@ const Layout = ({ children, projectsPageProps, projectDetailPageProps }) => {
         <main className="flex-1 transition-all duration-300 relative z-10 mt-9 ml-0 md:ml-16 lg:ml-16">
           {/* Page-specific top navigation */}
           {(location.pathname === "/dashboard" ||
-            location.pathname === "/tasks") && (
+            location.pathname.startsWith("/dashboard/")) && (
             <DashboardTopNav onCreateProject={handleCreateProject} />
           )}
           {location.pathname === "/projects" && projectsPageProps && (
@@ -60,7 +60,8 @@ const Layout = ({ children, projectsPageProps, projectDetailPageProps }) => {
           <div
             className={
               location.pathname === "/projects" ||
-              location.pathname.startsWith("/project/")
+              location.pathname.startsWith("/project/") ||
+              location.pathname.startsWith("/dashboard")
                 ? ""
                 : "p-6"
             }
