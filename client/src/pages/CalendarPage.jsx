@@ -1,130 +1,300 @@
-import React from "react";
-import Layout from "../components/common-afterauth/Layout";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../contexts/AuthContext";
+import { Layout } from "../components/common-afterauth";
+import { AuthLoader } from "../components/loaders";
+import { MonthView, LinearView } from "../components/calendar";
+import { TaskSidebar, DaySidebar } from "../components/sidebar";
+import CalendarTopNav from "../components/top-nav/CalendarTopNav";
 
 const CalendarPage = () => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState("month"); // "month" or "linear"
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isDaySidebarOpen, setIsDaySidebarOpen] = useState(false);
+  const [isTaskSidebarOpen, setIsTaskSidebarOpen] = useState(false);
+
+  // Mock data - replace with actual API calls
+  const mockTasks = [
+    {
+      _id: "1",
+      title: "Design new landing page",
+      description:
+        "Create a modern, responsive landing page for the new product launch",
+      status: "todo",
+      priority: "high",
+      dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+      time: "09:00",
+      assignee: {
+        _id: user?._id,
+        name: "John Doe",
+        avatar:
+          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
+      },
+      project: {
+        _id: "proj1",
+        name: "Website Redesign",
+      },
+    },
+    {
+      _id: "2",
+      title: "Team meeting",
+      description: "Weekly sync with the development team",
+      status: "todo",
+      priority: "medium",
+      dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+      time: "14:00",
+      assignee: {
+        _id: user?._id,
+        name: "John Doe",
+        avatar:
+          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
+      },
+      project: {
+        _id: "proj1",
+        name: "Website Redesign",
+      },
+    },
+    {
+      _id: "3",
+      title: "Review pull requests",
+      description: "Review and merge pending PRs",
+      status: "completed",
+      priority: "low",
+      dueDate: new Date(),
+      time: "10:30",
+      assignee: {
+        _id: user?._id,
+        name: "John Doe",
+        avatar:
+          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
+      },
+      project: {
+        _id: "proj2",
+        name: "API Development",
+      },
+    },
+    {
+      _id: "4",
+      title: "Client presentation",
+      description: "Present Q4 progress to stakeholders",
+      status: "todo",
+      priority: "high",
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      time: "15:00",
+      assignee: {
+        _id: "user2",
+        name: "Jane Smith",
+        avatar:
+          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face",
+      },
+      project: {
+        _id: "proj1",
+        name: "Website Redesign",
+      },
+    },
+  ];
+
+  const mockEvents = [
+    {
+      _id: "e1",
+      title: "Company All-Hands",
+      description: "Quarterly company meeting",
+      date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      time: "11:00",
+      type: "meeting",
+    },
+    {
+      _id: "e2",
+      title: "Product Launch",
+      description: "Official product release event",
+      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      time: "13:00",
+      type: "event",
+    },
+    {
+      _id: "e3",
+      title: "Team Standup",
+      description: "Daily team sync",
+      date: new Date(),
+      time: "09:30",
+      type: "meeting",
+    },
+    {
+      _id: "e4",
+      title: "Client Demo",
+      description: "Product demonstration for client",
+      date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      time: "15:00",
+      type: "meeting",
+    },
+    {
+      _id: "e5",
+      title: "Workshop",
+      description: "Technical workshop session",
+      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      time: "10:00",
+      type: "event",
+    },
+  ];
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setIsDaySidebarOpen(true);
+  };
+
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+    setIsTaskSidebarOpen(true);
+    setIsDaySidebarOpen(false);
+  };
+
+  const handleTaskUpdate = (updatedTask) => {
+    // Update task in state
+    setSelectedTask(updatedTask);
+  };
+
+  const handleTaskDelete = (taskId) => {
+    // Delete task from state
+    setIsTaskSidebarOpen(false);
+    setSelectedTask(null);
+  };
+
+  const handleNavigate = (action) => {
+    const newDate = new Date(currentDate);
+
+    switch (action) {
+      case "prev":
+        newDate.setMonth(newDate.getMonth() - 1);
+        break;
+      case "next":
+        newDate.setMonth(newDate.getMonth() + 1);
+        break;
+      case "prev-week":
+        newDate.setDate(newDate.getDate() - 7);
+        break;
+      case "next-week":
+        newDate.setDate(newDate.getDate() + 7);
+        break;
+      case "today":
+        setCurrentDate(new Date());
+        return;
+      default:
+        break;
+    }
+
+    setCurrentDate(newDate);
+  };
+
+  const getTasksForSelectedDate = () => {
+    if (!selectedDate) return [];
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    return mockTasks.filter((t) => {
+      if (!t.dueDate) return false;
+      const taskDate = new Date(t.dueDate).toISOString().split("T")[0];
+      return taskDate === dateStr;
+    });
+  };
+
+  const getEventsForSelectedDate = () => {
+    if (!selectedDate) return [];
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    return mockEvents.filter((e) => {
+      if (!e.date) return false;
+      const eventDate = new Date(e.date).toISOString().split("T")[0];
+      return eventDate === dateStr;
+    });
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <AuthLoader fullScreen text="Loading calendar..." />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Calendar</h1>
-          <p className="text-gray-400">
-            Manage your schedule and stay organized
-          </p>
-        </div>
+      <div
+        className="flex h-screen overflow-hidden"
+        style={{ backgroundColor: "#000000" }}
+      >
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Calendar Top Navigation */}
+          <CalendarTopNav
+            currentDate={currentDate}
+            onNavigate={handleNavigate}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            onCreateEvent={() => console.log("Create new event")}
+          />
 
-        {/* Calendar Views */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {/* Today's Schedule Card */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mr-4">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+          {/* Calendar View - Full Width */}
+          <div className="flex-1 overflow-hidden bg-gradient-to-br from-gray-950 to-black">
+            <AnimatePresence mode="wait">
+              {viewMode === "month" ? (
+                <motion.div
+                  key="month"
+                  className="h-full"
+                  initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                  transition={{ duration: 0.4, ease: "easeInOut" }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  <MonthView
+                    currentDate={currentDate}
+                    onDateSelect={handleDateSelect}
+                    tasks={mockTasks}
+                    events={mockEvents}
+                    onNavigate={handleNavigate}
                   />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-white">
-                Today's Schedule
-              </h3>
-            </div>
-            <p className="text-gray-400 mb-4">
-              View and manage today's appointments and tasks
-            </p>
-            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors">
-              View Today
-            </button>
-          </div>
-
-          {/* Upcoming Events Card */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-green-500 transition-colors">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mr-4">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="linear"
+                  className="h-full"
+                  initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                  transition={{ duration: 0.4, ease: "easeInOut" }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  <LinearView
+                    currentDate={currentDate}
+                    tasks={mockTasks}
+                    events={mockEvents}
+                    onTaskClick={handleTaskClick}
+                    onNavigate={handleNavigate}
                   />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-white">
-                Upcoming Events
-              </h3>
-            </div>
-            <p className="text-gray-400 mb-4">
-              See what's coming up in your calendar
-            </p>
-            <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors">
-              View Events
-            </button>
-          </div>
-
-          {/* Create Event Card */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-purple-500 transition-colors">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mr-4">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-white">Create Event</h3>
-            </div>
-            <p className="text-gray-400 mb-4">
-              Schedule new meetings and appointments
-            </p>
-            <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition-colors">
-              Create New
-            </button>
-          </div>
-        </div>
-
-        {/* Calendar Settings Section */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-2xl font-semibold text-white mb-4">
-            Calendar Settings
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-500 mb-2">15</div>
-              <div className="text-gray-400">Events This Week</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-500 mb-2">3</div>
-              <div className="text-gray-400">Active Calendars</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-500 mb-2">92%</div>
-              <div className="text-gray-400">Schedule Efficiency</div>
-            </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
+
+      {/* Day Details Sidebar */}
+      <DaySidebar
+        isOpen={isDaySidebarOpen}
+        onClose={() => setIsDaySidebarOpen(false)}
+        selectedDate={selectedDate}
+        tasks={getTasksForSelectedDate()}
+        events={getEventsForSelectedDate()}
+        onTaskClick={handleTaskClick}
+      />
+
+      {/* Task Details Sidebar */}
+      <TaskSidebar
+        isOpen={isTaskSidebarOpen}
+        onClose={() => setIsTaskSidebarOpen(false)}
+        task={selectedTask}
+        onUpdate={handleTaskUpdate}
+        onDelete={handleTaskDelete}
+      />
     </Layout>
   );
 };

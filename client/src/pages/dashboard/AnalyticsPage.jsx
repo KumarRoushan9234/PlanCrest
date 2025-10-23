@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { Layout } from "../../components/common-afterauth";
-import LoadingSpinner from "../../components/LoadingSpinner";
+import { AuthLoader } from "../../components/loaders";
 import {
   TrendingUp,
   TrendingDown,
@@ -47,12 +47,7 @@ const AnalyticsPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ backgroundColor: "#0a0a0b" }}
-        >
-          <LoadingSpinner fullScreen text="Loading analytics..." />
-        </div>
+        <AuthLoader fullScreen text="Loading analytics..." />
       </Layout>
     );
   }

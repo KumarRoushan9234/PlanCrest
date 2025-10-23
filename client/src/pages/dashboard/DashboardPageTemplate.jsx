@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { Layout } from "../../components/common-afterauth";
-import LoadingSpinner from "../../components/LoadingSpinner";
+import { AuthLoader } from "../../components/loaders";
 
 /**
  * Template for Dashboard Pages
@@ -30,12 +30,7 @@ const DashboardPageTemplate = () => {
   if (loading) {
     return (
       <Layout>
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ backgroundColor: "#171819" }}
-        >
-          <LoadingSpinner fullScreen text="Loading..." />
-        </div>
+        <AuthLoader fullScreen text="Loading..." />
       </Layout>
     );
   }

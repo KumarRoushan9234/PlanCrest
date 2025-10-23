@@ -1,16 +1,22 @@
-import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import PublicNavbar from './PublicNavbar';
-import AuthNavbar from './AuthNavbar';
-import LoadingSpinner from './LoadingSpinner';
+import React from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import PublicNavbar from "./PublicNavbar";
+import AuthNavbar from "./AuthNavbar";
+import { AuthLoader } from "./loaders";
 
 const Navbar = () => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   // Don't show navbar on auth pages
-  const authPages = ['/login', '/register', '/verify-email', '/forgot-password', '/reset-password'];
+  const authPages = [
+    "/login",
+    "/register",
+    "/verify-email",
+    "/forgot-password",
+    "/reset-password",
+  ];
   if (authPages.includes(location.pathname)) {
     return null;
   }
@@ -26,12 +32,14 @@ const Navbar = () => {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">C</span>
               </div>
-              <span className="text-xl font-bold text-white ml-2">ClientFlow</span>
+              <span className="text-xl font-bold text-white ml-2">
+                ClientFlow
+              </span>
             </div>
-            
+
             {/* Loading indicator */}
             <div className="flex items-center">
-              <LoadingSpinner size="sm" text="Loading..." />
+              <AuthLoader size="small" showText={false} fullScreen={false} />
             </div>
           </div>
         </div>

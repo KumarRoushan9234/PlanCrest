@@ -55,13 +55,13 @@ const Layout = ({ children, projectsPageProps, projectDetailPageProps }) => {
             projectDetailPageProps && (
               <ProjectDetailTopNav {...projectDetailPageProps} />
             )}
-          {location.pathname === "/calendar" && <CalendarTopNav />}
           {location.pathname === "/ai-mode" && <AIModeTopNav />}
           <div
             className={
               location.pathname === "/projects" ||
               location.pathname.startsWith("/project/") ||
-              location.pathname.startsWith("/dashboard")
+              location.pathname.startsWith("/dashboard") ||
+              location.pathname === "/calendar"
                 ? ""
                 : "p-6"
             }

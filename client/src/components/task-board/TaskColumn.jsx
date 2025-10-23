@@ -11,6 +11,7 @@ const TaskColumn = ({
   index,
   onTaskUpdate,
   currentUser,
+  onTaskClick,
 }) => {
   const getColumnColor = (color) => {
     const colors = {
@@ -131,6 +132,7 @@ const TaskColumn = ({
                     index={taskIndex}
                     onTaskUpdate={onTaskUpdate}
                     currentUser={currentUser}
+                    onTaskClick={onTaskClick}
                   />
                 ))
               )}

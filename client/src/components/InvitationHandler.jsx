@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import { InvitationAcceptModal } from "./modals";
-import LoadingSpinner from "./LoadingSpinner";
+import { AuthLoader } from "./loaders";
 
 const InvitationHandler = () => {
   const { token } = useParams();
@@ -55,12 +55,7 @@ const InvitationHandler = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingSpinner />
-          <p className="text-white mt-4">Loading invitation details...</p>
-        </div>
-      </div>
+      <AuthLoader fullScreen text="Loading invitation details..." />
     );
   }
 

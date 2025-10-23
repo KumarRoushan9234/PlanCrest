@@ -1,397 +1,275 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search,
+  ChevronLeft,
+  ChevronRight,
   Plus,
-  ChevronDown,
-  ChevronUp,
-  Calendar,
+  Filter,
+  Settings,
+  Download,
+  Upload,
+  MoreVertical,
+  Grid3X3,
+  List,
+  Calendar as CalendarIcon,
   Clock,
   Users,
-  Settings,
-  Filter,
-  Star,
-  MoreHorizontal,
-  Bell,
-  X,
+  Tag,
+  ChevronDown,
 } from "lucide-react";
 
-const CalendarTopNav = () => {
-  const [expandedSections, setExpandedSections] = useState({
-    views: false,
-    calendars: false,
-  });
-  const [activeItem, setActiveItem] = useState("today");
+const CalendarTopNav = ({ 
+  currentDate = new Date(), 
+  onNavigate = () => {}, 
+  viewMode = "month", 
+  onViewModeChange = () => {}, 
+  onCreateEvent = () => {} 
+}) => {
+  const [showFilters, setShowFilters] = useState(false);
+  const [showActions, setShowActions] = useState(false);
 
-  const toggleSection = (section) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const prevMonth = () => {
+    onNavigate("prev");
   };
 
-  const viewItems = [
-    { name: "Today", icon: Calendar, active: true },
-    { name: "Week", icon: Calendar },
-    { name: "Month", icon: Calendar },
-    { name: "Year", icon: Calendar },
-  ];
-
-  const calendarItems = [
-    { name: "Personal", color: "bg-blue-500" },
-    { name: "Work", color: "bg-green-500" },
-    { name: "Team Meetings", color: "bg-purple-500" },
-  ];
-
-  const quickActionsItems = [
-    { name: "Schedule Meeting", icon: Clock },
-    { name: "Team Availability", icon: Users },
-  ];
-
-  const handleItemClick = (itemName) => {
-    setActiveItem(itemName);
+  const nextMonth = () => {
+    onNavigate("next");
   };
+
+  const goToToday = () => {
+    onNavigate("today");
+  };
+
+  const filterOptions = [
+    { id: "all", label: "All Events", icon: CalendarIcon },
+    { id: "meetings", label: "Meetings", icon: Users },
+    { id: "deadlines", label: "Deadlines", icon: Clock },
+    { id: "tasks", label: "Tasks", icon: Tag },
+  ];
+
+  const actionOptions = [
+    { id: "export", label: "Export Calendar", icon: Download },
+    { id: "import", label: "Import Events", icon: Upload },
+    { id: "settings", label: "Calendar Settings", icon: Settings },
+  ];
 
   return (
     <motion.nav
-      className="w-full px-6 py-4 border-b border-gray-800"
-      style={{ backgroundColor: "#0f0f11" }}
+      className="w-full px-6 py-3 border-b border-gray-800/50 backdrop-blur-xl z-50"
+      style={{
+        backgroundColor: "rgba(10, 10, 11, 0.95)",
+        boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.3)",
+      }}
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
       <div className="flex items-center justify-between">
-        {/* Left Section - Main Navigation */}
-        <div className="flex items-center space-x-4">
-          {/* Page Title - Commented Out */}
-          {/* <motion.div
-            className="flex items-center space-x-3"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
+        {/* Left Section - Navigation */}
+        <div className="flex items-center gap-3">
+          {/* Today Button */}
+          <motion.button
+            onClick={goToToday}
+            className="px-3.5 py-2 bg-gray-800/50 hover:bg-gray-800 text-white rounded-lg transition-all duration-200 text-xs font-medium"
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.97 }}
           >
-            <h1 className="text-xl font-semibold text-white">Calendar</h1>
-          </motion.div> */}
+            Today
+          </motion.button>
 
-          {/* Search Bar */}
-          <motion.div
-            className="relative"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search events..."
-              className="pl-10 pr-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 w-64"
-            />
-          </motion.div>
-
-          {/* Quick Actions */}
-          <motion.div
-            className="flex items-center space-x-2"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
+          {/* Month Navigation */}
+          <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg p-1">
             <motion.button
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 text-sm"
+              onClick={prevMonth}
+              className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-all duration-200"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              >
-                <Plus className="w-4 h-4" />
-              </motion.div>
-              <span>Create Event</span>
+              <ChevronLeft className="w-4 h-4" />
             </motion.button>
-          </motion.div>
-        </div>
-
-        {/* Center Section - Navigation Items */}
-        <div className="flex items-center space-x-1">
-          {/* Views Dropdown */}
-          <div className="relative">
+            <div className="px-3 text-white font-medium text-sm min-w-[120px] text-center">
+              {currentDate ? `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}` : 'Loading...'}
+            </div>
             <motion.button
-              onClick={() => toggleSection("views")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group ${
-                activeItem === "views"
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
-              }`}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              onClick={nextMonth}
+              className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-all duration-200"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <motion.div
-                animate={{ rotate: [0, 5, -5, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 6 }}
-              >
-                <Calendar className="w-4 h-4" />
-              </motion.div>
-              <span className="font-semibold text-sm">Views</span>
-              <motion.div
-                animate={{ rotate: expandedSections.views ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ChevronDown className="w-4 h-4" />
-              </motion.div>
+              <ChevronRight className="w-4 h-4" />
             </motion.button>
-
-            {/* Views Dropdown Menu */}
-            <AnimatePresence>
-              {expandedSections.views && (
-                <motion.div
-                  className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-[9999]"
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="p-2">
-                    {viewItems.map((item, index) => (
-                      <motion.button
-                        key={index}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                          item.active
-                            ? "bg-blue-600 text-white shadow-lg"
-                            : "text-gray-300 hover:bg-gray-800 hover:text-white"
-                        }`}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1, duration: 0.3 }}
-                        whileHover={{ x: 5 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleItemClick(item.name.toLowerCase())}
-                      >
-                        <item.icon className="w-4 h-4" />
-                        <span className="text-sm font-medium">{item.name}</span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
-          {/* Calendars Dropdown */}
-          <div className="relative">
-            <motion.button
-              onClick={() => toggleSection("calendars")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group ${
-                activeItem === "calendars"
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
-              }`}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <motion.div
-                animate={{ rotate: [0, 5, -5, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 7 }}
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-gray-900/50 border border-gray-800 rounded-lg p-1">
+            {[
+              { id: "month", label: "Month", icon: Grid3X3 },
+              { id: "linear", label: "Week", icon: List }
+            ].map((mode) => (
+              <motion.button
+                key={mode.id}
+                onClick={() => onViewModeChange(mode.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-200 ${
+                  viewMode === mode.id
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
+                    : "text-gray-400 hover:text-white"
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Calendar className="w-4 h-4" />
-              </motion.div>
-              <span className="font-semibold text-sm">Calendars</span>
-              <motion.div
-                animate={{ rotate: expandedSections.calendars ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ChevronDown className="w-4 h-4" />
-              </motion.div>
-            </motion.button>
-
-            {/* Calendars Dropdown Menu */}
-            <AnimatePresence>
-              {expandedSections.calendars && (
-                <motion.div
-                  className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-[9999]"
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="p-2">
-                    {calendarItems.map((item, index) => (
-                      <motion.button
-                        key={index}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-all duration-200 group"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1, duration: 0.3 }}
-                        whileHover={{ x: 5 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <motion.div
-                          className={`w-2 h-2 rounded-full ${item.color}`}
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{
-                            duration: 1,
-                            repeat: Infinity,
-                            repeatDelay: 5 + index,
-                          }}
-                        />
-                        <span className="text-sm font-medium">{item.name}</span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                <mode.icon className="w-4 h-4" />
+                <span className="text-xs font-medium">{mode.label}</span>
+              </motion.button>
+            ))}
           </div>
 
-          {/* Quick Actions */}
-          <motion.button
-            onClick={() => handleItemClick("quickActions")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group ${
-              activeItem === "quickActions"
-                ? "bg-gray-800 text-white"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white"
-            }`}
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <Clock className="w-4 h-4" />
-            <span className="font-medium text-sm">Quick Actions</span>
-          </motion.button>
-
-          {/* More Tools */}
-          <motion.button
-            onClick={() => handleItemClick("more")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 group ${
-              activeItem === "more"
-                ? "bg-gray-800 text-white"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white"
-            }`}
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <MoreHorizontal className="w-4 h-4" />
-            <span className="font-medium text-sm">More Tools</span>
-          </motion.button>
-        </div>
-
-        {/* Right Section - Actions and Favorites */}
-        <div className="flex items-center space-x-4">
-          {/* Quick Actions Dropdown */}
+          {/* Filter Button */}
           <div className="relative">
             <motion.button
-              onClick={() => toggleSection("quickActions")}
-              className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-all duration-200 group"
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 ${
+                showFilters
+                  ? "bg-gray-800 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+              }`}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
             >
-              <Star className="w-4 h-4 text-yellow-500" />
-              <span className="font-medium text-sm">Quick Actions</span>
+              <Filter className="w-4 h-4" />
+              <span className="text-xs font-medium">Filter</span>
               <motion.div
-                animate={{ rotate: expandedSections.quickActions ? 180 : 0 }}
+                animate={{ rotate: showFilters ? 180 : 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-3.5 h-3.5" />
               </motion.div>
             </motion.button>
 
-            {/* Quick Actions Dropdown Menu */}
             <AnimatePresence>
-              {expandedSections.quickActions && (
+              {showFilters && (
                 <motion.div
-                  className="absolute top-full right-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-[9999]"
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
+                  className="absolute top-full left-0 mt-2 w-56 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl z-[9999] overflow-hidden"
                 >
                   <div className="p-2">
-                    <div className="px-3 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-700 mb-2">
-                      Quick Actions
+                    <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      Event Types
                     </div>
-                    {quickActionsItems.map((item, index) => (
-                      <motion.button
-                        key={index}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-all duration-200 group"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1, duration: 0.3 }}
-                        whileHover={{ x: -5 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <motion.div
-                          animate={{ rotate: [0, 5, -5, 0] }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            repeatDelay: 8 + index,
-                          }}
+                    {filterOptions.map((option, index) => {
+                      const IconComponent = option.icon;
+                      return (
+                        <motion.button
+                          key={option.id}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded-lg"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05, duration: 0.2 }}
+                          whileHover={{ x: 2 }}
+                          whileTap={{ scale: 0.98 }}
                         >
-                          <item.icon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                        </motion.div>
-                        <span className="text-sm font-medium">{item.name}</span>
-                      </motion.button>
-                    ))}
+                          <IconComponent className="w-4 h-4" />
+                          <span className="font-medium">{option.label}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Right Section - Actions */}
+        <div className="flex items-center gap-2">
+          {/* More Actions */}
+          <div className="relative">
+            <motion.button
+              onClick={() => setShowActions(!showActions)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-200 ${
+                showActions
+                  ? "bg-gray-800 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+              }`}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <MoreVertical className="w-4 h-4" />
+              <span className="text-xs font-medium">More</span>
+            </motion.button>
+
+            <AnimatePresence>
+              {showActions && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute top-full right-0 mt-2 w-56 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+                >
+                  <div className="p-2">
+                    {actionOptions.map((option, index) => {
+                      const IconComponent = option.icon;
+                      return (
+                        <motion.button
+                          key={option.id}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded-lg"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05, duration: 0.2 }}
+                          whileHover={{ x: 2 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <IconComponent className="w-4 h-4" />
+                          <span className="font-medium">{option.label}</span>
+                        </motion.button>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Additional Actions */}
-          <motion.div
-            className="flex items-center space-x-2"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 }}
+          {/* Create Event Button */}
+          <motion.button
+            onClick={onCreateEvent}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg shadow-blue-900/30"
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <motion.button
-              className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <Bell className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <Settings className="w-4 h-4" />
-            </motion.button>
-          </motion.div>
+            <Plus className="w-4 h-4" />
+            <span className="text-xs font-semibold">New Event</span>
+          </motion.button>
         </div>
       </div>
 
       {/* Click outside to close dropdowns */}
       <AnimatePresence>
-        {(expandedSections.views ||
-          expandedSections.calendars ||
-          expandedSections.quickActions) && (
+        {(showFilters || showActions) && (
           <motion.div
             className="fixed inset-0 z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => {
-              setExpandedSections({
-                views: false,
-                calendars: false,
-                quickActions: false,
-              });
+              setShowFilters(false);
+              setShowActions(false);
             }}
           />
         )}

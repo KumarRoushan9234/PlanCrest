@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-const TaskBoard = ({ tasks, onTaskUpdate, onTaskMove, currentUser }) => {
+const TaskBoard = ({ tasks, onTaskUpdate, onTaskMove, currentUser, onTaskClick }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -203,6 +203,7 @@ const TaskBoard = ({ tasks, onTaskUpdate, onTaskMove, currentUser }) => {
                 index={index}
                 onTaskUpdate={onTaskUpdate}
                 currentUser={currentUser}
+                onTaskClick={onTaskClick}
               />
             );
           })}

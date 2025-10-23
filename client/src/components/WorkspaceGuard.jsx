@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import { CreateWorkspaceModal } from "./modals";
-import LoadingSpinner from "./LoadingSpinner";
+import { AuthLoader } from "./loaders";
 
 const WorkspaceGuard = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
@@ -23,12 +23,7 @@ const WorkspaceGuard = ({ children }) => {
   // Show loading spinner while checking workspaces
   if (workspaceLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingSpinner />
-          <p className="text-white mt-4">Loading your workspaces...</p>
-        </div>
-      </div>
+      <AuthLoader fullScreen text="Loading your workspaces..." />
     );
   }
 

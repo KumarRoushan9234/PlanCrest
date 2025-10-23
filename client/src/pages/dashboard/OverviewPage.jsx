@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { Layout } from "../../components/common-afterauth";
-import LoadingSpinner from "../../components/LoadingSpinner";
+import { TaskSidebar } from "../../components/sidebar";
+import { AuthLoader } from "../../components/loaders";
 import {
   Inbox,
   CheckCircle2,
@@ -20,6 +21,7 @@ import {
   X,
   Eye,
   Trash2,
+  Search,
 } from "lucide-react";
 
 const OverviewPage = () => {
@@ -27,6 +29,9 @@ const OverviewPage = () => {
   const { currentWorkspace } = useWorkspace();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("primary"); // primary, other, cleared
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isTaskSidebarOpen, setIsTaskSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Mock inbox data
   const primaryItems = [
@@ -227,12 +232,7 @@ const OverviewPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ backgroundColor: "#0a0a0b" }}
-        >
-          <LoadingSpinner fullScreen text="Loading inbox..." />
-        </div>
+        <AuthLoader fullScreen text="Loading inbox..." />
       </Layout>
     );
   }
@@ -248,6 +248,25 @@ const OverviewPage = () => {
           transition={{ duration: 0.3 }}
         >
           <div className="flex items-center justify-between">
+            {/* Left Side - Search Bar */}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-400">
+                {currentWorkspace?.name || "Workspace"}
+              </div>
+              <div className="h-6 w-px bg-gray-600"></div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search inbox..."
+                  className="pl-10 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all w-64"
+                />
+              </div>
+            </div>
+
+            {/* Right Side - Tab Buttons */}
             <div className="flex items-center space-x-1">
               {[
                 {
@@ -294,10 +313,6 @@ const OverviewPage = () => {
                 </motion.button>
               ))}
             </div>
-
-            <div className="text-sm text-gray-400">
-              {currentWorkspace?.name || "Workspace"}
-            </div>
           </div>
         </motion.div>
 
@@ -338,6 +353,12 @@ const OverviewPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05, duration: 0.3 }}
                     whileHover={{ x: 4 }}
+                    onClick={() => {
+                      if (item.type === "task") {
+                        setSelectedTask(item);
+                        setIsTaskSidebarOpen(true);
+                      }
+                    }}
                   >
                     <div className="flex items-start space-x-4">
                       {/* Icon */}
@@ -446,6 +467,15 @@ const OverviewPage = () => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Task Sidebar */}
+      <TaskSidebar
+        isOpen={isTaskSidebarOpen}
+        onClose={() => setIsTaskSidebarOpen(false)}
+        task={selectedTask}
+        onUpdate={(updatedTask) => setSelectedTask(updatedTask)}
+        onDelete={() => setIsTaskSidebarOpen(false)}
+      />
     </Layout>
   );
 };

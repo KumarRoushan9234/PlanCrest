@@ -1,35 +1,39 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Draggable } from "@hello-pangea/dnd";
-import { 
-  Clock, 
-  User, 
-  Flag, 
-  Calendar, 
+import {
+  Clock,
+  User,
+  Flag,
+  Calendar,
   MoreHorizontal,
   MessageCircle,
   Paperclip,
   Eye,
   CheckCircle2,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 
-const TaskCard = ({ task, index, onTaskUpdate, currentUser }) => {
+const TaskCard = ({ task, index, onTaskUpdate, currentUser, onTaskClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   const isAssignedToMe = task.assignee._id === currentUser?._id;
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "completed";
-  const isDueSoon = task.dueDate && 
-    new Date(task.dueDate) <= new Date(Date.now() + 24 * 60 * 60 * 1000) && 
+  const isOverdue =
+    task.dueDate &&
+    new Date(task.dueDate) < new Date() &&
+    task.status !== "completed";
+  const isDueSoon =
+    task.dueDate &&
+    new Date(task.dueDate) <= new Date(Date.now() + 24 * 60 * 60 * 1000) &&
     task.status !== "completed";
 
   const getPriorityColor = (priority) => {
     const colors = {
       high: "text-red-500 bg-red-500/20",
-      medium: "text-yellow-500 bg-yellow-500/20", 
-      low: "text-green-500 bg-green-500/20"
+      medium: "text-yellow-500 bg-yellow-500/20",
+      low: "text-green-500 bg-green-500/20",
     };
     return colors[priority] || colors.medium;
   };
@@ -38,7 +42,7 @@ const TaskCard = ({ task, index, onTaskUpdate, currentUser }) => {
     const icons = {
       high: <AlertTriangle className="w-3 h-3" />,
       medium: <AlertCircle className="w-3 h-3" />,
-      low: <CheckCircle2 className="w-3 h-3" />
+      low: <CheckCircle2 className="w-3 h-3" />,
     };
     return icons[priority] || icons.medium;
   };
@@ -75,17 +79,17 @@ const TaskCard = ({ task, index, onTaskUpdate, currentUser }) => {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           className={`relative bg-gray-700 rounded-xl border transition-all duration-200 cursor-pointer group ${
-            isAssignedToMe 
-              ? "border-blue-500 shadow-lg shadow-blue-500/20" 
+            isAssignedToMe
+              ? "border-blue-500 shadow-lg shadow-blue-500/20"
               : "border-gray-600 hover:border-gray-500"
           } ${
-            snapshot.isDragging 
-              ? "shadow-2xl shadow-blue-500/30 rotate-1 scale-105" 
+            snapshot.isDragging
+              ? "shadow-2xl shadow-blue-500/30 rotate-1 scale-105"
               : ""
           }`}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          onClick={() => setShowDetails(!showDetails)}
+          onClick={() => onTaskClick?.(task)}
           whileHover={{ y: -2, scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           initial={{ opacity: 0, y: 20 }}
@@ -93,7 +97,11 @@ const TaskCard = ({ task, index, onTaskUpdate, currentUser }) => {
           transition={{ delay: index * 0.05, duration: 0.3 }}
         >
           {/* Priority Indicator */}
-          <div className={`absolute top-3 right-3 flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+          <div
+            className={`absolute top-3 right-3 flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+              task.priority
+            )}`}
+          >
             {getPriorityIcon(task.priority)}
             <span className="capitalize">{task.priority}</span>
           </div>
@@ -180,7 +188,9 @@ const TaskCard = ({ task, index, onTaskUpdate, currentUser }) => {
                     alt={task.assignee.name}
                     className="w-5 h-5 rounded-full"
                   />
-                  <span className="text-xs text-gray-400">{task.assignee.name}</span>
+                  <span className="text-xs text-gray-400">
+                    {task.assignee.name}
+                  </span>
                 </div>
               </div>
 
@@ -208,7 +218,7 @@ const TaskCard = ({ task, index, onTaskUpdate, currentUser }) => {
                   <Eye className="w-3 h-3" />
                 </button>
               </div>
-              
+
               <button className="p-1 text-gray-400 hover:text-white hover:bg-gray-600 rounded transition-all duration-200">
                 <MoreHorizontal className="w-3 h-3" />
               </button>

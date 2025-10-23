@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { Layout } from "../../components/common-afterauth";
-import LoadingSpinner from "../../components/LoadingSpinner";
+import { AuthLoader } from "../../components/loaders";
 import {
   Activity,
   CheckCircle2,
@@ -178,12 +178,7 @@ const ActivityPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div
-           className="min-h-screen flex items-center justify-center"
-          style={{ backgroundColor: "#0a0a0b" }}
-        >
-          <LoadingSpinner fullScreen text="Loading activity..." />
-        </div>
+        <AuthLoader fullScreen text="Loading activity..." />
       </Layout>
     );
   }
