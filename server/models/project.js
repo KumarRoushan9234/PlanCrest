@@ -87,6 +87,30 @@ const projectSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "ProjectTemplate",
     },
+    // Analytics
+    analytics: {
+      enabled: { type: Boolean, default: true },
+      trackingEnabled: { type: Boolean, default: true },
+    },
+    // Calendar settings
+    calendarSettings: {
+      enabled: { type: Boolean, default: true },
+      syncWithWorkspace: { type: Boolean, default: true },
+    },
+    // Milestones
+    milestones: [
+      {
+        name: { type: String, required: true },
+        description: String,
+        dueDate: Date,
+        completed: { type: Boolean, default: false },
+        completedAt: Date,
+      },
+    ],
+    // Project deadline
+    deadline: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

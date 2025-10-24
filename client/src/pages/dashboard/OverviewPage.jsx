@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { Layout } from "../../components/common-afterauth";
 import { TaskSidebar } from "../../components/sidebar";
 import { AuthLoader } from "../../components/loaders";
+import { activityService, taskService } from "../../services";
+import toast from "react-hot-toast";
 import {
   Inbox,
   CheckCircle2,
@@ -27,140 +29,125 @@ import {
 const OverviewPage = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("primary"); // primary, other, cleared
   const [selectedTask, setSelectedTask] = useState(null);
   const [isTaskSidebarOpen, setIsTaskSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [myTasks, setMyTasks] = useState([]);
 
-  // Mock inbox data
+  useEffect(() => {
+    if (currentWorkspace?._id) {
+      fetchOverviewData();
+    }
+  }, [currentWorkspace]);
+
+  const fetchOverviewData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch user's assigned tasks
+      const tasksResponse = await taskService.getWorkspaceTasks(
+        currentWorkspace._id
+      );
+
+      if (tasksResponse?.success && tasksResponse?.data) {
+        // Filter tasks assigned to current user
+        const userTasks = tasksResponse.data.filter((task) => {
+          // Check if user is in the task's assignedTo array
+          return task.assignedTo?.some(
+            (a) => a.toString() === user._id || a._id === user._id
+          );
+        });
+        setMyTasks(userTasks);
+      }
+
+      // Try to fetch notifications
+      try {
+        const notificationsResponse = await activityService.getNotifications({
+          limit: 20,
+        });
+        if (notificationsResponse?.success && notificationsResponse?.data) {
+          setNotifications(notificationsResponse.data);
+        }
+      } catch (error) {
+        // If notifications endpoint doesn't exist, use empty array
+        setNotifications([]);
+      }
+    } catch (error) {
+      console.error("Error fetching overview data:", error);
+      toast.error("Failed to load overview");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Transform tasks into inbox items
+  const taskItems = myTasks
+    .filter((task) => task.status !== "done" && task.status !== "completed")
+    .map((task) => ({
+      id: task._id,
+      type: "task",
+      title: task.title,
+      description: task.description,
+      priority: task.priority || "medium",
+      dueDate: task.dueDate ? new Date(task.dueDate) : null,
+      project: task.project?.name || "Unknown Project",
+      status: task.status,
+      timestamp: new Date(task.createdAt),
+      taskData: task, // Store full task data for sidebar
+    }));
+
+  // Transform notifications into inbox items
+  const notificationItems = notifications.map((notification) => ({
+    id: notification._id || notification.id,
+    type: notification.type || "notification",
+    title: notification.title || notification.message,
+    description: notification.description || notification.details,
+    priority: "low",
+    status: notification.read ? "read" : "unread",
+    timestamp: new Date(notification.createdAt || notification.timestamp),
+  }));
+
+  // Primary items: Urgent tasks and unread notifications
   const primaryItems = [
-    {
-      id: 1,
-      type: "task",
-      title: "Design new landing page",
-      description:
-        "Create a modern, responsive landing page for the new product",
-      priority: "high",
-      dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      assignedBy: "John Doe",
-      project: "Website Redesign",
-      status: "pending",
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    },
-    {
-      id: 2,
-      type: "comment",
-      title: "New comment on API Development",
-      description:
-        "Jane Smith commented: 'Great progress! Let's discuss the authentication flow.'",
-      priority: "medium",
-      project: "API Development",
-      status: "unread",
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    },
-    {
-      id: 3,
-      type: "task",
-      title: "Fix responsive layout issues",
-      description: "Resolve mobile responsiveness problems on the dashboard",
-      priority: "high",
-      dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-      assignedBy: "Sarah Wilson",
-      project: "Website Redesign",
-      status: "urgent",
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    },
-    {
-      id: 4,
-      type: "meeting",
-      title: "Team standup meeting",
-      description: "Daily standup with the development team",
-      priority: "medium",
-      dueDate: new Date(Date.now() + 6 * 60 * 60 * 1000),
-      project: "General",
-      status: "scheduled",
-      timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-    },
-    {
-      id: 5,
-      type: "document",
-      title: "Project requirements updated",
-      description: "New requirements document has been uploaded for review",
-      priority: "low",
-      project: "Mobile App",
-      status: "new",
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
-    },
-  ];
+    ...taskItems.filter(
+      (t) =>
+        t.priority === "high" ||
+        (t.dueDate &&
+          new Date(t.dueDate) < new Date(Date.now() + 2 * 24 * 60 * 60 * 1000))
+    ),
+    ...notificationItems.filter((n) => n.status === "unread"),
+  ].sort((a, b) => b.timestamp - a.timestamp);
 
+  // Other items: Lower priority tasks and read notifications
   const otherItems = [
-    {
-      id: 6,
-      type: "notification",
-      title: "System maintenance scheduled",
-      description:
-        "Platform will be under maintenance on Saturday from 2 AM to 4 AM",
-      priority: "low",
-      status: "info",
-      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 7,
-      type: "announcement",
-      title: "New team member joined",
-      description: "Welcome Alex Brown to the development team!",
-      priority: "low",
-      status: "announcement",
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 8,
-      type: "update",
-      title: "Platform update available",
-      description:
-        "New features have been added. Check the changelog for details.",
-      priority: "low",
-      status: "update",
-      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    },
-  ];
+    ...taskItems.filter(
+      (t) =>
+        t.priority !== "high" &&
+        (!t.dueDate ||
+          new Date(t.dueDate) >= new Date(Date.now() + 2 * 24 * 60 * 60 * 1000))
+    ),
+    ...notificationItems.filter((n) => n.status === "read"),
+  ].sort((a, b) => b.timestamp - a.timestamp);
 
-  const clearedItems = [
-    {
-      id: 9,
+  // Cleared items: Completed tasks
+  const clearedItems = myTasks
+    .filter((task) => task.status === "done" || task.status === "completed")
+    .map((task) => ({
+      id: task._id,
       type: "task",
-      title: "Write API documentation",
-      description: "Document all API endpoints with examples",
-      priority: "low",
-      completedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      project: "API Development",
+      title: task.title,
+      description: task.description,
+      priority: task.priority || "medium",
+      completedDate: task.completedAt ? new Date(task.completedAt) : null,
+      project: task.project?.name || "Unknown Project",
       status: "completed",
-      timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 10,
-      type: "task",
-      title: "Update user profile section",
-      description: "Implement new user profile design",
-      priority: "medium",
-      completedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      project: "Website Redesign",
-      status: "completed",
-      timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 11,
-      type: "task",
-      title: "Database migration",
-      description: "Migrate user data to new schema",
-      priority: "high",
-      dueDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      project: "Backend",
-      status: "overdue",
-      timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    },
-  ];
+      timestamp: new Date(task.createdAt),
+      taskData: task,
+    }))
+    .sort((a, b) => b.completedDate - a.completedDate);
 
   const getItemsByTab = () => {
     switch (activeTab) {
@@ -354,8 +341,8 @@ const OverviewPage = () => {
                     transition={{ delay: index * 0.05, duration: 0.3 }}
                     whileHover={{ x: 4 }}
                     onClick={() => {
-                      if (item.type === "task") {
-                        setSelectedTask(item);
+                      if (item.type === "task" && item.taskData) {
+                        setSelectedTask(item.taskData);
                         setIsTaskSidebarOpen(true);
                       }
                     }}

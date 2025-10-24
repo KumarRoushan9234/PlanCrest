@@ -50,6 +50,16 @@ export const projectService = {
     }
   },
 
+  // Get project statistics
+  getProjectStats: async (projectId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/stats`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Update project
   updateProject: async (projectId, updateData) => {
     try {

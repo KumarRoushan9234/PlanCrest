@@ -1,145 +1,114 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
+import { useWorkspace } from "../contexts/WorkspaceContext";
 import { Layout } from "../components/common-afterauth";
 import { AuthLoader } from "../components/loaders";
 import { MonthView, LinearView } from "../components/calendar";
 import { TaskSidebar, DaySidebar } from "../components/sidebar";
 import CalendarTopNav from "../components/top-nav/CalendarTopNav";
+import CreateEventModal from "../components/modals/CreateEventModal";
+import { taskService, calendarService } from "../services";
+import toast from "react-hot-toast";
 
 const CalendarPage = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { currentWorkspace } = useWorkspace();
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("month"); // "month" or "linear"
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isDaySidebarOpen, setIsDaySidebarOpen] = useState(false);
   const [isTaskSidebarOpen, setIsTaskSidebarOpen] = useState(false);
+  const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [events, setEvents] = useState([]);
 
-  // Mock data - replace with actual API calls
-  const mockTasks = [
-    {
-      _id: "1",
-      title: "Design new landing page",
-      description:
-        "Create a modern, responsive landing page for the new product launch",
-      status: "todo",
-      priority: "high",
-      dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-      time: "09:00",
-      assignee: {
-        _id: user?._id,
-        name: "John Doe",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj1",
-        name: "Website Redesign",
-      },
-    },
-    {
-      _id: "2",
-      title: "Team meeting",
-      description: "Weekly sync with the development team",
-      status: "todo",
-      priority: "medium",
-      dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-      time: "14:00",
-      assignee: {
-        _id: user?._id,
-        name: "John Doe",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj1",
-        name: "Website Redesign",
-      },
-    },
-    {
-      _id: "3",
-      title: "Review pull requests",
-      description: "Review and merge pending PRs",
-      status: "completed",
-      priority: "low",
-      dueDate: new Date(),
-      time: "10:30",
-      assignee: {
-        _id: user?._id,
-        name: "John Doe",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj2",
-        name: "API Development",
-      },
-    },
-    {
-      _id: "4",
-      title: "Client presentation",
-      description: "Present Q4 progress to stakeholders",
-      status: "todo",
-      priority: "high",
-      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      time: "15:00",
-      assignee: {
-        _id: "user2",
-        name: "Jane Smith",
-        avatar:
-          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj1",
-        name: "Website Redesign",
-      },
-    },
-  ];
+  // Fetch tasks and events when workspace changes
+  useEffect(() => {
+    if (currentWorkspace?._id) {
+      fetchTasks();
+      fetchEvents();
+    }
+  }, [currentWorkspace]);
 
-  const mockEvents = [
-    {
-      _id: "e1",
-      title: "Company All-Hands",
-      description: "Quarterly company meeting",
-      date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      time: "11:00",
-      type: "meeting",
-    },
-    {
-      _id: "e2",
-      title: "Product Launch",
-      description: "Official product release event",
-      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-      time: "13:00",
-      type: "event",
-    },
-    {
-      _id: "e3",
-      title: "Team Standup",
-      description: "Daily team sync",
-      date: new Date(),
-      time: "09:30",
-      type: "meeting",
-    },
-    {
-      _id: "e4",
-      title: "Client Demo",
-      description: "Product demonstration for client",
-      date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      time: "15:00",
-      type: "meeting",
-    },
-    {
-      _id: "e5",
-      title: "Workshop",
-      description: "Technical workshop session",
-      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      time: "10:00",
-      type: "event",
-    },
-  ];
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const response = await taskService.getWorkspaceTasks(
+        currentWorkspace._id
+      );
+
+      if (response?.success && response?.data) {
+        // Transform tasks to include assignment information
+        const tasksWithAssignments = await Promise.all(
+          response.data.map(async (task) => {
+            try {
+              const assignmentsRes = await taskService.getTaskAssignments(
+                task._id
+              );
+              const primaryAssignee = assignmentsRes?.data?.find(
+                (a) => a.role === "assignee"
+              );
+
+              return {
+                ...task,
+                assignee: primaryAssignee?.user || null,
+                time: task.dueDate
+                  ? new Date(task.dueDate).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })
+                  : null,
+              };
+            } catch (err) {
+              return task;
+            }
+          })
+        );
+
+        setTasks(tasksWithAssignments);
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      // Get current month range
+      const startOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      );
+      const endOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      );
+
+      const response = await calendarService.getWorkspaceEvents(
+        currentWorkspace._id,
+        {
+          startDate: startOfMonth.toISOString(),
+          endDate: endOfMonth.toISOString(),
+        }
+      );
+
+      if (response?.success && response?.data) {
+        setEvents(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      // Don't show error toast for events - they might not be set up yet
+    }
+  };
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
@@ -161,6 +130,12 @@ const CalendarPage = () => {
     // Delete task from state
     setIsTaskSidebarOpen(false);
     setSelectedTask(null);
+  };
+
+  const handleEventCreated = (newEvent) => {
+    setEvents((prev) => [...prev, newEvent]);
+    fetchEvents(); // Refresh events
+    toast.success("Event created successfully!");
   };
 
   const handleNavigate = (action) => {
@@ -192,7 +167,7 @@ const CalendarPage = () => {
   const getTasksForSelectedDate = () => {
     if (!selectedDate) return [];
     const dateStr = selectedDate.toISOString().split("T")[0];
-    return mockTasks.filter((t) => {
+    return tasks.filter((t) => {
       if (!t.dueDate) return false;
       const taskDate = new Date(t.dueDate).toISOString().split("T")[0];
       return taskDate === dateStr;
@@ -202,7 +177,7 @@ const CalendarPage = () => {
   const getEventsForSelectedDate = () => {
     if (!selectedDate) return [];
     const dateStr = selectedDate.toISOString().split("T")[0];
-    return mockEvents.filter((e) => {
+    return events.filter((e) => {
       if (!e.date) return false;
       const eventDate = new Date(e.date).toISOString().split("T")[0];
       return eventDate === dateStr;
@@ -231,7 +206,7 @@ const CalendarPage = () => {
             onNavigate={handleNavigate}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
-            onCreateEvent={() => console.log("Create new event")}
+            onCreateEvent={() => setIsCreateEventOpen(true)}
           />
 
           {/* Calendar View - Full Width */}
@@ -249,8 +224,8 @@ const CalendarPage = () => {
                   <MonthView
                     currentDate={currentDate}
                     onDateSelect={handleDateSelect}
-                    tasks={mockTasks}
-                    events={mockEvents}
+                    tasks={tasks}
+                    events={events}
                     onNavigate={handleNavigate}
                   />
                 </motion.div>
@@ -265,8 +240,8 @@ const CalendarPage = () => {
                 >
                   <LinearView
                     currentDate={currentDate}
-                    tasks={mockTasks}
-                    events={mockEvents}
+                    tasks={tasks}
+                    events={events}
                     onTaskClick={handleTaskClick}
                     onNavigate={handleNavigate}
                   />
@@ -294,6 +269,14 @@ const CalendarPage = () => {
         task={selectedTask}
         onUpdate={handleTaskUpdate}
         onDelete={handleTaskDelete}
+      />
+
+      {/* Create Event Modal */}
+      <CreateEventModal
+        isOpen={isCreateEventOpen}
+        onClose={() => setIsCreateEventOpen(false)}
+        onEventCreated={handleEventCreated}
+        initialDate={selectedDate}
       />
     </Layout>
   );

@@ -2,8 +2,15 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { useProject } from "../../contexts/ProjectContext";
 import { Layout } from "../../components/common-afterauth";
 import { AuthLoader } from "../../components/loaders";
+import {
+  analyticsService,
+  taskService,
+  workspaceService,
+} from "../../services";
+import toast from "react-hot-toast";
 import {
   TrendingUp,
   TrendingDown,
@@ -24,25 +31,148 @@ import {
 const AnalyticsPage = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
-  const [loading, setLoading] = useState(false);
+  const { projects } = useProject();
+  const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("week");
+  const [analytics, setAnalytics] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [members, setMembers] = useState([]);
 
-  // Mock analytics data
-  const stats = {
-    revenue: { value: "$45,231", change: "+20.1%", trend: "up" },
-    tasks: { value: "124", change: "+12.3%", trend: "up" },
-    hours: { value: "456h", change: "-5.4%", trend: "down" },
-    projects: { value: "18", change: "+8.7%", trend: "up" },
+  useEffect(() => {
+    if (currentWorkspace?._id) {
+      fetchAnalyticsData();
+    }
+  }, [currentWorkspace, timeRange]);
+
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch tasks and members for analytics
+      const [tasksResponse, membersResponse] = await Promise.all([
+        taskService.getWorkspaceTasks(currentWorkspace._id),
+        workspaceService.getWorkspaceMembers(currentWorkspace._id),
+      ]);
+
+      if (tasksResponse?.success && tasksResponse?.data) {
+        setTasks(tasksResponse.data);
+      }
+
+      if (membersResponse?.success && membersResponse?.data) {
+        setMembers(membersResponse.data);
+      }
+
+      // Try to fetch analytics from backend if endpoint exists
+      try {
+        // Map timeRange to appropriate query param
+        const timeRangeMap = {
+          week: "7d",
+          month: "30d",
+          quarter: "90d",
+          year: "365d",
+        };
+
+        const analyticsResponse = await analyticsService.getWorkspaceAnalytics(
+          currentWorkspace._id,
+          timeRangeMap[timeRange] || "30d"
+        );
+        if (analyticsResponse?.success && analyticsResponse?.data) {
+          setAnalytics(analyticsResponse.data);
+        }
+      } catch (error) {
+        console.log("Analytics endpoint not available, calculating from tasks");
+        // If analytics endpoint doesn't exist, calculate from tasks
+        calculateAnalytics(
+          tasksResponse?.data || [],
+          membersResponse?.data || []
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      toast.error("Failed to load analytics");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const chartData = [
-    { month: "Jan", revenue: 4000, tasks: 24, hours: 120 },
-    { month: "Feb", revenue: 3000, tasks: 18, hours: 100 },
-    { month: "Mar", revenue: 5000, tasks: 32, hours: 150 },
-    { month: "Apr", revenue: 4500, tasks: 28, hours: 140 },
-    { month: "May", revenue: 6000, tasks: 36, hours: 180 },
-    { month: "Jun", revenue: 5500, tasks: 34, hours: 170 },
-  ];
+  const calculateAnalytics = (taskList, memberList) => {
+    // Calculate basic analytics from tasks
+    const completedTasks = taskList.filter(
+      (t) => t.status === "done" || t.status === "completed"
+    );
+    const inProgressTasks = taskList.filter((t) => t.status === "in-progress");
+    const todoTasks = taskList.filter(
+      (t) => t.status === "todo" || t.status === "backlog"
+    );
+
+    const stats = {
+      totalTasks: taskList.length,
+      completedTasks: completedTasks.length,
+      inProgressTasks: inProgressTasks.length,
+      todoTasks: todoTasks.length,
+      completionRate:
+        taskList.length > 0
+          ? Math.round((completedTasks.length / taskList.length) * 100)
+          : 0,
+      totalMembers: memberList.length,
+      totalProjects: projects.length,
+    };
+
+    setAnalytics(stats);
+  };
+
+  const stats = analytics
+    ? {
+        tasks: {
+          value: analytics.totalTasks?.toString() || "0",
+          change: "+12.3%",
+          trend: "up",
+        },
+        completed: {
+          value: analytics.completedTasks?.toString() || "0",
+          change: `${analytics.completionRate || 0}%`,
+          trend: "up",
+        },
+        members: {
+          value: analytics.totalMembers?.toString() || "0",
+          change: "+8.7%",
+          trend: "up",
+        },
+        projects: {
+          value: analytics.totalProjects?.toString() || "0",
+          change: "+5.2%",
+          trend: "up",
+        },
+      }
+    : {
+        tasks: { value: "0", change: "0%", trend: "up" },
+        completed: { value: "0", change: "0%", trend: "up" },
+        members: { value: "0", change: "0%", trend: "up" },
+        projects: { value: "0", change: "0%", trend: "up" },
+      };
+
+  // Generate chart data from tasks (simplified for now)
+  const chartData = Array.from({ length: 6 }, (_, i) => {
+    const monthDate = new Date();
+    monthDate.setMonth(monthDate.getMonth() - (5 - i));
+    const monthName = monthDate.toLocaleString("default", { month: "short" });
+
+    // Filter tasks completed in this month
+    const monthTasks = tasks.filter((task) => {
+      if (!task.completedAt) return false;
+      const taskDate = new Date(task.completedAt);
+      return (
+        taskDate.getMonth() === monthDate.getMonth() &&
+        taskDate.getFullYear() === monthDate.getFullYear()
+      );
+    });
+
+    return {
+      month: monthName,
+      tasks: monthTasks.length,
+      hours: monthTasks.length * 4, // Estimated 4 hours per task
+    };
+  });
 
   if (loading) {
     return (
@@ -86,6 +216,7 @@ const AnalyticsPage = () => {
 
           <div className="flex items-center space-x-3">
             <motion.button
+              onClick={fetchAnalyticsData}
               className="flex items-center space-x-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200 border border-gray-700"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -113,33 +244,33 @@ const AnalyticsPage = () => {
         >
           {[
             {
-              label: "Revenue",
-              value: stats.revenue.value,
-              icon: DollarSign,
-              color: "text-green-500",
-              change: stats.revenue.change,
-              trend: stats.revenue.trend,
-            },
-            {
-              label: "Tasks Completed",
+              label: "Total Tasks",
               value: stats.tasks.value,
-              icon: CheckCircle2,
+              icon: Target,
               color: "text-blue-500",
               change: stats.tasks.change,
               trend: stats.tasks.trend,
             },
             {
-              label: "Hours Logged",
-              value: stats.hours.value,
-              icon: Clock,
+              label: "Completed Tasks",
+              value: stats.completed.value,
+              icon: CheckCircle2,
+              color: "text-green-500",
+              change: stats.completed.change,
+              trend: stats.completed.trend,
+            },
+            {
+              label: "Team Members",
+              value: stats.members.value,
+              icon: Users,
               color: "text-purple-500",
-              change: stats.hours.change,
-              trend: stats.hours.trend,
+              change: stats.members.change,
+              trend: stats.members.trend,
             },
             {
               label: "Active Projects",
               value: stats.projects.value,
-              icon: Target,
+              icon: BarChart3,
               color: "text-orange-500",
               change: stats.projects.change,
               trend: stats.projects.trend,

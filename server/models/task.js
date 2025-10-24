@@ -75,6 +75,29 @@ const taskSchema = new Schema(
       type: Number,
       default: 0,
     },
+    actualHours: {
+      type: Number,
+      default: 0,
+    },
+    completedAt: {
+      type: Date,
+    },
+    tags: [String],
+    milestone: {
+      type: Boolean,
+      default: false,
+    },
+    milestoneDate: {
+      type: Date,
+    },
+    calendarEventId: {
+      type: Schema.Types.ObjectId,
+      ref: "CalendarEvent",
+    },
+    lastActivityAt: {
+      type: Date,
+      default: Date.now,
+    },
     chatThread: {
       type: Schema.Types.ObjectId,
       ref: "ChatThread",

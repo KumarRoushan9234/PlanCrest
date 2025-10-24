@@ -40,3 +40,17 @@ export const handleAuthError = (err, req, res, next) => {
   }
   next(err);
 };
+
+// Export alias for consistency with new routes
+export const requireAuth = requireSignin;
+
+// Re-export permission middlewares for convenience
+export { 
+  requireWorkspaceMember as requireWorkspaceAccess,
+  requireProjectAccess,
+  requireWorkspaceAdmin,
+  requireProjectAdmin,
+  canCreateTask,
+  canEditTask,
+  requireWorkspaceOwnerOrAdmin,
+} from "./permissions.js";

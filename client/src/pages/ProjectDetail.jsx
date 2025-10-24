@@ -30,10 +30,12 @@ const ProjectDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     if (projectId) {
       fetchProjectDetails();
+      fetchProjectStats();
     }
   }, [projectId]);
 
@@ -59,6 +61,23 @@ const ProjectDetail = () => {
       console.error("Error fetching project:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProjectStats = async () => {
+    try {
+      const response = await projectService.getProjectStats(projectId);
+      setStats(response.data);
+    } catch (error) {
+      console.error("Error fetching project stats:", error);
+      // Set default stats if fetching fails
+      setStats({
+        totalTasks: 0,
+        completedTasks: 0,
+        progressRate: 0,
+        totalMembers: 0,
+        activeMembers: 0,
+      });
     }
   };
 
@@ -245,8 +264,12 @@ const ProjectDetail = () => {
                     </h3>
                     <CheckCircle2 className="w-4 h-4 text-blue-400" />
                   </div>
-                  <p className="text-2xl font-bold text-white mb-1">24</p>
-                  <p className="text-xs text-gray-400">12 completed</p>
+                  <p className="text-2xl font-bold text-white mb-1">
+                    {stats?.totalTasks || 0}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {stats?.completedTasks || 0} completed
+                  </p>
                 </motion.div>
 
                 <motion.div
@@ -261,9 +284,11 @@ const ProjectDetail = () => {
                     <Users className="w-4 h-4 text-green-400" />
                   </div>
                   <p className="text-2xl font-bold text-white mb-1">
-                    {project.members?.length || 0}
+                    {stats?.totalMembers || 0}
                   </p>
-                  <p className="text-xs text-gray-400">Active contributors</p>
+                  <p className="text-xs text-gray-400">
+                    {stats?.activeMembers || 0} active
+                  </p>
                 </motion.div>
 
                 <motion.div
@@ -277,8 +302,16 @@ const ProjectDetail = () => {
                     </h3>
                     <BarChart3 className="w-4 h-4 text-purple-400" />
                   </div>
-                  <p className="text-2xl font-bold text-white mb-1">65%</p>
-                  <p className="text-xs text-gray-400">On track</p>
+                  <p className="text-2xl font-bold text-white mb-1">
+                    {stats?.progressRate || 0}%
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {stats?.progressRate >= 70
+                      ? "On track"
+                      : stats?.progressRate >= 40
+                      ? "In progress"
+                      : "Getting started"}
+                  </p>
                 </motion.div>
 
                 <motion.div

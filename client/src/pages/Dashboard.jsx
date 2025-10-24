@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useWorkspace } from "../contexts/WorkspaceContext";
+import { useProject } from "../contexts/ProjectContext";
 import UserAvatar from "../components/UserAvatar";
 import { Layout } from "../components/common-afterauth";
+import { taskService, workspaceService, activityService } from "../services";
+import toast from "react-hot-toast";
 import {
   Users,
   Mail,
@@ -25,106 +29,139 @@ import {
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  const { projects } = useProject();
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [activities, setActivities] = useState([]);
 
-  // Mock data - replace with real data from your backend
+  useEffect(() => {
+    if (currentWorkspace?._id) {
+      fetchDashboardData();
+    }
+  }, [currentWorkspace]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      const [tasksResponse, membersResponse] = await Promise.all([
+        taskService.getWorkspaceTasks(currentWorkspace._id),
+        workspaceService.getWorkspaceMembers(currentWorkspace._id),
+      ]);
+
+      if (tasksResponse?.success && tasksResponse?.data) {
+        setTasks(tasksResponse.data);
+      }
+
+      if (membersResponse?.success && membersResponse?.data) {
+        setMembers(membersResponse.data);
+      }
+
+      // Try to fetch recent activities
+      try {
+        const activitiesResponse = await activityService.getWorkspaceActivity(
+          currentWorkspace._id,
+          { limit: 10 }
+        );
+        if (activitiesResponse?.success && activitiesResponse?.data) {
+          setActivities(activitiesResponse.data);
+        }
+      } catch (error) {
+        // Activity endpoint might not exist yet
+        setActivities([]);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate real stats from data
+  const completedTasks = tasks.filter(
+    (t) => t.status === "done" || t.status === "completed"
+  ).length;
+  const inProgressTasks = tasks.filter(
+    (t) => t.status === "in-progress"
+  ).length;
+  const completionRate =
+    tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+
   const stats = [
     {
-      name: "Total Clients",
-      value: user?.totalProspectsFetched || 0,
-      icon: Users,
+      name: "Total Tasks",
+      value: tasks.length,
+      icon: Target,
       change: "+12%",
       changeType: "positive",
     },
     {
-      name: "Emails Sent",
-      value: user?.totalProspectsMailed || 0,
-      icon: Mail,
-      change: "+8%",
+      name: "Completed",
+      value: completedTasks,
+      icon: CheckCircle,
+      change: `${completionRate}%`,
       changeType: "positive",
     },
     {
       name: "Active Projects",
-      value: user?.totalProject || 0,
-      icon: Target,
+      value: projects.length,
+      icon: BarChart3,
       change: "+3%",
       changeType: "positive",
     },
     {
-      name: "Revenue",
-      value: "$12,345",
-      icon: DollarSign,
-      change: "+15%",
+      name: "Team Members",
+      value: members.length,
+      icon: Users,
+      change: "+5%",
       changeType: "positive",
     },
   ];
 
-  const recentClients = [
-    {
-      id: 1,
-      name: "John Smith",
-      email: "john@example.com",
-      company: "Tech Corp",
-      status: "Active",
-      lastContact: "2 days ago",
-    },
-    {
-      id: 2,
-      name: "Sarah Johnson",
-      email: "sarah@example.com",
-      company: "Design Studio",
-      status: "Pending",
-      lastContact: "1 week ago",
-    },
-    {
-      id: 3,
-      name: "Mike Chen",
-      email: "mike@example.com",
-      company: "StartupXYZ",
-      status: "Active",
-      lastContact: "3 days ago",
-    },
-    {
-      id: 4,
-      name: "Emily Davis",
-      email: "emily@example.com",
-      company: "Marketing Pro",
-      status: "Inactive",
-      lastContact: "2 weeks ago",
-    },
-  ];
+  // Transform members to recent team members
+  const recentTeamMembers = members.slice(0, 4).map((member) => ({
+    id: member._id,
+    name: member.user?.name || "Unknown",
+    email: member.user?.email || "N/A",
+    role: member.role || "member",
+    status: member.status || "active",
+    joinedAt: member.joinedAt
+      ? new Date(member.joinedAt).toLocaleDateString()
+      : "Recently",
+  }));
 
-  const recentActivities = [
-    {
-      id: 1,
-      action: "New client added",
-      client: "John Smith",
-      time: "2 hours ago",
-      type: "success",
-    },
-    {
-      id: 2,
-      action: "Email sent",
-      client: "Sarah Johnson",
-      time: "4 hours ago",
-      type: "info",
-    },
-    {
-      id: 3,
-      action: "Project updated",
-      client: "Mike Chen",
-      time: "1 day ago",
-      type: "warning",
-    },
-    {
-      id: 4,
-      action: "Meeting scheduled",
-      client: "Emily Davis",
-      time: "2 days ago",
-      type: "info",
-    },
-  ];
+  // Transform activities to recent activities
+  const recentActivities =
+    activities.length > 0
+      ? activities.slice(0, 5).map((activity) => {
+          const timeAgo = activity.timestamp || activity.createdAt;
+          const userName = activity.user?.name || "Unknown User";
+
+          return {
+            id: activity._id || activity.id || Math.random(),
+            action: activity.action || activity.description || "Activity",
+            client: userName,
+            time: timeAgo ? getTimeAgo(new Date(timeAgo)) : "Recently",
+            type: activity.type === "task_completed" ? "success" : "info",
+          };
+        })
+      : [];
+
+  function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
 
   const handleLogout = async () => {
     try {
@@ -234,16 +271,16 @@ const Dashboard = () => {
                   <thead className="bg-gray-700">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Client
+                        Member
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Company
+                        Role
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Last Contact
+                        Joined
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Actions
@@ -251,16 +288,16 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {recentClients.map((client) => (
+                    {recentTeamMembers.map((member) => (
                       <tr
-                        key={client.id}
+                        key={member.id}
                         className="hover:bg-gray-700 transition-colors"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
                               <span className="text-white font-medium text-sm">
-                                {client.name
+                                {member.name
                                   .split(" ")
                                   .map((n) => n[0])
                                   .join("")}
@@ -268,28 +305,30 @@ const Dashboard = () => {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-white">
-                                {client.name}
+                                {member.name}
                               </div>
                               <div className="text-sm text-gray-400">
-                                {client.email}
+                                {member.email}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {client.company}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">
+                          {member.role}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                              client.status
-                            )}`}
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              member.status === "active"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
                           >
-                            {client.status}
+                            {member.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {client.lastContact}
+                          {member.joinedAt}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">

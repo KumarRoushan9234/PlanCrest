@@ -202,6 +202,27 @@ const workspaceSchema = new Schema(
       stripeCustomerId: { type: String },
       stripeSubscriptionId: { type: String },
     },
+    // Analytics settings
+    analytics: {
+      enabled: { type: Boolean, default: true },
+      trackingEnabled: { type: Boolean, default: true },
+      reportsEnabled: { type: Boolean, default: true },
+    },
+    // Calendar settings
+    calendarSettings: {
+      enabled: { type: Boolean, default: true },
+      defaultView: { type: String, enum: ["month", "week", "day", "list"], default: "month" },
+      workingDays: {
+        type: [String],
+        default: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+      },
+      workingHours: {
+        start: { type: String, default: "09:00" },
+        end: { type: String, default: "17:00" },
+      },
+      timezone: { type: String, default: "UTC" },
+      allowExternalIntegrations: { type: Boolean, default: true },
+    },
     status: {
       type: String,
       enum: ["active", "suspended", "archived"],

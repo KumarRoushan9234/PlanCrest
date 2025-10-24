@@ -1,0 +1,156 @@
+import express from "express";
+import {
+  getCalendarEvents,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+  getEventAttendees,
+  addEventAttendee,
+  removeEventAttendee,
+  updateAttendeeResponse,
+  getCalendarIntegrations,
+  connectGoogleCalendar,
+  connectOutlookCalendar,
+  syncExternalCalendar,
+  checkUserAvailability,
+  findMeetingTime,
+  exportCalendar,
+} from "../controllers/calendar.js";
+import { requireAuth, requireWorkspaceAccess } from "../middlewares/index.js";
+
+const router = express.Router();
+
+console.log("📅 Initializing calendar routes");
+
+// All routes require authentication
+router.use(requireAuth);
+
+/**
+ * Workspace Calendar Routes
+ */
+
+/**
+ * @route   GET /api/workspaces/:workspaceId/calendar/events
+ * @desc    Get calendar events for workspace
+ * @access  Private (Workspace member)
+ */
+router.get("/workspaces/:workspaceId/calendar/events", requireWorkspaceAccess, getCalendarEvents);
+
+/**
+ * @route   POST /api/workspaces/:workspaceId/calendar/events
+ * @desc    Create calendar event in workspace
+ * @access  Private (Workspace member)
+ */
+router.post("/workspaces/:workspaceId/calendar/events", requireWorkspaceAccess, createCalendarEvent);
+
+/**
+ * @route   GET /api/workspaces/:workspaceId/calendar/export
+ * @desc    Export calendar to ICS format
+ * @access  Private (Workspace member)
+ */
+router.get("/workspaces/:workspaceId/calendar/export", requireWorkspaceAccess, exportCalendar);
+
+/**
+ * Event Management Routes
+ */
+
+/**
+ * @route   PUT /api/calendar/events/:eventId
+ * @desc    Update calendar event
+ * @access  Private
+ */
+router.put("/calendar/events/:eventId", updateCalendarEvent);
+
+/**
+ * @route   DELETE /api/calendar/events/:eventId
+ * @desc    Delete calendar event
+ * @access  Private
+ */
+router.delete("/calendar/events/:eventId", deleteCalendarEvent);
+
+/**
+ * @route   PUT /api/calendar/events/:eventId/response
+ * @desc    Update attendee response (accept/decline/tentative)
+ * @access  Private
+ */
+router.put("/calendar/events/:eventId/response", updateAttendeeResponse);
+
+/**
+ * Event Attendees Routes
+ */
+
+/**
+ * @route   GET /api/calendar/events/:eventId/attendees
+ * @desc    Get event attendees
+ * @access  Private
+ */
+router.get("/calendar/events/:eventId/attendees", getEventAttendees);
+
+/**
+ * @route   POST /api/calendar/events/:eventId/attendees
+ * @desc    Add attendee to event
+ * @access  Private
+ */
+router.post("/calendar/events/:eventId/attendees", addEventAttendee);
+
+/**
+ * @route   DELETE /api/calendar/events/:eventId/attendees/:userId
+ * @desc    Remove attendee from event
+ * @access  Private
+ */
+router.delete("/calendar/events/:eventId/attendees/:userId", removeEventAttendee);
+
+/**
+ * Calendar Integration Routes
+ */
+
+/**
+ * @route   GET /api/calendar/integrations
+ * @desc    Get user's calendar integrations
+ * @access  Private
+ */
+router.get("/calendar/integrations", getCalendarIntegrations);
+
+/**
+ * @route   POST /api/calendar/integrations/google
+ * @desc    Connect Google Calendar
+ * @access  Private
+ */
+router.post("/calendar/integrations/google", connectGoogleCalendar);
+
+/**
+ * @route   POST /api/calendar/integrations/outlook
+ * @desc    Connect Outlook Calendar
+ * @access  Private
+ */
+router.post("/calendar/integrations/outlook", connectOutlookCalendar);
+
+/**
+ * @route   POST /api/calendar/sync
+ * @desc    Sync external calendar (Google/Outlook)
+ * @access  Private
+ */
+router.post("/calendar/sync", syncExternalCalendar);
+
+/**
+ * Availability & Scheduling Routes
+ */
+
+/**
+ * @route   GET /api/calendar/availability
+ * @desc    Check user availability for a time range
+ * @access  Private
+ */
+router.get("/calendar/availability", checkUserAvailability);
+
+/**
+ * @route   POST /api/calendar/find-time
+ * @desc    Find optimal meeting time for multiple users
+ * @access  Private
+ */
+router.post("/calendar/find-time", findMeetingTime);
+
+console.log("✅ Calendar routes initialized successfully");
+
+export default router;
+

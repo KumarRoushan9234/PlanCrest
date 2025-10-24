@@ -7,6 +7,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Layout } from "../../components/common-afterauth";
 import { TaskSidebar } from "../../components/sidebar";
 import { AuthLoader } from "../../components/loaders";
+import { taskService } from "../../services";
+import toast from "react-hot-toast";
 import {
   RefreshCw,
   Plus,
@@ -55,129 +57,11 @@ const TaskBoardPage = () => {
     assignedToMe: 0,
   });
 
-  // Mock data for demonstration - replace with actual API calls
-  const mockTasks = [
-    {
-      _id: "1",
-      title: "Design new landing page",
-      description:
-        "Create a modern, responsive landing page for the new product launch",
-      status: "todo",
-      priority: "high",
-      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      assignee: {
-        _id: user?._id,
-        name: "John Doe",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj1",
-        name: "Website Redesign",
-      },
-      labels: ["design", "frontend"],
-      estimatedTime: { value: 8, unit: "hours" },
-      actualTime: 0,
-      createdBy: user?._id,
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    },
-    {
-      _id: "2",
-      title: "Implement user authentication",
-      description: "Set up secure user authentication with JWT tokens",
-      status: "in_progress",
-      priority: "medium",
-      dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-      assignee: {
-        _id: "user2",
-        name: "Jane Smith",
-        avatar:
-          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj1",
-        name: "Website Redesign",
-      },
-      labels: ["backend", "security"],
-      estimatedTime: { value: 12, unit: "hours" },
-      actualTime: 4,
-      createdBy: user?._id,
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    },
-    {
-      _id: "3",
-      title: "Write API documentation",
-      description: "Document all API endpoints with examples and use cases",
-      status: "completed",
-      priority: "low",
-      dueDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      assignee: {
-        _id: user?._id,
-        name: "John Doe",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj2",
-        name: "API Development",
-      },
-      labels: ["documentation"],
-      estimatedTime: { value: 4, unit: "hours" },
-      actualTime: 6,
-      createdBy: user?._id,
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    },
-    {
-      _id: "4",
-      title: "Fix responsive layout issues",
-      description: "Resolve mobile responsiveness problems on the dashboard",
-      status: "todo",
-      priority: "high",
-      dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      assignee: {
-        _id: user?._id,
-        name: "John Doe",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj1",
-        name: "Website Redesign",
-      },
-      labels: ["bug", "frontend"],
-      estimatedTime: { value: 6, unit: "hours" },
-      actualTime: 0,
-      createdBy: user?._id,
-      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    },
-    {
-      _id: "5",
-      title: "Database optimization",
-      description: "Optimize database queries for better performance",
-      status: "in_progress",
-      priority: "medium",
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      assignee: {
-        _id: "user3",
-        name: "Mike Johnson",
-        avatar:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face",
-      },
-      project: {
-        _id: "proj2",
-        name: "API Development",
-      },
-      labels: ["database", "performance"],
-      estimatedTime: { value: 16, unit: "hours" },
-      actualTime: 8,
-      createdBy: user?._id,
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    },
-  ];
-
   // Load tasks when component mounts or workspace changes
   useEffect(() => {
-    loadTasks();
+    if (currentWorkspace?._id) {
+      loadTasks();
+    }
   }, [currentWorkspace, currentProject]);
 
   // Filter tasks when filters or search change
@@ -198,10 +82,49 @@ const TaskBoardPage = () => {
   const loadTasks = async () => {
     try {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setTasks(mockTasks);
+      let response;
+
+      // If a specific project is selected, fetch its tasks
+      if (currentProject?._id) {
+        response = await taskService.getProjectTasks(currentProject._id);
+      }
+      // Otherwise fetch all tasks in the workspace
+      else if (currentWorkspace?._id) {
+        response = await taskService.getWorkspaceTasks(currentWorkspace._id);
+      }
+
+      if (response?.success && response?.data) {
+        // Transform the data to include assignment information
+        const tasksWithAssignments = await Promise.all(
+          response.data.map(async (task) => {
+            try {
+              const assignmentsRes = await taskService.getTaskAssignments(
+                task._id
+              );
+              const primaryAssignee = assignmentsRes?.data?.find(
+                (a) => a.role === "assignee"
+              );
+
+              return {
+                ...task,
+                assignee: primaryAssignee?.user || null,
+                assignments: assignmentsRes?.data || [],
+              };
+            } catch (err) {
+              console.error(
+                `Error fetching assignments for task ${task._id}:`,
+                err
+              );
+              return task;
+            }
+          })
+        );
+
+        setTasks(tasksWithAssignments);
+      }
     } catch (error) {
       console.error("Error loading tasks:", error);
+      toast.error("Failed to load tasks");
     } finally {
       setLoading(false);
     }
@@ -219,16 +142,16 @@ const TaskBoardPage = () => {
     }
 
     if (filters.assignee === "me") {
-      filtered = filtered.filter((task) => task.assignee._id === user?._id);
+      filtered = filtered.filter((task) => task.assignee?._id === user?._id);
     } else if (filters.assignee !== "all") {
       filtered = filtered.filter(
-        (task) => task.assignee._id === filters.assignee
+        (task) => task.assignee?._id === filters.assignee
       );
     }
 
     if (filters.project !== "all") {
       filtered = filtered.filter(
-        (task) => task.project._id === filters.project
+        (task) => task.project?._id === filters.project
       );
     }
 
@@ -237,10 +160,12 @@ const TaskBoardPage = () => {
         (task) =>
           task.dueDate &&
           new Date(task.dueDate) < new Date() &&
-          task.status !== "completed"
+          task.status !== "completed" &&
+          task.status !== "done"
       );
     } else if (filters.dueDate === "today") {
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       filtered = filtered.filter(
@@ -251,6 +176,7 @@ const TaskBoardPage = () => {
       );
     } else if (filters.dueDate === "thisWeek") {
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const nextWeek = new Date(today);
       nextWeek.setDate(nextWeek.getDate() + 7);
       filtered = filtered.filter(
@@ -265,9 +191,13 @@ const TaskBoardPage = () => {
       const searchTerm = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (task) =>
-          task.title.toLowerCase().includes(searchTerm) ||
-          task.description.toLowerCase().includes(searchTerm) ||
-          task.labels.some((label) => label.toLowerCase().includes(searchTerm))
+          task.title?.toLowerCase().includes(searchTerm) ||
+          task.description?.toLowerCase().includes(searchTerm) ||
+          task.taskKey?.toLowerCase().includes(searchTerm) ||
+          (task.labels &&
+            task.labels.some((label) =>
+              label.toLowerCase().includes(searchTerm)
+            ))
       );
     }
 
@@ -277,7 +207,7 @@ const TaskBoardPage = () => {
   const calculateStats = useCallback(() => {
     const total = filteredTasks.length;
     const completed = filteredTasks.filter(
-      (task) => task.status === "completed"
+      (task) => task.status === "completed" || task.status === "done"
     ).length;
     const inProgress = filteredTasks.filter(
       (task) => task.status === "in_progress"
@@ -286,10 +216,11 @@ const TaskBoardPage = () => {
       (task) =>
         task.dueDate &&
         new Date(task.dueDate) < new Date() &&
-        task.status !== "completed"
+        task.status !== "completed" &&
+        task.status !== "done"
     ).length;
     const assignedToMe = filteredTasks.filter(
-      (task) => task.assignee._id === user?._id
+      (task) => task.assignee?._id === user?._id
     ).length;
 
     setStats({
@@ -311,7 +242,7 @@ const TaskBoardPage = () => {
     );
   };
 
-  const handleTaskMove = (result) => {
+  const handleTaskMove = async (result) => {
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
@@ -319,7 +250,25 @@ const TaskBoardPage = () => {
     if (source.droppableId === destination.droppableId) return;
 
     const newStatus = destination.droppableId;
-    handleTaskUpdate(draggableId, { status: newStatus });
+
+    try {
+      // Find the column ID for the new status
+      const task = tasks.find((t) => t._id === draggableId);
+      if (!task) return;
+
+      // Update task status via API
+      await taskService.updateTask(draggableId, {
+        status: newStatus,
+        column: destination.droppableId,
+      });
+
+      // Update local state
+      handleTaskUpdate(draggableId, { status: newStatus });
+      toast.success("Task moved successfully");
+    } catch (error) {
+      console.error("Error moving task:", error);
+      toast.error("Failed to move task");
+    }
   };
 
   const refreshTasks = () => {
@@ -331,19 +280,33 @@ const TaskBoardPage = () => {
     setIsTaskSidebarOpen(true);
   };
 
-  const handleTaskSidebarUpdate = (updatedTask) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task._id === updatedTask._id ? updatedTask : task
-      )
-    );
-    setSelectedTask(updatedTask);
+  const handleTaskSidebarUpdate = async (updatedTask) => {
+    try {
+      await taskService.updateTask(updatedTask._id, updatedTask);
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task._id === updatedTask._id ? updatedTask : task
+        )
+      );
+      setSelectedTask(updatedTask);
+      toast.success("Task updated successfully");
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task");
+    }
   };
 
-  const handleTaskDelete = (taskId) => {
-    setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
-    setIsTaskSidebarOpen(false);
-    setSelectedTask(null);
+  const handleTaskDelete = async (taskId) => {
+    try {
+      await taskService.deleteTask(taskId);
+      setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
+      setIsTaskSidebarOpen(false);
+      setSelectedTask(null);
+      toast.success("Task deleted successfully");
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
+    }
   };
 
   const toggleStats = () => {

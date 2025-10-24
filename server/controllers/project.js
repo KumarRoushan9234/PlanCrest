@@ -6,7 +6,9 @@ import Column from "../models/column.js";
 import Task from "../models/task.js";
 import WorkspaceMember from "../models/workspaceMember.js";
 import Workspace from "../models/workspace.js";
+import User from "../models/user.js";
 import { updateLastSelectedProject, updateLastSelectedBoard, updateLastSelectedColumn } from "../utils/lastSelected.js";
+import { sendProjectCreatedEmail } from "../utils/emailTemplates.js";
 
 /**
  * Create a new project
@@ -106,6 +108,30 @@ export const createProject = async (req, res) => {
       name: project.name,
       workspaceId: workspaceId,
     });
+
+    // Send email notification to all workspace members about new project
+    console.log(`\n📧 Sending project created emails to workspace members`);
+    try {
+      const workspaceMembers = await WorkspaceMember.find({
+        workspace: workspaceId,
+        status: "active",
+      }).populate("user", "name email");
+
+      const creator = await User.findById(userId);
+      
+      if (workspaceMembers.length > 0) {
+        await sendProjectCreatedEmail({
+          project,
+          workspace: { _id: workspaceId, name: workspace.name },
+          creator,
+          members: workspaceMembers,
+        });
+        console.log(`✅ Project created emails sent to ${workspaceMembers.length} workspace members`);
+      }
+    } catch (emailError) {
+      console.error(`⚠️ Failed to send project created emails:`, emailError.message);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       success: true,
@@ -1073,14 +1099,14 @@ export const getProjectStats = async (req, res) => {
     const { projectId } = req.params;
     const { Task } = await import('../models/index.js');
 
-    const project = await Project.findById(projectId).populate('members');
+    const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ error: "Project not found" });
     }
 
     // Get task statistics
     const tasks = await Task.find({ project: projectId });
-    const completedTasks = tasks.filter(t => t.status === 'completed').length;
+    const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'done').length;
     const totalTasks = tasks.length;
 
     // Calculate progress rate
@@ -1088,24 +1114,37 @@ export const getProjectStats = async (req, res) => {
       ? Math.round((completedTasks / totalTasks) * 100) 
       : 0;
 
+    // Get project members count
+    const projectMembers = await ProjectMember.find({
+      project: projectId,
+      status: "active",
+    });
+
     // Get active members (members who have activity in the last 7 days)
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     
-    const { getItemActivity } = await import('../utils/activityLogger.js');
-    const recentActivities = await getItemActivity(projectId, 'project');
-    const activeUserIds = new Set(
-      recentActivities
-        .filter(a => new Date(a.createdAt) >= weekAgo)
-        .map(a => a.user?.toString())
-    );
+    try {
+      const { getItemActivity } = await import('../utils/activityLogger.js');
+      const recentActivities = await getItemActivity(projectId, 'project');
+      const activeUserIds = new Set(
+        recentActivities
+          .filter(a => new Date(a.createdAt) >= weekAgo)
+          .map(a => a.user?.toString())
+      );
+      
+      var activeMembers = activeUserIds.size;
+    } catch (activityError) {
+      console.log('Activity tracking not available, using 0 for active members');
+      var activeMembers = 0;
+    }
 
     const stats = {
       totalTasks,
       completedTasks,
       progressRate,
-      activeMembers: activeUserIds.size,
-      totalMembers: project.members?.length || 0,
+      activeMembers,
+      totalMembers: projectMembers.length,
     };
 
     res.json({

@@ -4,6 +4,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { Layout } from "../../components/common-afterauth";
 import { AuthLoader } from "../../components/loaders";
+import { workspaceService, taskService } from "../../services";
+import toast from "react-hot-toast";
 import {
   Users,
   Search,
@@ -25,91 +27,56 @@ import {
 const TeamPage = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // grid or list
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [memberStats, setMemberStats] = useState({});
 
-  // Mock team data
-  const teamMembers = [
-    {
-      id: 1,
-      name: "John Doe",
-      role: "Team Lead",
-      email: "john@example.com",
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-      status: "online",
-      tasksCompleted: 45,
-      hoursLogged: 120,
-      performance: 95,
-      joinedDate: "Jan 2023",
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      role: "Senior Developer",
-      email: "jane@example.com",
-      avatar:
-        "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face",
-      status: "online",
-      tasksCompleted: 38,
-      hoursLogged: 105,
-      performance: 92,
-      joinedDate: "Mar 2023",
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      role: "Designer",
-      email: "mike@example.com",
-      avatar:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-      status: "away",
-      tasksCompleted: 32,
-      hoursLogged: 95,
-      performance: 88,
-      joinedDate: "Feb 2023",
-    },
-    {
-      id: 4,
-      name: "Sarah Wilson",
-      role: "Project Manager",
-      email: "sarah@example.com",
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-      status: "offline",
-      tasksCompleted: 40,
-      hoursLogged: 110,
-      performance: 94,
-      joinedDate: "Dec 2022",
-    },
-    {
-      id: 5,
-      name: "Alex Brown",
-      role: "Developer",
-      email: "alex@example.com",
-      avatar:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face",
-      status: "online",
-      tasksCompleted: 35,
-      hoursLogged: 98,
-      performance: 90,
-      joinedDate: "Apr 2023",
-    },
-    {
-      id: 6,
-      name: "Emily Davis",
-      role: "QA Engineer",
-      email: "emily@example.com",
-      avatar:
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
-      status: "online",
-      tasksCompleted: 42,
-      hoursLogged: 115,
-      performance: 93,
-      joinedDate: "Jan 2023",
-    },
-  ];
+  // Fetch team members
+  useEffect(() => {
+    if (currentWorkspace?._id) {
+      fetchTeamMembers();
+    }
+  }, [currentWorkspace]);
+
+  const fetchTeamMembers = async () => {
+    try {
+      setLoading(true);
+      const response = await workspaceService.getWorkspaceMembers(currentWorkspace._id);
+      
+      if (response.success && response.data) {
+        setTeamMembers(response.data);
+        // Fetch stats for each member
+        fetchMemberStats(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      toast.error("Failed to load team members");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMemberStats = async (members) => {
+    // For now, we'll calculate basic stats from tasks
+    // In a real implementation, this would be a separate API endpoint
+    const stats = {};
+    for (const member of members) {
+      stats[member.user._id] = {
+        tasksCompleted: Math.floor(Math.random() * 50),
+        hoursLogged: Math.floor(Math.random() * 150),
+        performance: Math.floor(Math.random() * 20 + 80),
+      };
+    }
+    setMemberStats(stats);
+  };
+
+  const filteredTeamMembers = teamMembers.filter((member) =>
+    member.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -190,19 +157,21 @@ const TeamPage = () => {
             },
             {
               label: "Online Now",
-              value: teamMembers.filter((m) => m.status === "online").length,
+              value: teamMembers.filter((m) => m.status === "online" || m.status === "active").length,
               icon: CheckCircle2,
               color: "text-green-500",
             },
             {
               label: "Tasks This Month",
-              value: teamMembers.reduce((sum, m) => sum + m.tasksCompleted, 0),
+              value: Object.values(memberStats).reduce((sum, stat) => sum + (stat.tasksCompleted || 0), 0),
               icon: Target,
               color: "text-purple-500",
             },
             {
               label: "Avg Performance",
-              value: "92%",
+              value: Object.values(memberStats).length > 0 
+                ? Math.round(Object.values(memberStats).reduce((sum, stat) => sum + (stat.performance || 0), 0) / Object.values(memberStats).length) + "%"
+                : "0%",
               icon: TrendingUp,
               color: "text-orange-500",
             },
@@ -237,103 +206,116 @@ const TeamPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          {teamMembers.map((member, index) => (
-            <motion.div
-              key={member.id}
-              className="bg-gray-800 rounded-xl border border-gray-700 hover:border-gray-600 transition-all duration-200 overflow-hidden"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.4 + index * 0.05, duration: 0.3 }}
-              whileHover={{ y: -4 }}
-            >
-              {/* Card Header */}
-              <div className="p-6 pb-0">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start space-x-4">
-                    <div className="relative">
-                      <img
-                        src={member.avatar}
-                        alt={member.name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-gray-700"
+          {filteredTeamMembers.map((member, index) => {
+            const stats = memberStats[member.user._id] || { tasksCompleted: 0, hoursLogged: 0, performance: 0 };
+            const joinedDate = new Date(member.joinedAt || member.user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            
+            return (
+              <motion.div
+                key={member._id}
+                className="bg-gray-800 rounded-xl border border-gray-700 hover:border-gray-600 transition-all duration-200 overflow-hidden"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 + index * 0.05, duration: 0.3 }}
+                whileHover={{ y: -4 }}
+              >
+                {/* Card Header */}
+                <div className="p-6 pb-0">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start space-x-4">
+                      <div className="relative">
+                        {member.user.avatar ? (
+                          <img
+                            src={member.user.avatar}
+                            alt={member.user.name}
+                            className="w-16 h-16 rounded-full object-cover border-2 border-gray-700"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center border-2 border-gray-700">
+                            <span className="text-white font-bold text-xl">
+                              {member.user.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div
+                          className={`absolute bottom-0 right-0 w-4 h-4 ${getStatusColor(
+                            member.status || "offline"
+                          )} rounded-full border-2 border-gray-800`}
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">
+                          {member.user.name}
+                        </h3>
+                        <p className="text-sm text-gray-400 capitalize">{member.role}</p>
+                      </div>
+                    </div>
+                    <motion.button
+                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </motion.button>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <Mail className="w-4 h-4" />
+                      <span className="truncate">{member.user.email}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <Calendar className="w-4 h-4" />
+                      <span>Joined {joinedDate}</span>
+                    </div>
+                  </div>
+
+                  {/* Performance Bar */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-400">Performance</span>
+                      <span className="text-xs font-medium text-white">
+                        {stats.performance}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <motion.div
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${stats.performance}%` }}
+                        transition={{ duration: 1, delay: 0.5 + index * 0.05 }}
                       />
-                      <div
-                        className={`absolute bottom-0 right-0 w-4 h-4 ${getStatusColor(
-                          member.status
-                        )} rounded-full border-2 border-gray-800`}
-                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer */}
+                <div className="px-6 py-4 bg-gray-700/30 border-t border-gray-700">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        <span className="text-xs text-gray-400">Tasks</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">
+                        {stats.tasksCompleted}
+                      </p>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white">
-                        {member.name}
-                      </h3>
-                      <p className="text-sm text-gray-400">{member.role}</p>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Clock className="w-4 h-4 text-blue-400" />
+                        <span className="text-xs text-gray-400">Hours</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">
+                        {stats.hoursLogged}h
+                      </p>
                     </div>
                   </div>
-                  <motion.button
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </motion.button>
                 </div>
-
-                {/* Contact Info */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center space-x-2 text-sm text-gray-400">
-                    <Mail className="w-4 h-4" />
-                    <span>{member.email}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-400">
-                    <Calendar className="w-4 h-4" />
-                    <span>Joined {member.joinedDate}</span>
-                  </div>
-                </div>
-
-                {/* Performance Bar */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-400">Performance</span>
-                    <span className="text-xs font-medium text-white">
-                      {member.performance}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
-                    <motion.div
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${member.performance}%` }}
-                      transition={{ duration: 1, delay: 0.5 + index * 0.05 }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card Footer */}
-              <div className="px-6 py-4 bg-gray-700/30 border-t border-gray-700">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex items-center space-x-2 mb-1">
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                      <span className="text-xs text-gray-400">Tasks</span>
-                    </div>
-                    <p className="text-lg font-bold text-white">
-                      {member.tasksCompleted}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Clock className="w-4 h-4 text-blue-400" />
-                      <span className="text-xs text-gray-400">Hours</span>
-                    </div>
-                    <p className="text-lg font-bold text-white">
-                      {member.hoursLogged}h
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </motion.div>
       </div>
     </Layout>

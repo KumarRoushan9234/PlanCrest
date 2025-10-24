@@ -17,6 +17,8 @@ import {
   getLastSelected,
   getInvitationDetails,
   acceptInvitation,
+  getWorkspaceTasks,
+  getWorkspaceActivity,
 } from "../controllers/workspace.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -47,6 +49,22 @@ router.delete(
   requireSignin,
   requireWorkspaceAdmin,
   deleteWorkspace,
+  handleAuthError
+);
+
+// Workspace Tasks and Activity
+router.get(
+  "/workspaces/:workspaceId/tasks",
+  requireSignin,
+  requireWorkspaceMember,
+  getWorkspaceTasks,
+  handleAuthError
+);
+router.get(
+  "/workspaces/:workspaceId/activity",
+  requireSignin,
+  requireWorkspaceMember,
+  getWorkspaceActivity,
   handleAuthError
 );
 

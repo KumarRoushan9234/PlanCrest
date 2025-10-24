@@ -22,6 +22,7 @@ import { useWorkspace } from "../../contexts/WorkspaceContext";
 import CreateWorkspaceModal from "../modals/CreateWorkspaceModal";
 import InviteMemberModal from "../modals/InviteMemberModal";
 import WorkspaceMembersModal from "../modals/WorkspaceMembersModal";
+import NotificationBell from "../NotificationBell";
 
 const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
   const navigate = useNavigate();
@@ -29,7 +30,6 @@ const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
   const { workspaces, currentWorkspace, workspaceMembers, switchWorkspace } =
     useWorkspace();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isInviteMemberOpen, setIsInviteMemberOpen] = useState(false);
@@ -45,18 +45,6 @@ const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
     }
   };
 
-  const notifications = [
-    {
-      id: 1,
-      title: "Welcome User",
-      message:
-        'Your email campaign "Summer Sale" has been created successfully.',
-      time: "few minutes ago",
-      unread: true,
-    },
-  ];
-
-  const unreadCount = notifications.filter((n) => n.unread).length;
 
   // Truncate text helper
   const truncateText = (text, maxLength = 20) => {
@@ -397,101 +385,7 @@ const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
           transition={{ delay: 0.4, duration: 0.5 }}
         >
           {/* Notifications */}
-          <div className="relative">
-            <motion.button
-              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors relative"
-              aria-label="Notifications"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <motion.div
-                animate={{
-                  rotate: [0, 10, -10, 0],
-                  scale: [1, 1.1, 1],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  repeatDelay: 5,
-                }}
-              >
-                <Bell className="w-5 h-5" />
-              </motion.div>
-              {unreadCount > 0 && (
-                <motion.span
-                  className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 10, -10, 0],
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    repeatDelay: 2,
-                  }}
-                >
-                  {unreadCount}
-                </motion.span>
-              )}
-            </motion.button>
-
-            {/* Notifications Dropdown */}
-            <AnimatePresence>
-              {isNotificationsOpen && (
-                <motion.div
-                  className="absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50"
-                  style={{ backgroundColor: "#0a0a0a" }}
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="p-4 border-b border-gray-600">
-                    <h3 className="text-lg font-semibold text-white">
-                      Notifications
-                    </h3>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto scrollbar-hide">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`p-4 border-b border-gray-600 hover:bg-gray-800 cursor-pointer ${
-                          notification.unread ? "bg-blue-900" : ""
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`w-2 h-2 rounded-full mt-2 ${
-                              notification.unread
-                                ? "bg-blue-500"
-                                : "bg-gray-300"
-                            }`}
-                          />
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-white">
-                              {notification.title}
-                            </h4>
-                            <p className="text-sm text-gray-300 mt-1">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {notification.time}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-4 border-t border-gray-600">
-                    <button className="text-sm text-blue-400 hover:text-blue-300 font-medium">
-                      View all notifications
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <NotificationBell />
 
           {/* Settings */}
           {/* <button className="p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -617,7 +511,7 @@ const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
 
       {/* Click outside to close dropdowns */}
       <AnimatePresence>
-        {(isProfileOpen || isNotificationsOpen || isWorkspaceOpen) && (
+        {(isProfileOpen || isWorkspaceOpen) && (
           <motion.div
             className="fixed inset-0 z-40"
             initial={{ opacity: 0 }}
@@ -625,7 +519,6 @@ const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
             exit={{ opacity: 0 }}
             onClick={() => {
               setIsProfileOpen(false);
-              setIsNotificationsOpen(false);
               setIsWorkspaceOpen(false);
             }}
           />

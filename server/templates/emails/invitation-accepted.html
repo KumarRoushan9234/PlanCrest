@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 32px;">PlanCrest</h1>
+        </div>
+        
+        <div style="padding: 40px 30px;">
+            <h1 style="color: #333; font-size: 24px; margin-top: 0;">🎉 {{memberName}} Accepted Your Invitation!</h1>
+            
+            <p style="color: #666; line-height: 1.6;">Hi {{ownerName}},</p>
+            
+            <p style="color: #666; line-height: 1.6;">
+                Great news! <strong>{{memberName}}</strong> has accepted your invitation to join <strong>{{workspaceName}}</strong> as a <strong>{{role}}</strong>.
+            </p>
+            
+            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                <h3 style="margin: 0 0 10px 0; color: #155724;">New Team Member</h3>
+                <p style="margin: 5px 0; color: #155724;"><strong>Name:</strong> {{memberName}}</p>
+                <p style="margin: 5px 0; color: #155724;"><strong>Email:</strong> {{memberEmail}}</p>
+                <p style="margin: 5px 0; color: #155724;"><strong>Role:</strong> {{role}}</p>
+                <p style="margin: 5px 0; color: #155724;"><strong>Joined:</strong> {{joinedDate}}</p>
+            </div>
+            
+            <p style="color: #666; line-height: 1.6;">
+                You can now assign projects and tasks to {{memberName}}.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{workspaceUrl}}" style="display: inline-block; padding: 14px 35px; background-color: #667eea; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    View Workspace
+                </a>
+            </div>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #e9ecef;">
+            <p>© {{year}} PlanCrest. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -5,7 +5,11 @@ import Label from "../models/label.js";
 import ChatThread from "../models/chatThread.js";
 import Project from "../models/project.js";
 import Column from "../models/column.js";
+import Workspace from "../models/workspace.js";
+import User from "../models/user.js";
 import { sendSimpleEmail } from "../utils/mailService.js";
+import { sendTaskAssignedEmail, sendTaskCompletedEmail } from "../utils/emailTemplates.js";
+import { notifyTaskAssignees } from "../utils/notificationHelpers.js";
 import { updateLastSelectedTask } from "../utils/lastSelected.js";
 
 /**
@@ -295,9 +299,59 @@ export const updateTaskStatus = async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
+    const previousStatus = task.status;
     task.status = status;
     task.column = columnId;
+    
+    // Set completedAt if task is being completed
+    if ((status === "done" || status === "completed") && previousStatus !== status) {
+      task.completedAt = new Date();
+    }
+    
     await task.save();
+
+    // Send task completed email notifications
+    if ((status === "done" || status === "completed") && previousStatus !== status) {
+      console.log(`\n📧 Sending task completed emails`);
+      try {
+        const userId = req.auth._id;
+        const [project, completedBy, workspace, assignments] = await Promise.all([
+          Project.findById(task.project),
+          User.findById(userId),
+          Workspace.findById((await Project.findById(task.project)).workspace),
+          TaskAssignment.find({ task: taskId, status: "active" }).populate("user"),
+        ]);
+
+        // Send email to task creator and assignees
+        const recipients = [task.createdBy];
+        assignments.forEach((assignment) => {
+          if (!recipients.includes(assignment.user._id)) {
+            recipients.push(assignment.user._id);
+          }
+        });
+
+        for (const recipientId of recipients) {
+          try {
+            const recipient = await User.findById(recipientId);
+            if (recipient && recipient._id.toString() !== userId.toString()) {
+              await sendTaskCompletedEmail({
+                task,
+                project,
+                workspace,
+                completedBy,
+                recipient,
+              });
+              console.log(`✅ Task completed email sent to ${recipient.email}`);
+            }
+          } catch (err) {
+            console.error(`⚠️ Failed to send email to recipient:`, err.message);
+          }
+        }
+      } catch (emailError) {
+        console.error(`⚠️ Failed to send task completed emails:`, emailError.message);
+        // Don't fail the request if email fails
+      }
+    }
 
     res.json({
       success: true,
@@ -405,6 +459,31 @@ export const assignTask = async (req, res) => {
 
     await assignment.save();
     await assignment.populate("user", "name email avatar");
+
+    // Send email notification to assigned user
+    console.log(`\n📧 Sending task assigned email`);
+    try {
+      const [project, assignedBy, assignedUser, workspace] = await Promise.all([
+        Project.findById(task.project).populate("workspace"),
+        User.findById(userId),
+        User.findById(assigneeId),
+        Workspace.findById((await Project.findById(task.project)).workspace),
+      ]);
+
+      if (project && assignedBy && assignedUser && workspace) {
+        await sendTaskAssignedEmail({
+          task,
+          project,
+          workspace,
+          assignedBy,
+          assignee: assignedUser,
+        });
+        console.log(`✅ Task assigned email sent to ${assignedUser.email}`);
+      }
+    } catch (emailError) {
+      console.error(`⚠️ Failed to send task assigned email:`, emailError.message);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       success: true,

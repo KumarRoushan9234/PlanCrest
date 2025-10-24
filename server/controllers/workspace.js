@@ -2,8 +2,11 @@ import Workspace from "../models/workspace.js";
 import WorkspaceMember from "../models/workspaceMember.js";
 import WorkspaceInvitation from "../models/workspaceInvitation.js";
 import User from "../models/user.js";
+import Project from "../models/project.js";
+import Task from "../models/task.js";
 import { nanoid } from "nanoid";
 import { sendSimpleEmail } from "../utils/mailService.js";
+import { sendInvitationAcceptedEmail } from "../utils/emailTemplates.js";
 import { updateLastSelectedWorkspace, getLastSelectedItems } from "../utils/lastSelected.js";
 
 /**
@@ -872,6 +875,24 @@ export const acceptInvitation = async (req, res) => {
       name: workspace.name,
     });
 
+    // Send email notification to workspace owner
+    console.log(`\n📧 Sending invitation acceptance notification to workspace owner`);
+    try {
+      const owner = await User.findById(workspace.owner);
+      if (owner) {
+        await sendInvitationAcceptedEmail({
+          workspace,
+          owner,
+          newMember: user,
+          role: invitation.role,
+        });
+        console.log(`✅ Invitation acceptance email sent to owner: ${owner.email}`);
+      }
+    } catch (emailError) {
+      console.error(`⚠️ Failed to send invitation acceptance email:`, emailError.message);
+      // Don't fail the request if email fails
+    }
+
     res.json({
       success: true,
       message: "Invitation accepted successfully",
@@ -895,6 +916,98 @@ export const acceptInvitation = async (req, res) => {
   }
 };
 
+/**
+ * Get all tasks across all projects in a workspace
+ */
+export const getWorkspaceTasks = async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    const userId = req.auth._id;
+
+    // Get workspace first
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    // Check if user is owner or member
+    const isOwner = workspace.owner.toString() === userId.toString();
+    const member = await WorkspaceMember.findOne({
+      workspace: workspaceId,
+      user: userId,
+      status: "active",
+    });
+
+    if (!isOwner && !member) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Get all projects in the workspace
+    const projects = await Project.find({ 
+      workspace: workspaceId,
+      status: { $ne: "archived" }
+    }).select("_id");
+
+    const projectIds = projects.map(p => p._id);
+
+    // Get all tasks from these projects
+    const tasks = await Task.find({ 
+      project: { $in: projectIds },
+      isArchived: false
+    })
+      .populate("project", "name")
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: tasks,
+    });
+  } catch (error) {
+    console.error("Error fetching workspace tasks:", error);
+    res.status(500).json({ error: "Failed to fetch workspace tasks" });
+  }
+};
+
+/**
+ * Get workspace activity (placeholder - returns empty array for now)
+ * To be implemented with proper activity tracking
+ */
+export const getWorkspaceActivity = async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    const userId = req.auth._id;
+
+    // Get workspace first
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    // Check if user is owner or member
+    const isOwner = workspace.owner.toString() === userId.toString();
+    const member = await WorkspaceMember.findOne({
+      workspace: workspaceId,
+      user: userId,
+      status: "active",
+    });
+
+    if (!isOwner && !member) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // For now, return empty array
+    // In the future, implement proper activity log tracking
+    res.json({
+      success: true,
+      data: [],
+    });
+  } catch (error) {
+    console.error("Error fetching workspace activity:", error);
+    res.status(500).json({ error: "Failed to fetch workspace activity" });
+  }
+};
+
 export default {
   createWorkspace,
   getUserWorkspaces,
@@ -909,5 +1022,7 @@ export default {
   getWorkspaceInvitations,
   respondToInvitation,
   getLastSelected,
+  getWorkspaceTasks,
+  getWorkspaceActivity,
 };
 

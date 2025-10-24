@@ -148,6 +148,9 @@ const userSchema = new Schema(
         chatMessages: { type: Boolean, default: true },
         projectInvites: { type: Boolean, default: true },
         workspaceInvites: { type: Boolean, default: true },
+        deadlineReminder: { type: Boolean, default: true },
+        eventReminder: { type: Boolean, default: true },
+        projectCreated: { type: Boolean, default: true },
         digestFrequency: { 
           type: String, 
           enum: ["realtime", "hourly", "daily", "weekly", "never"],
@@ -157,9 +160,21 @@ const userSchema = new Schema(
       inApp: {
         taskAssigned: { type: Boolean, default: true },
         taskDue: { type: Boolean, default: true },
+        taskCompleted: { type: Boolean, default: true },
         mentions: { type: Boolean, default: true },
         chatMessages: { type: Boolean, default: true },
         comments: { type: Boolean, default: true },
+        deadlineReminder: { type: Boolean, default: true },
+        eventReminder: { type: Boolean, default: true },
+        projectInvite: { type: Boolean, default: true },
+      },
+      push: {
+        taskAssigned: { type: Boolean, default: true },
+        taskCompleted: { type: Boolean, default: false },
+        projectInvite: { type: Boolean, default: true },
+        workspaceInvite: { type: Boolean, default: true },
+        deadlineReminder: { type: Boolean, default: true },
+        eventReminder: { type: Boolean, default: true },
       },
       desktop: {
         enabled: { type: Boolean, default: true },

@@ -1,8 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { User, Mail, Lock, Save, Eye, EyeOff, CheckCircle } from "lucide-react";
+import {
+  User,
+  Mail,
+  Lock,
+  Save,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  Bell,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/common-afterauth";
+import { notificationService } from "../services";
 
 const ProfileSettingsPage = () => {
   const { user, updateProfile, changePassword } = useAuth();
@@ -24,6 +34,56 @@ const ProfileSettingsPage = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
+  // Notification settings state
+  const [notificationSettings, setNotificationSettings] = useState({
+    email: {
+      taskAssigned: true,
+      taskDue: true,
+      taskCompleted: false,
+      comments: true,
+      mentions: true,
+      projectCreated: true,
+      deadlineReminder: true,
+      eventReminder: true,
+    },
+    inApp: {
+      taskAssigned: true,
+      taskDue: true,
+      taskCompleted: true,
+      mentions: true,
+      comments: true,
+      deadlineReminder: true,
+      eventReminder: true,
+      projectInvite: true,
+    },
+    push: {
+      taskAssigned: true,
+      taskCompleted: false,
+      projectInvite: true,
+      workspaceInvite: true,
+      deadlineReminder: true,
+      eventReminder: true,
+    },
+  });
+
+  // Fetch notification settings on mount
+  useEffect(() => {
+    const fetchNotificationSettings = async () => {
+      try {
+        const response = await notificationService.getNotificationSettings();
+        if (response?.success && response?.data) {
+          setNotificationSettings(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching notification settings:", error);
+      }
+    };
+
+    if (activeTab === "notifications") {
+      fetchNotificationSettings();
+    }
+  }, [activeTab]);
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
@@ -86,6 +146,33 @@ const ProfileSettingsPage = () => {
     });
   };
 
+  const handleNotificationSettingsSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await notificationService.updateNotificationSettings(
+        notificationSettings
+      );
+      toast.success("Notification settings updated successfully!");
+    } catch (error) {
+      console.error("Notification settings update error:", error);
+      toast.error("Failed to update notification settings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNotificationToggle = (category, setting) => {
+    setNotificationSettings((prev) => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [setting]: !prev[category][setting],
+      },
+    }));
+  };
+
   return (
     <Layout>
       <div
@@ -127,6 +214,17 @@ const ProfileSettingsPage = () => {
               >
                 <Lock className="w-4 h-4 inline mr-2" />
                 Change Password
+              </button>
+              <button
+                onClick={() => setActiveTab("notifications")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "notifications"
+                    ? "border-blue-500 text-blue-400"
+                    : "border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300"
+                }`}
+              >
+                <Bell className="w-4 h-4 inline mr-2" />
+                Notifications
               </button>
             </nav>
           </div>
@@ -352,6 +450,116 @@ const ProfileSettingsPage = () => {
                     <Lock className="w-4 h-4 mr-2" />
                   )}
                   {loading ? "Changing..." : "Change Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Notifications Tab */}
+        {activeTab === "notifications" && (
+          <div className="bg-gray-800 rounded-lg p-6">
+            <form
+              onSubmit={handleNotificationSettingsSubmit}
+              className="space-y-8"
+            >
+              {/* Email Notifications */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <Mail className="w-5 h-5 mr-2" />
+                  Email Notifications
+                </h3>
+                <div className="space-y-3">
+                  {Object.keys(notificationSettings.email).map((setting) => (
+                    <label
+                      key={setting}
+                      className="flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650"
+                    >
+                      <span className="text-sm text-gray-300 capitalize">
+                        {setting.replace(/([A-Z])/g, " $1").trim()}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.email[setting]}
+                        onChange={() =>
+                          handleNotificationToggle("email", setting)
+                        }
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-gray-800"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* In-App Notifications */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <Bell className="w-5 h-5 mr-2" />
+                  In-App Notifications
+                </h3>
+                <div className="space-y-3">
+                  {Object.keys(notificationSettings.inApp).map((setting) => (
+                    <label
+                      key={setting}
+                      className="flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650"
+                    >
+                      <span className="text-sm text-gray-300 capitalize">
+                        {setting.replace(/([A-Z])/g, " $1").trim()}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.inApp[setting]}
+                        onChange={() =>
+                          handleNotificationToggle("inApp", setting)
+                        }
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-gray-800"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Push Notifications */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <Bell className="w-5 h-5 mr-2" />
+                  Push Notifications
+                </h3>
+                <div className="space-y-3">
+                  {Object.keys(notificationSettings.push).map((setting) => (
+                    <label
+                      key={setting}
+                      className="flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650"
+                    >
+                      <span className="text-sm text-gray-300 capitalize">
+                        {setting.replace(/([A-Z])/g, " $1").trim()}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.push[setting]}
+                        onChange={() =>
+                          handleNotificationToggle("push", setting)
+                        }
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-gray-800"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex justify-end pt-4 border-t border-gray-700">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors"
+                >
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  {loading ? "Saving..." : "Save Settings"}
                 </button>
               </div>
             </form>
