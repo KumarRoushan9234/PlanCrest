@@ -130,6 +130,7 @@ export const createProject = async (req, res) => {
       }
     } catch (emailError) {
       console.error(`⚠️ Failed to send project created emails:`, emailError.message);
+      console.log(`📧 Email service is currently unavailable. Project creation will continue without email notifications.`);
       // Don't fail the request if email fails
     }
 
@@ -166,7 +167,7 @@ export const getWorkspaceProjects = async (req, res) => {
         status: { $in: ["active", "on_hold"] },
       })
         .populate("lead", "name email avatar")
-        .select("name key description icon color privacy status progress createdAt");
+        .select("name key description icon color privacy status progress createdAt updatedAt");
     } else {
       // Employees and clients see only assigned projects
       const projectIds = member.assignedProjects?.map(ap => ap.project) || [];
@@ -176,13 +177,28 @@ export const getWorkspaceProjects = async (req, res) => {
         status: { $in: ["active", "on_hold"] },
       })
         .populate("lead", "name email avatar")
-        .select("name key description icon color privacy status progress createdAt");
+        .select("name key description icon color privacy status progress createdAt updatedAt");
     }
+
+    // Get member counts for each project
+    const projectsWithMembers = await Promise.all(
+      projects.map(async (project) => {
+        const memberCount = await ProjectMember.countDocuments({
+          project: project._id,
+          status: "active",
+        });
+        
+        return {
+          ...project.toObject(),
+          members: memberCount,
+        };
+      })
+    );
 
     res.json({
       success: true,
       message: "Projects fetched successfully",
-      data: projects,
+      data: projectsWithMembers,
     });
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -841,9 +857,16 @@ export const createProjectFromTemplate = async (req, res) => {
     );
 
     if (template.defaultTasks && template.defaultTasks.length > 0) {
+      // Get the next task number for this project
+      const lastTask = await Task.findOne({ project: project._id }).sort({ taskNumber: -1 });
+      let nextTaskNumber = lastTask ? lastTask.taskNumber + 1 : 1;
+
       await Promise.all(
-        template.defaultTasks.map((task) =>
-          new Task({
+        template.defaultTasks.map(async (task, index) => {
+          const taskNumber = nextTaskNumber + index;
+          const taskKey = `${project.key}-${taskNumber}`;
+          
+          return new Task({
             title: task.title,
             description: task.description,
             column: columns[task.columnIndex]?._id,
@@ -851,9 +874,11 @@ export const createProjectFromTemplate = async (req, res) => {
             project: project._id,
             priority: task.priority,
             position: task.position,
+            taskNumber: taskNumber,
+            taskKey: taskKey,
             createdBy: userId,
-          }).save()
-        )
+          }).save();
+        })
       );
     }
 

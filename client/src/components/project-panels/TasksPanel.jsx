@@ -13,7 +13,8 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { projectService } from "../../services/projectService";
-import { CreateTaskModal, TaskDetailsModal } from "../modals";
+import { CreateTaskModal } from "../modals";
+import TaskSidebar from "../sidebar/TaskSidebar";
 
 const TasksPanel = ({ project, isAdmin }) => {
   const [tasks, setTasks] = useState([]);
@@ -61,6 +62,35 @@ const TasksPanel = ({ project, isAdmin }) => {
     setIsCreateModalOpen(false);
   };
 
+  const handleTaskUpdated = (updatedTask) => {
+    console.log("📝 Task updated from sidebar:", updatedTask);
+    // If updatedTask is null, it means sidebar is closing, so refresh
+    if (updatedTask === null) {
+      console.log("🔄 Refreshing tasks list after sidebar close");
+      setTimeout(() => {
+        fetchTasks();
+      }, 500);
+    } else {
+      // Update the task in the list immediately
+      setTasks(tasks.map((t) => (t._id === updatedTask._id ? updatedTask : t)));
+    }
+  };
+
+  const handleTaskDeleted = (taskId) => {
+    console.log("🗑️  Task deleted:", taskId);
+    fetchTasks();
+    setIsTaskModalOpen(false);
+  };
+
+  const handleTaskStatusChange = async (taskId, newStatus) => {
+    try {
+      await projectService.updateTask(taskId, { status: newStatus });
+      fetchTasks();
+    } catch (error) {
+      console.error("Error updating task status:", error);
+    }
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case "completed":
@@ -96,167 +126,130 @@ const TasksPanel = ({ project, isAdmin }) => {
     return matchesSearch && matchesFilter;
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Header with Actions */}
+    <div className="space-y-3">
+      {/* Header - SMALLER & DARKER */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search tasks..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-            />
-          </div>
-
-          {/* Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="todo">To Do</option>
-            <option value="in-progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="blocked">Blocked</option>
-          </select>
+        <div>
+          <h2 className="text-sm font-bold text-white">Tasks</h2>
+          <p className="text-[10px] text-gray-500 mt-0.5">
+            Manage and track project tasks
+          </p>
         </div>
-
-        {/* Create Task Button - Only for Admin */}
         {isAdmin && (
           <motion.button
             onClick={handleCreateTask}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all text-xs"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <Plus className="w-4 h-4" />
-            <span>New Task</span>
+            <Plus className="w-3.5 h-3.5" />
+            New Task
           </motion.button>
         )}
       </div>
 
-      {/* Tasks List */}
-      {filteredTasks.length === 0 ? (
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-12 text-center">
-          <CheckCircle2 className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-300 mb-2">
-            {searchTerm || filterStatus !== "all"
-              ? "No tasks found"
-              : "No tasks yet"}
-          </h3>
-          <p className="text-gray-500 mb-4">
-            {searchTerm || filterStatus !== "all"
-              ? "Try adjusting your search or filter"
-              : "Start by creating your first task for this project"}
-          </p>
-          {isAdmin && !searchTerm && filterStatus === "all" && (
-            <button
-              onClick={handleCreateTask}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create First Task</span>
-            </button>
-          )}
+      {/* Search and Filters - SMALLER & DARKER */}
+      <div className="flex flex-col md:flex-row gap-2">
+        <div className="flex-1 relative">
+          <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search tasks..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 bg-black/40 border border-gray-800 rounded-lg text-xs text-white placeholder-gray-600 focus:border-blue-600 focus:outline-none transition-colors"
+          />
+        </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-3 py-1.5 bg-black/40 border border-gray-800 rounded-lg text-xs text-white focus:border-blue-600 focus:outline-none transition-colors"
+        >
+          <option value="all">All Status</option>
+          <option value="to-do">To Do</option>
+          <option value="in progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+
+      {/* Tasks List - SMALLER & DARKER */}
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+        </div>
+      ) : filteredTasks.length === 0 ? (
+        <div className="text-center py-8">
+          <AlertCircle className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+          <p className="text-xs text-gray-500">No tasks found</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          <AnimatePresence>
-            {filteredTasks.map((task) => (
-              <motion.div
-                key={task._id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-all cursor-pointer"
-                onClick={() => handleTaskClick(task)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  {/* Task Info */}
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    {/* Status Icon */}
-                    <div className="flex-shrink-0 mt-1">
-                      {getStatusIcon(task.status)}
-                    </div>
-
-                    {/* Task Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-white font-medium truncate">
-                          {task.title}
-                        </h4>
-                        <div
-                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getPriorityColor(
-                            task.priority
-                          )}`}
-                        ></div>
-                      </div>
-                      {task.description && (
-                        <p className="text-gray-400 text-sm truncate mb-2">
-                          {task.description}
-                        </p>
-                      )}
-
-                      {/* Task Meta */}
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        {task.assignedTo && task.assignedTo.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            <span>{task.assignedTo.length}</span>
-                          </div>
-                        )}
-                        {task.dueDate && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            <span>
-                              {new Date(task.dueDate).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
-                        {task.subtasks && task.subtasks.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>
-                              {
-                                task.subtasks.filter((st) => st.completed)
-                                  .length
-                              }
-                              /{task.subtasks.length}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* View Details Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTaskClick(task);
-                    }}
-                    className="flex-shrink-0 p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+        <div className="space-y-2">
+          {filteredTasks.map((task) => (
+            <motion.div
+              key={task._id}
+              onClick={() => handleTaskClick(task)}
+              className="bg-gradient-to-r from-black/60 to-gray-900/40 border border-gray-800 rounded-lg p-3 hover:border-gray-700 hover:from-black/80 hover:to-gray-900/60 transition-all cursor-pointer group"
+              whileHover={{ x: 2 }}
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTaskStatusChange(
+                      task._id,
+                      task.status === "completed" ? "to-do" : "completed"
+                    );
+                  }}
+                  className="flex-shrink-0"
+                >
+                  {task.status === "completed" ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <Circle className="w-4 h-4 text-gray-600 group-hover:text-gray-500" />
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <h3
+                    className={`text-xs font-semibold ${
+                      task.status === "completed"
+                        ? "line-through text-gray-600"
+                        : "text-white"
+                    }`}
                   >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+                    {task.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-600">
+                    {task.assignedTo && (
+                      <span className="flex items-center gap-0.5">
+                        <Users className="w-2.5 h-2.5" />
+                        Assigned
+                      </span>
+                    )}
+                    {task.dueDate && (
+                      <span className="flex items-center gap-0.5">
+                        <Calendar className="w-2.5 h-2.5" />
+                        {new Date(task.dueDate).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      task.priority === "high"
+                        ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                        : task.priority === "medium"
+                        ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                        : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                    }`}
+                  >
+                    {task.priority}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       )}
 
@@ -268,16 +261,18 @@ const TasksPanel = ({ project, isAdmin }) => {
         onSuccess={handleTaskCreated}
       />
 
-      {/* Task Details Modal */}
+      {/* Task Sidebar */}
       {selectedTask && (
-        <TaskDetailsModal
+        <TaskSidebar
           isOpen={isTaskModalOpen}
-          onClose={() => setIsTaskModalOpen(false)}
+          onClose={() => {
+            setIsTaskModalOpen(false);
+            setSelectedTask(null);
+          }}
           task={selectedTask}
           project={project}
-          isCreating={false}
-          isAdmin={isAdmin}
-          onSaved={handleTaskSaved}
+          onUpdate={handleTaskUpdated}
+          onDelete={handleTaskDeleted}
         />
       )}
     </div>

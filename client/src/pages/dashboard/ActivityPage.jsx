@@ -50,8 +50,53 @@ const ActivityPage = () => {
       if (response?.success && response?.data) {
         setActivities(response.data);
       } else {
-        // If no activity endpoint yet, use empty array
-        setActivities([]);
+        // If no activity endpoint yet, use mock data
+        const mockActivities = [
+          {
+            _id: "activity-1",
+            action: "created a new project",
+            description: "Project 'Website Redesign' has been created",
+            type: "project_created",
+            user: {
+              _id: user._id,
+              name: user.name || "You",
+              avatar: user.avatar,
+            },
+            target: "Website Redesign",
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            metadata: { projectId: "proj-1" },
+          },
+          {
+            _id: "activity-2",
+            action: "completed a task",
+            description: "Task 'Design homepage layout' has been completed",
+            type: "task_completed",
+            user: {
+              _id: user._id,
+              name: user.name || "You",
+              avatar: user.avatar,
+            },
+            target: "Design homepage layout",
+            timestamp: new Date(Date.now() - 7200000).toISOString(),
+            metadata: { taskId: "task-1" },
+          },
+          {
+            _id: "activity-3",
+            action: "added a team member",
+            description: "John Doe has been added to the project",
+            type: "member_added",
+            user: {
+              _id: "user-2",
+              name: "John Doe",
+              avatar:
+                "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
+            },
+            target: "Website Redesign",
+            timestamp: new Date(Date.now() - 10800000).toISOString(),
+            metadata: { memberId: "user-2" },
+          },
+        ];
+        setActivities(mockActivities);
       }
     } catch (error) {
       console.error("Error fetching activities:", error);
@@ -105,6 +150,16 @@ const ActivityPage = () => {
         color: "text-yellow-500",
         bgColor: "bg-yellow-500/10",
       },
+      project_created: {
+        icon: Plus,
+        color: "text-indigo-500",
+        bgColor: "bg-indigo-500/10",
+      },
+      project_updated: {
+        icon: Edit,
+        color: "text-indigo-400",
+        bgColor: "bg-indigo-500/10",
+      },
       comment: {
         icon: MessageCircle,
         color: "text-blue-500",
@@ -125,20 +180,32 @@ const ActivityPage = () => {
         color: "text-red-500",
         bgColor: "bg-red-500/10",
       },
+      workspace_invite: {
+        icon: UserPlus,
+        color: "text-emerald-500",
+        bgColor: "bg-emerald-500/10",
+      },
+      announcement: {
+        icon: MessageCircle,
+        color: "text-pink-500",
+        bgColor: "bg-pink-500/10",
+      },
     };
-    return typeMap[type] || {
-      icon: Activity,
-      color: "text-gray-500",
-      bgColor: "bg-gray-500/10",
-    };
+    return (
+      typeMap[type] || {
+        icon: Activity,
+        color: "text-gray-500",
+        bgColor: "bg-gray-500/10",
+      }
+    );
   };
 
   const filterOptions = [
     { value: "all", label: "All Activity" },
-    { value: "tasks", label: "Tasks" },
-    { value: "comments", label: "Comments" },
-    { value: "files", label: "Files" },
-    { value: "members", label: "Members" },
+    { value: "task_created", label: "Tasks" },
+    { value: "project_created", label: "Projects" },
+    { value: "member_added", label: "Members" },
+    { value: "comment", label: "Comments" },
   ];
 
   // Activities are already filtered by the API call when filter changes
@@ -208,11 +275,16 @@ const ActivityPage = () => {
               </div>
             ) : (
               filteredActivities.map((activity, index) => {
-                const style = getActivityStyle(activity.type || activity.action);
+                const style = getActivityStyle(
+                  activity.type || activity.action
+                );
                 const IconComponent = style.icon;
-                const userName = activity.user?.name || activity.user || "Unknown";
+                const userName =
+                  activity.user?.name || activity.user || "Unknown";
                 const userAvatar = activity.user?.avatar || activity.avatar;
-                const timestamp = new Date(activity.timestamp || activity.createdAt);
+                const timestamp = new Date(
+                  activity.timestamp || activity.createdAt
+                );
 
                 return (
                   <motion.div

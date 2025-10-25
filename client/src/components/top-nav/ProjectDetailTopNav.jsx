@@ -38,10 +38,16 @@ const ProjectDetailTopNav = ({
   onEdit,
   onDelete,
   onSettings,
+  onArchive,
+  onShare,
+  onWhatsAppShare,
+  onTwitterShare,
+  onLinkedInShare,
 }) => {
   const navigate = useNavigate();
   const [showActions, setShowActions] = useState(false);
-  const [isStarred, setIsStarred] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [isStarred, setIsStarred] = useState(project?.isStarred || false);
 
   const handleBack = () => {
     if (onBack) {
@@ -132,18 +138,34 @@ const ProjectDetailTopNav = ({
               <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-500">
                 <div className="flex items-center gap-1">
                   <Users className="w-3 h-3" />
-                  <span>{project.members?.length || 0} members</span>
+                  <span>
+                    {typeof project.members === "number"
+                      ? project.members
+                      : Array.isArray(project.members)
+                      ? project.members.length
+                      : project.members || 0}{" "}
+                    members
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   <span>
-                    {new Date(project.createdAt).toLocaleDateString()}
+                    Created{" "}
+                    {new Date(project.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   <span>
-                    Updated {new Date(project.updatedAt).toLocaleDateString()}
+                    Updated{" "}
+                    {new Date(project.updatedAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </span>
                 </div>
               </div>
@@ -172,13 +194,87 @@ const ProjectDetailTopNav = ({
           </motion.button>
 
           {/* Share Button */}
-          <motion.button
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-all duration-200"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Share2 className="w-4 h-4" />
-          </motion.button>
+          <div className="relative">
+            <motion.button
+              onClick={() => setShowShareMenu(!showShareMenu)}
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                showShareMenu
+                  ? "bg-gray-800 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Share2 className="w-4 h-4" />
+            </motion.button>
+
+            <AnimatePresence>
+              {showShareMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="fixed w-48 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl overflow-hidden"
+                  style={{
+                    zIndex: 999999,
+                    right: "16px",
+                    top: "80px",
+                  }}
+                >
+                  <div className="p-1.5">
+                    <motion.button
+                      onClick={() => {
+                        setShowShareMenu(false);
+                        if (onShare) onShare();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span className="font-medium">Copy Link</span>
+                    </motion.button>
+                    <motion.button
+                      onClick={() => {
+                        setShowShareMenu(false);
+                        if (onWhatsAppShare) onWhatsAppShare();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span className="font-medium">WhatsApp</span>
+                    </motion.button>
+                    <motion.button
+                      onClick={() => {
+                        setShowShareMenu(false);
+                        if (onTwitterShare) onTwitterShare();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span className="font-medium">Twitter</span>
+                    </motion.button>
+                    <motion.button
+                      onClick={() => {
+                        setShowShareMenu(false);
+                        if (onLinkedInShare) onLinkedInShare();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span className="font-medium">LinkedIn</span>
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* More Actions */}
           <div className="relative">
@@ -201,19 +297,24 @@ const ProjectDetailTopNav = ({
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  className="absolute right-0 mt-2 w-56 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+                  className="fixed w-56 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl overflow-hidden"
+                  style={{
+                    zIndex: 999999,
+                    right: "16px",
+                    top: "70px",
+                  }}
                 >
-                  <div className="p-2">
+                  <div className="p-1.5">
                     <motion.button
                       onClick={() => {
                         setShowActions(false);
                         if (onEdit) onEdit();
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded-lg"
-                      whileHover={{ x: 2 }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-3.5 h-3.5" />
                       <span className="font-medium">Edit Project</span>
                     </motion.button>
                     <motion.button
@@ -221,36 +322,36 @@ const ProjectDetailTopNav = ({
                         setShowActions(false);
                         if (onSettings) onSettings();
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded-lg"
-                      whileHover={{ x: 2 }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Settings className="w-4 h-4" />
+                      <Settings className="w-3.5 h-3.5" />
                       <span className="font-medium">Settings</span>
                     </motion.button>
                     <motion.button
                       onClick={() => {
                         setShowActions(false);
-                        // Archive functionality can be added later
+                        if (onArchive) onArchive();
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 rounded-lg"
-                      whileHover={{ x: 2 }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-yellow-400 hover:bg-yellow-500/10 hover:text-yellow-300 transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Archive className="w-4 h-4" />
+                      <Archive className="w-3.5 h-3.5" />
                       <span className="font-medium">Archive</span>
                     </motion.button>
-                    <div className="my-1 border-t border-gray-800"></div>
+                    <div className="my-0.5 border-t border-gray-800"></div>
                     <motion.button
                       onClick={() => {
                         setShowActions(false);
                         if (onDelete) onDelete();
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 rounded-lg"
-                      whileHover={{ x: 2 }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 rounded"
+                      whileHover={{ x: 1 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                       <span className="font-medium">Delete Project</span>
                     </motion.button>
                   </div>
@@ -261,15 +362,18 @@ const ProjectDetailTopNav = ({
         </div>
       </div>
 
-      {/* Click outside to close dropdown */}
+      {/* Click outside to close dropdowns */}
       <AnimatePresence>
-        {showActions && (
+        {(showActions || showShareMenu) && (
           <motion.div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[999998]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShowActions(false)}
+            onClick={() => {
+              setShowActions(false);
+              setShowShareMenu(false);
+            }}
           />
         )}
       </AnimatePresence>

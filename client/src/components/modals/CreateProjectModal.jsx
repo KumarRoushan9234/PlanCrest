@@ -3,24 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   FolderPlus,
-  Palette,
   Eye,
   EyeOff,
-  Sparkles,
-  Zap,
-  Bug,
-  Megaphone,
-  Map,
   PenTool,
   Palette as PaletteIcon,
-  Users,
   BarChart3,
   Folder,
   Globe,
   Smartphone,
   Target,
   Database,
-  FileText,
   Wrench,
   Rocket,
   Lightbulb,
@@ -28,6 +20,7 @@ import {
   Zap as ZapIcon,
   Activity,
   Building,
+  Megaphone,
 } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -37,11 +30,8 @@ import { projectService } from "../../services/projectService";
 const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
   const { currentWorkspace } = useWorkspace();
   const { user: currentUser } = useAuth();
-  const { fetchWorkspaceProjects, getProjectTemplates } = useProject();
+  const { fetchWorkspaceProjects } = useProject();
   const [loading, setLoading] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [templates, setTemplates] = useState([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     key: "",
@@ -83,9 +73,9 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
     { name: "Database", component: Database },
   ];
 
-  // Fetch templates when modal opens
+  // Reset form when modal opens
   useEffect(() => {
-    if (isOpen && currentWorkspace?._id) {
+    if (isOpen) {
       setFormData({
         name: "",
         key: "",
@@ -94,28 +84,8 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
         color: "#6366f1",
         privacy: "public",
       });
-      setSelectedTemplate(null);
-      fetchTemplates();
     }
-  }, [isOpen, currentWorkspace?._id]);
-
-  const fetchTemplates = async () => {
-    try {
-      setLoadingTemplates(true);
-      const templatesData = await getProjectTemplates(currentWorkspace._id);
-      // Combine global and workspace templates
-      const allTemplates = [
-        ...(templatesData.global || []),
-        ...(templatesData.workspace || []),
-      ];
-      setTemplates(allTemplates);
-    } catch (error) {
-      console.error("Error fetching templates:", error);
-      setTemplates([]);
-    } finally {
-      setLoadingTemplates(false);
-    }
-  };
+  }, [isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -123,25 +93,19 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
 
     setLoading(true);
     try {
-      const payload = selectedTemplate
-        ? {
-            templateId: selectedTemplate._id || selectedTemplate.key,
-            templateKey: selectedTemplate.key,
-            name: formData.name || selectedTemplate.name,
-            key: formData.key || selectedTemplate.key,
-            description: formData.description || selectedTemplate.description,
-            icon: formData.icon || selectedTemplate.icon,
-            color: formData.color || selectedTemplate.color,
-            privacy: formData.privacy || "public",
-          }
-        : formData;
+      const payload = {
+        name: formData.name,
+        key: formData.key,
+        description: formData.description,
+        icon: formData.icon,
+        color: formData.color,
+        privacy: formData.privacy,
+      };
 
-      const data = selectedTemplate
-        ? await projectService.createProjectFromTemplate(
-            currentWorkspace._id,
-            payload
-          )
-        : await projectService.createProject(currentWorkspace._id, payload);
+      const data = await projectService.createProject(
+        currentWorkspace._id,
+        payload
+      );
 
       if (data.success) {
         // Refresh projects list
@@ -159,7 +123,6 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
           color: "#6366f1",
           privacy: "public",
         });
-        setSelectedTemplate(null);
       } else {
         throw new Error(data.error || "Failed to create project");
       }
@@ -174,30 +137,6 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleTemplateSelect = (template) => {
-    setSelectedTemplate(template);
-    setFormData({
-      name: template.name,
-      key: template.key,
-      description: template.description,
-      icon: template.icon,
-      color: template.color,
-      privacy: template.privacy,
-    });
-  };
-
-  const handleCustomProject = () => {
-    setSelectedTemplate(null);
-    setFormData({
-      name: "",
-      key: "",
-      description: "",
-      icon: "Folder",
-      color: "#6366f1",
-      privacy: "public",
-    });
   };
 
   // Helper function to render icon components
@@ -219,9 +158,6 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
       Zap: ZapIcon,
       Building,
       Database,
-      Bug,
-      Map,
-      Users,
     };
 
     const IconComponent = iconMap[iconName] || Folder;
@@ -297,81 +233,6 @@ const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
 
               {/* Content */}
               <div className="p-6">
-                {/* Template Selection */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    Choose a Template or Start Custom
-                  </h3>
-
-                  {loadingTemplates ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                      <span className="ml-3 text-gray-400">
-                        Loading templates...
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                      {/* Custom Project Option */}
-                      <motion.button
-                        onClick={handleCustomProject}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          !selectedTemplate
-                            ? "border-green-500 bg-green-500/10"
-                            : "border-gray-600 hover:border-gray-500"
-                        }`}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <div className="text-center">
-                          <div className="flex justify-center mb-2 text-gray-300">
-                            {renderIcon("Folder", 32)}
-                          </div>
-                          <div className="font-medium text-white">
-                            Custom Project
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            Start from scratch
-                          </div>
-                        </div>
-                      </motion.button>
-
-                      {/* Template Options */}
-                      {templates.map((template) => (
-                        <motion.button
-                          key={template._id || template.key}
-                          onClick={() => handleTemplateSelect(template)}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            selectedTemplate?.key === template.key
-                              ? "border-green-500 bg-green-500/10"
-                              : "border-gray-600 hover:border-gray-500"
-                          }`}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <div className="text-center">
-                            <div className="flex justify-center mb-2 text-gray-300">
-                              {renderIcon(template.icon, 32)}
-                            </div>
-                            <div className="font-medium text-white">
-                              {template.name}
-                            </div>
-                            <div className="text-sm text-gray-400 truncate">
-                              {template.description}
-                            </div>
-                            {template.category && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                {template.category}
-                              </div>
-                            )}
-                          </div>
-                        </motion.button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

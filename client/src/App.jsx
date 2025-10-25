@@ -29,6 +29,7 @@ import TeamPage from "./pages/dashboard/TeamPage";
 import ActivityPage from "./pages/dashboard/ActivityPage";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
+import TaskDetailPage from "./pages/TaskDetailPage";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
 import AIModePage from "./pages/AIModePage";
 import CalendarPage from "./pages/CalendarPage";
@@ -208,6 +209,25 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ProjectDetail />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/project/:maskedProjectId/task/:maskedTaskId"
+                  element={
+                    <ProtectedRoute>
+                      <TaskDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Legacy route for backward compatibility */}
+                <Route
+                  path="/task/:maskedTaskId"
+                  element={
+                    <ProtectedRoute>
+                      <TaskDetailPage />
                     </ProtectedRoute>
                   }
                 />

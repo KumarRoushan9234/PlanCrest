@@ -15,13 +15,19 @@ import {
   ExternalLink,
   List,
 } from "lucide-react";
+import CreateTaskModal from "../modals/CreateTaskModal";
+import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { useProject } from "../../contexts/ProjectContext";
 
 const DashboardTopNav = ({ onCreateProject }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentWorkspace } = useWorkspace();
+  const { projects } = useProject();
   const [expandedSections, setExpandedSections] = useState({
     favorites: false,
   });
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
 
   // Determine active item based on current route
   const getActiveItem = () => {
@@ -73,6 +79,16 @@ const DashboardTopNav = ({ onCreateProject }) => {
       default:
         break;
     }
+  };
+
+  const handleCreateTask = () => {
+    // Open the modal - project selection will be handled within the modal
+    setIsCreateTaskOpen(true);
+  };
+
+  const handleTaskCreated = () => {
+    setIsCreateTaskOpen(false);
+    // Optionally refresh data or show success message
   };
 
   const mainNavItems = [
@@ -197,6 +213,7 @@ const DashboardTopNav = ({ onCreateProject }) => {
 
           {/* Create New Task Button */}
           <motion.button
+            onClick={handleCreateTask}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg shadow-blue-900/30"
             whileHover={{ scale: 1.02, y: -1 }}
             whileTap={{ scale: 0.98 }}
@@ -294,6 +311,13 @@ const DashboardTopNav = ({ onCreateProject }) => {
           />
         )}
       </AnimatePresence>
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        isOpen={isCreateTaskOpen}
+        onClose={() => setIsCreateTaskOpen(false)}
+        onSuccess={handleTaskCreated}
+      />
     </motion.nav>
   );
 };

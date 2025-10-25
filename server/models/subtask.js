@@ -22,6 +22,11 @@ const subtaskSchema = new Schema(
       type: Number,
       default: 0,
     },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "medium",
+    },
     isCompleted: {
       type: Boolean,
       default: false,

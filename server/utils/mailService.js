@@ -304,6 +304,19 @@ export async function sendCustomEmail(
 // Simple email sender using environment variables
 export async function sendSimpleEmail({ to, subject, html, text }) {
   try {
+    // Check if email configuration is available
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error("❌ Email configuration missing: EMAIL_USER and EMAIL_PASS must be set");
+      return { 
+        success: false, 
+        error: "Email configuration missing. Please set EMAIL_USER and EMAIL_PASS environment variables." 
+      };
+    }
+
+    console.log(`📧 Email Service: ${process.env.EMAIL_SERVICE}`);
+    console.log(`📧 Email User: ${process.env.EMAIL_USER}`);
+    console.log(`📧 Email Pass: ${process.env.EMAIL_PASS ? '***' + process.env.EMAIL_PASS.slice(-3) : 'NOT SET'}`);
+
     let transporterConfig;
 
     switch (process.env.EMAIL_SERVICE) {
@@ -329,13 +342,17 @@ export async function sendSimpleEmail({ to, subject, html, text }) {
 
       case "zoho":
         transporterConfig = {
-          host: "smtp.zoho.in",
+          host: "smtp.zoho.com",
           port: 587,
           secure: false,
           auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
           },
+          tls: {
+            rejectUnauthorized: false,
+            ciphers: 'SSLv3'
+          }
         };
         break;
 
@@ -350,17 +367,96 @@ export async function sendSimpleEmail({ to, subject, html, text }) {
     }
 
     const transporter = nodemailer.createTransport(transporterConfig);
-    await transporter.sendMail({
+    
+    // Verify connection before sending
+    await transporter.verify();
+    console.log("✅ Email transporter verified successfully");
+
+    const mailOptions = {
       from: process.env.EMAIL_USER,
       to,
       subject,
       html,
       text,
-    });
+    };
 
+    const result = await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent successfully:", result.messageId);
+
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error("❌ Error sending simple email:", error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+// Test email configuration
+export async function testEmailConfig() {
+  try {
+    console.log("🧪 Testing email configuration...");
+    
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error("❌ Email configuration missing");
+      return { success: false, error: "Email configuration missing" };
+    }
+
+    let transporterConfig;
+
+    switch (process.env.EMAIL_SERVICE) {
+      case "gmail":
+        transporterConfig = {
+          service: "gmail",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+        };
+        break;
+
+      case "outlook":
+        transporterConfig = {
+          service: "hotmail",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+        };
+        break;
+
+      case "zoho":
+        transporterConfig = {
+          host: "smtp.zoho.com",
+          port: 587,
+          secure: false,
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+          tls: {
+            rejectUnauthorized: false,
+            ciphers: 'SSLv3'
+          }
+        };
+        break;
+
+      default:
+        transporterConfig = {
+          service: "gmail",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+        };
+    }
+
+    const transporter = nodemailer.createTransport(transporterConfig);
+    
+    // Test connection
+    await transporter.verify();
+    console.log("✅ Email configuration is valid!");
     return { success: true };
   } catch (error) {
-    console.error("Error sending simple email:", error);
+    console.error("❌ Email configuration test failed:", error.message);
     return { success: false, error: error.message };
   }
 }
@@ -375,4 +471,5 @@ export default {
   sendNotificationEmail,
   sendCustomEmail,
   sendSimpleEmail,
+  testEmailConfig,
 };

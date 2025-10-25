@@ -7,6 +7,8 @@ import Project from "../models/project.js";
 import Column from "../models/column.js";
 import Workspace from "../models/workspace.js";
 import User from "../models/user.js";
+import Comment from "../models/comment.js";
+import Attachment from "../models/attachment.js";
 import { sendSimpleEmail } from "../utils/mailService.js";
 import { sendTaskAssignedEmail, sendTaskCompletedEmail } from "../utils/emailTemplates.js";
 import { notifyTaskAssignees } from "../utils/notificationHelpers.js";
@@ -23,6 +25,7 @@ export const createTask = async (req, res) => {
       boardId,
       columnId,
       priority,
+      status,
       dueDate,
       assignees,
       labels,
@@ -60,7 +63,7 @@ export const createTask = async (req, res) => {
       taskNumber,
       taskKey,
       priority: priority || "medium",
-      status: column.type || "todo",
+      status: status || "todo",
       dueDate,
       labels: labels || [],
       createdBy: userId,
@@ -198,6 +201,7 @@ export const getTask = async (req, res) => {
       task: taskId,
     })
       .populate("assignee", "name email avatar")
+      .populate("createdBy", "name email avatar")
       .populate("completedBy", "name email avatar")
       .sort({ position: 1 });
 
@@ -550,7 +554,7 @@ export const unassignTask = async (req, res) => {
 export const createSubtask = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { title, description, assignee, dueDate } = req.body;
+    const { title, description, assignee, dueDate, priority } = req.body;
     const userId = req.auth._id;
 
     if (!title) {
@@ -567,15 +571,19 @@ export const createSubtask = async (req, res) => {
       description,
       assignee,
       dueDate,
+      priority: priority || "medium",
       position,
       createdBy: userId,
     });
 
     await subtask.save();
 
-    if (assignee) {
-      await subtask.populate("assignee", "name email avatar");
-    }
+    // Populate all relevant fields
+    await subtask.populate([
+      { path: "assignee", select: "name email avatar" },
+      { path: "createdBy", select: "name email avatar" },
+      { path: "completedBy", select: "name email avatar" },
+    ]);
 
     res.status(201).json({
       success: true,
@@ -594,7 +602,7 @@ export const createSubtask = async (req, res) => {
 export const updateSubtask = async (req, res) => {
   try {
     const { subtaskId } = req.params;
-    const { title, description, isCompleted, assignee, dueDate } = req.body;
+    const { title, description, isCompleted, assignee, dueDate, priority } = req.body;
     const userId = req.auth._id;
 
     const subtask = await Subtask.findById(subtaskId);
@@ -607,6 +615,7 @@ export const updateSubtask = async (req, res) => {
     if (description !== undefined) subtask.description = description;
     if (assignee !== undefined) subtask.assignee = assignee;
     if (dueDate !== undefined) subtask.dueDate = dueDate;
+    if (priority !== undefined) subtask.priority = priority;
     
     if (isCompleted !== undefined) {
       subtask.isCompleted = isCompleted;
@@ -620,6 +629,13 @@ export const updateSubtask = async (req, res) => {
     }
 
     await subtask.save();
+
+    // Populate all relevant fields
+    await subtask.populate([
+      { path: "assignee", select: "name email avatar" },
+      { path: "createdBy", select: "name email avatar" },
+      { path: "completedBy", select: "name email avatar" },
+    ]);
 
     res.json({
       success: true,
@@ -799,5 +815,314 @@ export default {
   getProjectLabels,
   updateLabel,
   deleteLabel,
+  // Comments
+  createTaskComment,
+  getTaskComments,
+  updateTaskComment,
+  deleteTaskComment,
+  // Attachments
+  createTaskAttachment,
+  getTaskAttachments,
+  deleteTaskAttachment,
+  uploadTaskAttachment,
 };
+
+/**
+ * Create a comment on a task
+ */
+export async function createTaskComment(req, res) {
+  try {
+    const { taskId } = req.params;
+    const { content, mentions } = req.body;
+    const userId = req.auth._id;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: "Comment content is required" });
+    }
+
+    const task = await Task.findById(taskId).populate("project");
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const comment = new Comment({
+      content: content.trim(),
+      commentOn: {
+        model: "Task",
+        id: taskId,
+      },
+      project: task.project._id,
+      author: userId,
+      authorModel: "User",
+      mentions: mentions || [],
+    });
+
+    await comment.save();
+    await comment.populate("author", "name email avatar");
+
+    res.status(201).json({
+      success: true,
+      message: "Comment created successfully",
+      data: comment,
+    });
+  } catch (error) {
+    console.error("Error creating comment:", error);
+    res.status(500).json({ error: "Failed to create comment" });
+  }
+}
+
+/**
+ * Get all comments for a task
+ */
+export async function getTaskComments(req, res) {
+  try {
+    const { taskId } = req.params;
+
+    const comments = await Comment.find({
+      "commentOn.model": "Task",
+      "commentOn.id": taskId,
+      isDeleted: false,
+    })
+      .populate("author", "name email avatar")
+      .populate("mentions", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      message: "Comments fetched successfully",
+      data: comments,
+    });
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    res.status(500).json({ error: "Failed to fetch comments" });
+  }
+}
+
+/**
+ * Update a comment
+ */
+export async function updateTaskComment(req, res) {
+  try {
+    const { commentId } = req.params;
+    const { content } = req.body;
+    const userId = req.auth._id;
+
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+
+    // Check if user is the author
+    if (comment.author.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "You can only edit your own comments" });
+    }
+
+    comment.content = content.trim();
+    comment.isEdited = true;
+    comment.editedAt = new Date();
+    await comment.save();
+
+    await comment.populate("author", "name email avatar");
+
+    res.json({
+      success: true,
+      message: "Comment updated successfully",
+      data: comment,
+    });
+  } catch (error) {
+    console.error("Error updating comment:", error);
+    res.status(500).json({ error: "Failed to update comment" });
+  }
+}
+
+/**
+ * Delete a comment
+ */
+export async function deleteTaskComment(req, res) {
+  try {
+    const { commentId } = req.params;
+    const userId = req.auth._id;
+
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+
+    // Check if user is the author
+    if (comment.author.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "You can only delete your own comments" });
+    }
+
+    comment.isDeleted = true;
+    comment.deletedAt = new Date();
+    await comment.save();
+
+    res.json({
+      success: true,
+      message: "Comment deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    res.status(500).json({ error: "Failed to delete comment" });
+  }
+}
+
+/**
+ * Create an attachment for a task
+ */
+export async function createTaskAttachment(req, res) {
+  try {
+    const { taskId } = req.params;
+    const { filename, originalName, mimeType, size, url, thumbnailUrl } = req.body;
+    const userId = req.auth._id;
+
+    if (!filename || !originalName || !mimeType || !size || !url) {
+      return res.status(400).json({ error: "Missing required attachment fields" });
+    }
+
+    const task = await Task.findById(taskId).populate("project");
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const project = await Project.findById(task.project._id);
+    const attachment = new Attachment({
+      filename,
+      originalName,
+      mimeType,
+      size,
+      url,
+      thumbnailUrl,
+      attachedTo: {
+        model: "Task",
+        id: taskId,
+      },
+      project: task.project._id,
+      workspace: project.workspace,
+      uploadedBy: userId,
+    });
+
+    await attachment.save();
+    await attachment.populate("uploadedBy", "name email avatar");
+
+    res.status(201).json({
+      success: true,
+      message: "Attachment created successfully",
+      data: attachment,
+    });
+  } catch (error) {
+    console.error("Error creating attachment:", error);
+    res.status(500).json({ error: "Failed to create attachment" });
+  }
+}
+
+/**
+ * Get all attachments for a task
+ */
+export async function getTaskAttachments(req, res) {
+  try {
+    const { taskId } = req.params;
+
+    const attachments = await Attachment.find({
+      "attachedTo.model": "Task",
+      "attachedTo.id": taskId,
+      isDeleted: false,
+    })
+      .populate("uploadedBy", "name email avatar")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      message: "Attachments fetched successfully",
+      data: attachments,
+    });
+  } catch (error) {
+    console.error("Error fetching attachments:", error);
+    res.status(500).json({ error: "Failed to fetch attachments" });
+  }
+}
+
+/**
+ * Delete an attachment
+ */
+export async function deleteTaskAttachment(req, res) {
+  try {
+    const { attachmentId } = req.params;
+    const userId = req.auth._id;
+
+    const attachment = await Attachment.findById(attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    // Check if user is the uploader or has permission
+    if (attachment.uploadedBy.toString() !== userId.toString()) {
+      // TODO: Add permission check for project admins
+      return res.status(403).json({ error: "You can only delete your own attachments" });
+    }
+
+    attachment.isDeleted = true;
+    attachment.deletedAt = new Date();
+    await attachment.save();
+
+    res.json({
+      success: true,
+      message: "Attachment deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting attachment:", error);
+    res.status(500).json({ error: "Failed to delete attachment" });
+  }
+}
+
+/**
+ * Upload a file attachment (for future implementation with multer)
+ * This function will be used when multer is installed and configured
+ */
+export async function uploadTaskAttachment(req, res) {
+  try {
+    const { taskId } = req.params;
+    const userId = req.auth._id;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const task = await Task.findById(taskId).populate("project");
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const project = await Project.findById(task.project._id);
+    
+    // Create attachment record
+    const attachment = new Attachment({
+      filename: file.filename,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      url: `/uploads/${file.filename}`, // Adjust based on your file serving setup
+      attachedTo: {
+        model: "Task",
+        id: taskId,
+      },
+      project: task.project._id,
+      workspace: project.workspace,
+      uploadedBy: userId,
+    });
+
+    await attachment.save();
+    await attachment.populate("uploadedBy", "name email avatar");
+
+    res.status(201).json({
+      success: true,
+      message: "File uploaded successfully",
+      data: attachment,
+    });
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    res.status(500).json({ error: "Failed to upload file" });
+  }
+}
 

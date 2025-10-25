@@ -45,7 +45,6 @@ const Navbar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
     }
   };
 
-
   // Truncate text helper
   const truncateText = (text, maxLength = 20) => {
     if (!text) return "";

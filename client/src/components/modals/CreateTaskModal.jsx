@@ -15,6 +15,7 @@ const CreateTaskModal = ({ isOpen, onClose, project, onSuccess }) => {
     priority: "medium",
     dueDate: "",
     assignedTo: [],
+    projectId: "",
   });
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState("");
@@ -22,28 +23,95 @@ const CreateTaskModal = ({ isOpen, onClose, project, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [boards, setBoards] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [availableProjects, setAvailableProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   useEffect(() => {
-    if (isOpen && currentWorkspace && project) {
+    if (isOpen && currentWorkspace) {
+      // Reset state when opening
+      if (!project) {
+        setSelectedProject(null);
+        setFormData((prev) => ({ ...prev, projectId: "" }));
+        setBoards([]);
+        setColumns([]);
+      }
+
       fetchWorkspaceMembers();
-      fetchBoards();
+      fetchAvailableProjects();
+
+      // Set initial project if provided
+      if (project) {
+        setSelectedProject(project);
+        setFormData((prev) => ({ ...prev, projectId: project._id }));
+        fetchBoards(project._id);
+      }
     }
   }, [isOpen, currentWorkspace, project]);
 
   const fetchWorkspaceMembers = async () => {
     try {
-      const response = await projectService.getWorkspaceMembers(
-        currentWorkspace._id
-      );
-      setWorkspaceMembers(response.data || []);
+      // If project is selected, fetch project members only
+      if (selectedProject?._id) {
+        const response = await projectService.getProjectMembers(
+          selectedProject._id
+        );
+        setWorkspaceMembers(response.data || []);
+      } else {
+        // Otherwise fetch workspace members
+        const response = await projectService.getWorkspaceMembers(
+          currentWorkspace._id
+        );
+        setWorkspaceMembers(response.data || []);
+      }
     } catch (error) {
-      console.error("Error fetching workspace members:", error);
+      console.error("Error fetching members:", error);
     }
   };
 
-  const fetchBoards = async () => {
+  const fetchAvailableProjects = async () => {
     try {
-      const response = await projectService.getProjectBoards(project._id);
+      const response = await projectService.getWorkspaceProjects(
+        currentWorkspace._id
+      );
+      if (response?.success && response?.data) {
+        // Filter projects where user can create tasks
+        const userProjects = response.data.filter((proj) => {
+          // Check if user is a member of the project and has task creation permissions
+          // Handle both populated and non-populated members
+          let userMembership = null;
+
+          if (Array.isArray(proj.members)) {
+            userMembership = proj.members.find(
+              (member) =>
+                member.user?._id === currentUser._id ||
+                member.user === currentUser._id ||
+                member._id === currentUser._id
+            );
+          }
+
+          if (!userMembership) return false;
+
+          // Check permissions based on role
+          const role = userMembership.role;
+          return ["owner", "admin", "member"].includes(role?.toLowerCase());
+        });
+
+        setAvailableProjects(userProjects);
+
+        // Don't auto-select any project when opened from DashboardTopNav
+        // The project prop will be set in the useEffect if provided from TasksPanel
+      }
+    } catch (error) {
+      console.error("Error fetching available projects:", error);
+    }
+  };
+
+  const fetchBoards = async (projectId) => {
+    try {
+      const targetProjectId = projectId || selectedProject?._id || project?._id;
+      if (!targetProjectId) return;
+
+      const response = await projectService.getProjectBoards(targetProjectId);
       const boardList = response.data || [];
       setBoards(boardList);
 
@@ -66,9 +134,29 @@ const CreateTaskModal = ({ isOpen, onClose, project, onSuccess }) => {
     }
   };
 
+  const handleProjectChange = (projectId) => {
+    const project = availableProjects.find((p) => p._id === projectId);
+    setSelectedProject(project);
+    setFormData((prev) => ({ ...prev, projectId, assignedTo: [] })); // Reset assignees
+    if (project) {
+      fetchBoards(project._id);
+      // Fetch project members when project changes
+      projectService
+        .getProjectMembers(project._id)
+        .then((response) => setWorkspaceMembers(response.data || []))
+        .catch((error) =>
+          console.error("Error fetching project members:", error)
+        );
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
+    if (!formData.projectId) {
+      alert("Please select a project.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -95,13 +183,14 @@ const CreateTaskModal = ({ isOpen, onClose, project, onSuccess }) => {
         description: formData.description,
         boardId: defaultBoard._id,
         columnId: column._id,
+        status: formData.status || "todo",
         priority: formData.priority,
         dueDate: formData.dueDate || undefined,
         assignees: formData.assignedTo,
         subtasks: subtasks.map((st) => ({ title: st.title, completed: false })),
       };
 
-      await projectService.createTask(project._id, taskData);
+      await projectService.createTask(formData.projectId, taskData);
 
       // Reset form
       setFormData({
@@ -111,9 +200,11 @@ const CreateTaskModal = ({ isOpen, onClose, project, onSuccess }) => {
         priority: "medium",
         dueDate: "",
         assignedTo: [],
+        projectId: "",
       });
       setSubtasks([]);
       setNewSubtask("");
+      setSelectedProject(null);
 
       if (onSuccess) onSuccess();
       onClose();
@@ -159,279 +250,342 @@ const CreateTaskModal = ({ isOpen, onClose, project, onSuccess }) => {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Blur navbar and sidebar, behind modal */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-lg z-50"
+            className="fixed inset-0 bg-black/70 backdrop-blur-xl z-[40] top-0 left-0 right-0 bottom-0 w-screen h-screen pointer-events-auto"
           ></motion.div>
 
-          {/* Modal */}
+          {/* Modal - Above everything */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed top-0 left-1/2 transform -translate-x-1/2 z-[50] w-full px-6 pointer-events-auto"
+            style={{ marginTop: "80px", maxWidth: "calc(100vw - 48px)" }}
           >
             <div
-              className="rounded-2xl border w-full max-w-5xl max-h-[85vh] overflow-y-auto scrollbar-hide shadow-inner shadow-black/20"
+              className="rounded-2xl border w-full max-w-6xl h-[85vh] overflow-hidden shadow-2xl flex flex-col mx-auto"
               style={{
                 background:
-                  "linear-gradient(135deg, rgba(13, 13, 13, 0.6), rgba(26, 26, 46, 0.65), rgba(46, 26, 54, 0.6))",
-                backdropFilter: "blur(100px)",
-                borderColor: "rgba(255, 255, 255, 0.08)",
+                  "linear-gradient(135deg, rgba(10, 10, 11, 0.98), rgba(20, 20, 30, 0.98))",
+                backdropFilter: "blur(20px)",
+                borderColor: "rgba(255, 255, 255, 0.1)",
               }}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-600">
+              {/* Header - Fixed */}
+              <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900/50">
                 <div className="flex items-center gap-3">
-                  <motion.div
-                    className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center"
-                    animate={{
-                      scale: [1, 1.05, 1],
-                      rotate: [0, 5, -5, 0],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      repeatDelay: 2,
-                    }}
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-white" />
-                  </motion.div>
-                  <span className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                    {project?.name || "Project"}
-                  </span>
+                  <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <CheckCircle2 className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white">
+                      Create New Task
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {selectedProject?.name || "Select a project to continue"}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-400">Create New Task</span>
-                  <button
-                    onClick={onClose}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+                <motion.button
+                  onClick={onClose}
+                  className="p-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white flex-shrink-0"
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <X className="w-6 h-6" />
+                </motion.button>
               </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column - Task Details */}
-                  <div className="space-y-6">
-                    {/* Task Title */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Task Title *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) =>
-                          setFormData({ ...formData, title: e.target.value })
-                        }
-                        required
-                        placeholder="Enter task title"
-                        className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
-                      />
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Description
-                      </label>
-                      <textarea
-                        value={formData.description}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            description: e.target.value,
-                          })
-                        }
-                        rows={6}
-                        placeholder="Add task description..."
-                        className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none backdrop-blur-sm"
-                      />
-                    </div>
-
-                    {/* Status, Priority, Due Date */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Status
-                        </label>
-                        <select
-                          value={formData.status}
-                          onChange={(e) =>
-                            setFormData({ ...formData, status: e.target.value })
-                          }
-                          className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
-                        >
-                          <option value="todo">To Do</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="review">Review</option>
-                          <option value="done">Done</option>
-                        </select>
+              {/* Form - Scrollable */}
+              <div className="flex-1 overflow-y-auto">
+                <form onSubmit={handleSubmit} className="p-6" noValidate>
+                  {/* Project Selector */}
+                  <div className="mb-5">
+                    <label className="block text-xs font-semibold text-gray-300 mb-2">
+                      Project <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={formData.projectId}
+                      onChange={(e) => handleProjectChange(e.target.value)}
+                      required
+                      disabled={project !== null && project !== undefined}
+                      className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select a project</option>
+                      {availableProjects.map((proj) => {
+                        const userMembership = Array.isArray(proj.members)
+                          ? proj.members.find(
+                              (member) =>
+                                member.user?._id === currentUser._id ||
+                                member.user === currentUser._id
+                            )
+                          : null;
+                        const role = userMembership?.role || "member";
+                        return (
+                          <option key={proj._id} value={proj._id}>
+                            {proj.name} ({role})
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {project && (
+                      <p className="text-xs text-blue-400 mt-2">
+                        ✓ Task will be created in this project
+                      </p>
+                    )}
+                    {availableProjects.length === 0 && !project && (
+                      <div className="mt-3 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                        <p className="text-xs text-yellow-400 font-medium">
+                          No projects available
+                        </p>
+                        <p className="text-xs text-yellow-300 mt-1">
+                          You need to be a member of a project to create tasks.
+                        </p>
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Priority
-                        </label>
-                        <select
-                          value={formData.priority}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              priority: e.target.value,
-                            })
-                          }
-                          className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
-                        >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Due Date
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.dueDate}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              dueDate: e.target.value,
-                            })
-                          }
-                          className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm"
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Right Column - Subtasks and Assignments */}
-                  <div className="space-y-6">
-                    {/* Subtasks */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Subtasks
-                      </label>
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newSubtask}
-                            onChange={(e) => setNewSubtask(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddSubtask();
-                              }
-                            }}
-                            placeholder="Add a subtask..."
-                            className="flex-1 px-4 py-2 bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddSubtask}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    {/* Left Column - Task Details (2 columns) */}
+                    <div className="lg:col-span-2 space-y-4">
+                      {/* Task Title */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                          Task Title <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.title}
+                          onChange={(e) =>
+                            setFormData({ ...formData, title: e.target.value })
+                          }
+                          required
+                          placeholder="Enter a descriptive task title..."
+                          className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                          Description
+                        </label>
+                        <textarea
+                          value={formData.description}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              description: e.target.value,
+                            })
+                          }
+                          rows={3}
+                          placeholder="Add detailed task description..."
+                          className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                        />
+                      </div>
+
+                      {/* Status, Priority, Due Date */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                            Status
+                          </label>
+                          <select
+                            value={formData.status}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                status: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                           >
-                            <Plus className="w-4 h-4" />
-                          </button>
+                            <option value="todo">To Do</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="in_review">In Review</option>
+                            <option value="done">Done</option>
+                            <option value="backlog">Backlog</option>
+                            <option value="blocked">Blocked</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
                         </div>
 
-                        {subtasks.length > 0 && (
-                          <div className="space-y-2 max-h-32 overflow-y-auto">
-                            {subtasks.map((subtask, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between p-2 bg-gray-800 bg-opacity-50 rounded-lg"
-                              >
-                                <span className="text-white text-sm">
-                                  {subtask.title}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveSubtask(index)}
-                                  className="p-1 text-red-400 hover:bg-red-400/10 rounded transition-colors"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                            Priority
+                          </label>
+                          <select
+                            value={formData.priority}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                priority: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                            Due Date
+                          </label>
+                          <input
+                            type="date"
+                            value={formData.dueDate}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                dueDate: e.target.value,
+                              })
+                            }
+                            min={new Date().toISOString().split("T")[0]}
+                            className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Assign Members */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Assign Members
-                      </label>
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {workspaceMembers.map((member) => {
-                          const user = member.user || member;
-                          const userId = user._id || member._id;
-                          return (
-                            <label
-                              key={userId}
-                              className="flex items-center gap-3 p-3 hover:bg-gray-700 bg-gray-800 bg-opacity-50 rounded-lg cursor-pointer transition-colors"
+                    {/* Right Column - Subtasks and Assignments (1 column) */}
+                    <div className="space-y-4">
+                      {/* Subtasks */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">
+                          Subtasks
+                        </label>
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newSubtask}
+                              onChange={(e) => setNewSubtask(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddSubtask();
+                                }
+                              }}
+                              placeholder="Add a subtask..."
+                              className="flex-1 px-3 py-1.5 bg-gray-900/50 border border-gray-700 rounded-lg text-xs placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            />
+                            <motion.button
+                              type="button"
+                              onClick={handleAddSubtask}
+                              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
                             >
-                              <input
-                                type="checkbox"
-                                checked={formData.assignedTo.includes(userId)}
-                                onChange={() => toggleAssignee(userId)}
-                                className="w-4 h-4 rounded border-gray-500 bg-gray-600 text-blue-500 focus:ring-2 focus:ring-blue-500"
-                              />
-                              <div className="flex items-center gap-3 flex-1">
-                                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium text-sm">
+                              <Plus className="w-4 h-4" />
+                            </motion.button>
+                          </div>
+
+                          {subtasks.length > 0 && (
+                            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                              {subtasks.map((subtask, index) => (
+                                <motion.div
+                                  key={`subtask-${index}-${subtask.title}`}
+                                  className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-gray-700 hover:border-gray-600 transition-all"
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                >
+                                  <span className="text-white text-xs">
+                                    {subtask.title}
+                                  </span>
+                                  <motion.button
+                                    type="button"
+                                    onClick={() => handleRemoveSubtask(index)}
+                                    className="p-1 text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.95 }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </motion.button>
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Assign Members */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">
+                          Assign Members
+                        </label>
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto overflow-x-hidden">
+                          {workspaceMembers.map((member) => {
+                            const user = member.user || member;
+                            const userId = user._id || member._id;
+                            return (
+                              <motion.label
+                                key={`member-${userId}`}
+                                className="flex items-center gap-2 p-2 hover:bg-gray-800/50 bg-gray-900/50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-600"
+                                whileHover={{ x: 2 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={formData.assignedTo.includes(userId)}
+                                  onChange={() => toggleAssignee(userId)}
+                                  className="w-3.5 h-3.5 rounded border-gray-500 bg-gray-600 text-blue-500 focus:ring-2 focus:ring-blue-500"
+                                />
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                   {user.name?.charAt(0).toUpperCase() || "?"}
                                 </div>
-                                <div>
-                                  <p className="text-white font-medium text-sm">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white font-medium text-xs truncate">
                                     {user.name || "Unknown"}
                                   </p>
-                                  <p className="text-gray-400 text-xs">
+                                  <p className="text-gray-400 text-xs truncate">
                                     {user.email || "No email"}
                                   </p>
                                 </div>
-                              </div>
-                            </label>
-                          );
-                        })}
+                              </motion.label>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </form>
+              </div>
 
-                {/* Actions */}
-                <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-600 border-opacity-50">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-6 py-3 bg-gray-800 bg-opacity-50 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors backdrop-blur-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading || !formData.title.trim()}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                  >
-                    {loading ? "Creating..." : "Create Task"}
-                  </button>
-                </div>
-              </form>
+              {/* Actions - Fixed at Bottom */}
+              <div className="flex-shrink-0 flex justify-end gap-2 px-6 py-3 bg-gradient-to-r from-gray-900/50 to-gray-900/30 border-t border-gray-800">
+                <motion.button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700 text-white font-medium text-sm rounded-lg transition-colors cursor-pointer"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={
+                    loading || !formData.title.trim() || !formData.projectId
+                  }
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium text-sm rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg cursor-pointer"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {loading ? "Creating..." : "Create Task"}
+                </motion.button>
+              </div>
             </div>
           </motion.div>
         </>

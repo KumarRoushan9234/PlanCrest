@@ -19,6 +19,13 @@ import {
   getProjectLabels,
   updateLabel,
   deleteLabel,
+  createTaskComment,
+  getTaskComments,
+  updateTaskComment,
+  deleteTaskComment,
+  createTaskAttachment,
+  getTaskAttachments,
+  deleteTaskAttachment,
 } from "../controllers/task.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -140,6 +147,62 @@ router.delete(
   "/labels/:labelId",
   requireSignin,
   deleteLabel,
+  handleAuthError
+);
+
+// Comments
+router.post(
+  "/tasks/:taskId/comments",
+  requireSignin,
+  createTaskComment,
+  handleAuthError
+);
+router.get(
+  "/tasks/:taskId/comments",
+  requireSignin,
+  getTaskComments,
+  handleAuthError
+);
+router.put(
+  "/comments/:commentId",
+  requireSignin,
+  updateTaskComment,
+  handleAuthError
+);
+router.delete(
+  "/comments/:commentId",
+  requireSignin,
+  deleteTaskComment,
+  handleAuthError
+);
+
+// Attachments
+router.post(
+  "/tasks/:taskId/attachments",
+  requireSignin,
+  createTaskAttachment,
+  handleAuthError
+);
+
+// File upload endpoint (for future implementation with multer)
+// router.post(
+//   "/tasks/:taskId/attachments/upload",
+//   requireSignin,
+//   upload.single('file'),
+//   uploadTaskAttachment,
+//   handleAuthError
+// );
+
+router.get(
+  "/tasks/:taskId/attachments",
+  requireSignin,
+  getTaskAttachments,
+  handleAuthError
+);
+router.delete(
+  "/attachments/:attachmentId",
+  requireSignin,
+  deleteTaskAttachment,
   handleAuthError
 );
 

@@ -14,7 +14,7 @@ const projectSchema = new Schema(
       required: true,
       trim: true,
       uppercase: true,
-      maxlength: 10,
+      maxlength: 20,
     },
     description: {
       type: String,

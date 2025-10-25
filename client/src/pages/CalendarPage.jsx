@@ -41,7 +41,7 @@ const CalendarPage = () => {
       );
 
       if (response?.success && response?.data) {
-        // Transform tasks to include assignment information
+        // Transform tasks to include assignment information and project data
         const tasksWithAssignments = await Promise.all(
           response.data.map(async (task) => {
             try {
@@ -52,6 +52,9 @@ const CalendarPage = () => {
                 (a) => a.role === "assignee"
               );
 
+              // Ensure task has project information
+              // If task.project is just an ID, we might need to fetch it
+              // For now, assume it's populated or we'll handle it in the sidebar
               return {
                 ...task,
                 assignee: primaryAssignee?.user || null,
@@ -62,9 +65,20 @@ const CalendarPage = () => {
                       hour12: false,
                     })
                   : null,
+                // Ensure project is an object, not just an ID
+                project:
+                  typeof task.project === "object"
+                    ? task.project
+                    : { _id: task.project },
               };
             } catch (err) {
-              return task;
+              return {
+                ...task,
+                project:
+                  typeof task.project === "object"
+                    ? task.project
+                    : { _id: task.project },
+              };
             }
           })
         );
@@ -263,13 +277,16 @@ const CalendarPage = () => {
       />
 
       {/* Task Details Sidebar */}
-      <TaskSidebar
-        isOpen={isTaskSidebarOpen}
-        onClose={() => setIsTaskSidebarOpen(false)}
-        task={selectedTask}
-        onUpdate={handleTaskUpdate}
-        onDelete={handleTaskDelete}
-      />
+      {selectedTask && selectedTask.project && (
+        <TaskSidebar
+          isOpen={isTaskSidebarOpen}
+          onClose={() => setIsTaskSidebarOpen(false)}
+          task={selectedTask}
+          project={selectedTask.project}
+          onUpdate={handleTaskUpdate}
+          onDelete={handleTaskDelete}
+        />
+      )}
 
       {/* Create Event Modal */}
       <CreateEventModal

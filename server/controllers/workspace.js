@@ -439,26 +439,52 @@ export const inviteToWorkspace = async (req, res) => {
     const inviteUrl = `${clientUrl}/invite/${token}`;
     const inviter = await User.findById(invitedBy);
 
-    await sendSimpleEmail({
-      to: email,
-      subject: `Invitation to join ${workspace.name}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Workspace Invitation</h2>
-          <p>${inviter.name} has invited you to join <strong>${workspace.name}</strong></p>
-          ${message ? `<p><em>${message}</em></p>` : ''}
-          <p>You will be joining as: <strong>${role}</strong></p>
-          <p style="margin: 30px 0;">
-            <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Accept Invitation</a>
-          </p>
-          <p style="color: #999; font-size: 12px;">This invitation expires in 14 days.</p>
-          <p style="color: #666; font-size: 11px; margin-top: 20px;">
-            If the button doesn't work, copy and paste this link into your browser:<br/>
-            <a href="${inviteUrl}" style="color: #6366f1; word-break: break-all;">${inviteUrl}</a>
-          </p>
-        </div>
-      `,
-    });
+    console.log(`📧 Sending invitation email to: ${email}`);
+    console.log(`📧 Invite URL: ${inviteUrl}`);
+    
+    try {
+      const emailResult = await sendSimpleEmail({
+        to: email,
+        subject: `Invitation to join ${workspace.name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 8px;">
+              <h2 style="color: #333; margin-bottom: 20px;">Workspace Invitation</h2>
+              <p style="color: #666; line-height: 1.6;">
+                <strong>${inviter.name}</strong> has invited you to join <strong>${workspace.name}</strong>
+              </p>
+              ${message ? `<p style="color: #666; font-style: italic; background: #e9ecef; padding: 15px; border-radius: 4px; margin: 15px 0;"><em>"${message}"</em></p>` : ''}
+              <p style="color: #666; line-height: 1.6;">
+                You will be joining as: <strong style="color: #6366f1;">${role}</strong>
+              </p>
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Accept Invitation</a>
+              </div>
+              <p style="color: #999; font-size: 12px; text-align: center;">
+                This invitation expires in 14 days.
+              </p>
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                <p style="color: #666; font-size: 11px;">
+                  If the button doesn't work, copy and paste this link into your browser:<br/>
+                  <a href="${inviteUrl}" style="color: #6366f1; word-break: break-all;">${inviteUrl}</a>
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+        text: `${inviter.name} has invited you to join ${workspace.name}. You will be joining as ${role}. ${message ? `Message: ${message}` : ''} Accept the invitation: ${inviteUrl}`
+      });
+
+      if (emailResult.success) {
+        console.log(`✅ Invitation email sent successfully to: ${email}`);
+      } else {
+        console.error(`❌ Failed to send invitation email:`, emailResult.error);
+        // Don't fail the request, but log the error
+      }
+    } catch (emailError) {
+      console.error(`❌ Email sending error:`, emailError.message);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       success: true,
@@ -996,12 +1022,38 @@ export const getWorkspaceActivity = async (req, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    // For now, return empty array
-    // In the future, implement proper activity log tracking
-    res.json({
-      success: true,
-      data: [],
-    });
+    // Get recent activities from the workspace
+    try {
+      const { getItemActivity } = await import('../utils/activityLogger.js');
+      const activities = await getItemActivity(workspaceId, 'workspace');
+      
+      // Transform activities for frontend
+      const transformedActivities = activities.map(activity => ({
+        _id: activity._id,
+        type: activity.action,
+        action: activity.description,
+        description: activity.details,
+        user: {
+          _id: activity.user,
+          name: activity.userName || 'Unknown User',
+          avatar: activity.userAvatar
+        },
+        target: activity.target,
+        timestamp: activity.createdAt,
+        metadata: activity.metadata
+      }));
+
+      res.json({
+        success: true,
+        data: transformedActivities,
+      });
+    } catch (activityError) {
+      console.log('Activity tracking not available, returning empty array');
+      res.json({
+        success: true,
+        data: [],
+      });
+    }
   } catch (error) {
     console.error("Error fetching workspace activity:", error);
     res.status(500).json({ error: "Failed to fetch workspace activity" });

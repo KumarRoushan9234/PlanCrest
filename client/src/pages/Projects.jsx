@@ -30,12 +30,19 @@ import Layout from "../components/common-afterauth/Layout";
 import { maskId } from "../utils/idMasker";
 
 const Projects = () => {
-  const { projects, loading } = useProject();
+  const { projects, loading, fetchWorkspaceProjects } = useProject();
   const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState("list"); // list or grid - list is default
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+
+  // Fetch projects when component mounts
+  useEffect(() => {
+    if (currentWorkspace?._id) {
+      fetchWorkspaceProjects();
+    }
+  }, [currentWorkspace?._id, fetchWorkspaceProjects]);
 
   // Helper function to render icon components
   const renderIcon = (iconName, size = 24) => {
@@ -129,7 +136,7 @@ const Projects = () => {
         setViewMode,
       }}
     >
-      <div className="text-white px-6 py-6">
+      <div className="text-white px-4 py-6">
         {/* Projects Grid/List */}
         <div>
           {filteredProjects.length === 0 ? (
@@ -148,8 +155,8 @@ const Projects = () => {
             <div
               className={
                 viewMode === "grid"
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                  : "space-y-3 max-w-4xl"
+                  ? "grid grid-cols-1 lg:grid-cols-3 gap-6"
+                  : "space-y-4 w-full"
               }
             >
               {filteredProjects.map((project) => (
@@ -157,115 +164,203 @@ const Projects = () => {
                   key={project._id}
                   className={`bg-gray-900 border border-gray-800 rounded-lg transition-all duration-200 cursor-pointer ${
                     viewMode === "list"
-                      ? "flex items-center justify-between p-4 hover:bg-gray-800"
-                      : "p-6 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/20"
+                      ? "flex items-center justify-between p-6 hover:bg-gray-800 hover:border-gray-700"
+                      : "p-8 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/20 min-h-[280px] flex flex-col"
                   }`}
                   onClick={() => handleProjectClick(project)}
-                  whileHover={viewMode === "grid" ? { y: -2, scale: 1.02 } : {}}
+                  whileHover={viewMode === "grid" ? { y: -4, scale: 1.02 } : {}}
                   whileTap={{ scale: 0.98 }}
                 >
                   {viewMode === "grid" ? (
                     <>
-                      {/* Grid View */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
+                      {/* Grid View - Enhanced */}
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-4">
                           <div
-                            className="w-12 h-12 rounded-lg flex items-center justify-center text-gray-300"
+                            className="w-16 h-16 rounded-xl flex items-center justify-center text-gray-300 shadow-lg"
                             style={{ backgroundColor: project.color + "20" }}
                           >
-                            {renderIcon(project.icon, 24)}
+                            {renderIcon(project.icon, 28)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-white text-lg truncate">
+                            <h3 className="font-bold text-white text-xl mb-1">
                               {project.name}
                             </h3>
-                            <p className="text-sm text-gray-400 truncate">
+                            <p className="text-sm text-gray-400 font-mono">
                               {project.key}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-end gap-2">
                           <div
-                            className={`w-2 h-2 rounded-full ${getStatusColor(
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
                               project.status
-                            )}`}
-                          ></div>
-                          <span className="text-xs text-gray-400">
+                            )} text-white`}
+                          >
                             {getStatusText(project.status)}
-                          </span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {project.privacy === "private"
+                              ? "🔒 Private"
+                              : "🌐 Public"}
+                          </div>
                         </div>
                       </div>
 
-                      <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                      <p className="text-gray-400 text-sm mb-6 line-clamp-3 leading-relaxed">
                         {project.description || "No description provided"}
                       </p>
 
+                      {/* Progress Bar */}
+                      <div className="mb-6">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs text-gray-500">
+                            Progress
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {project.progress || 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${project.progress || 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between text-sm text-gray-500 mt-auto">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-2">
                             <Users className="w-4 h-4" />
-                            <span>{project.members?.length || 0}</span>
+                            <span className="font-medium">
+                              {typeof project.members === "number"
+                                ? project.members
+                                : project.members?.length || 0}{" "}
+                              members
+                            </span>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
                             <span>
                               {new Date(project.createdAt).toLocaleDateString()}
                             </span>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4" />
+                            <span>
+                              {project.updatedAt
+                                ? new Date(
+                                    project.updatedAt
+                                  ).toLocaleDateString()
+                                : "Never updated"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4" />
-                          <span>{project.priority || "Medium"}</span>
+                        <div className="flex items-center gap-2">
+                          <Star className="w-4 h-4 text-yellow-500" />
+                          <span className="font-medium">
+                            {project.priority || "Medium"}
+                          </span>
                         </div>
                       </div>
                     </>
                   ) : (
                     <>
-                      {/* List View */}
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                      {/* List View - Enhanced */}
+                      <div className="flex items-center gap-6 flex-1 min-w-0">
                         <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 flex-shrink-0"
+                          className="w-14 h-14 rounded-xl flex items-center justify-center text-gray-300 flex-shrink-0 shadow-lg"
                           style={{ backgroundColor: project.color + "20" }}
                         >
-                          {renderIcon(project.icon, 20)}
+                          {renderIcon(project.icon, 24)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1">
-                            <h3 className="font-semibold text-white truncate">
+                          <div className="flex items-center gap-4 mb-2">
+                            <h3 className="font-bold text-white text-lg truncate">
                               {project.name}
                             </h3>
-                            <span className="text-sm text-gray-400 flex-shrink-0">
-                              ({project.key})
+                            <span className="text-sm text-gray-400 font-mono bg-gray-800 px-2 py-1 rounded">
+                              {project.key}
                             </span>
                             <div
-                              className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusColor(
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
                                 project.status
-                              )}`}
-                            ></div>
-                            <span className="text-xs text-gray-400 flex-shrink-0">
+                              )} text-white flex-shrink-0`}
+                            >
                               {getStatusText(project.status)}
-                            </span>
+                            </div>
+                            <div className="text-xs text-gray-500 flex-shrink-0">
+                              {project.privacy === "private"
+                                ? "🔒 Private"
+                                : "🌐 Public"}
+                            </div>
                           </div>
-                          <p className="text-gray-400 text-sm truncate">
+                          <p className="text-gray-400 text-sm mb-2 line-clamp-1">
                             {project.description || "No description provided"}
                           </p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              <span>
+                                {typeof project.members === "number"
+                                  ? project.members
+                                  : project.members?.length || 0}{" "}
+                                members
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>
+                                Created{" "}
+                                {new Date(
+                                  project.createdAt
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-3 h-3 text-yellow-500" />
+                              <span>
+                                {project.priority || "Medium"} priority
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-6 text-sm text-gray-500 flex-shrink-0">
-                        <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          <span>{project.members?.length || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>
-                            {new Date(project.createdAt).toLocaleDateString()}
+                      {/* Progress and Stats */}
+                      <div className="flex items-center gap-8 text-sm text-gray-500 flex-shrink-0">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-gray-400">
+                            Progress
+                          </span>
+                          <div className="w-20 bg-gray-700 rounded-full h-2">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full"
+                              style={{ width: `${project.progress || 0}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs">
+                            {project.progress || 0}%
                           </span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4" />
-                          <span>{project.priority || "Medium"}</span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-gray-400">Tasks</span>
+                          <span className="font-medium">
+                            {project.taskCount || 0}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-gray-400">
+                            Last Activity
+                          </span>
+                          <span className="text-xs">
+                            {project.lastActivityAt
+                              ? new Date(
+                                  project.lastActivityAt
+                                ).toLocaleDateString()
+                              : "Never"}
+                          </span>
                         </div>
                       </div>
                     </>

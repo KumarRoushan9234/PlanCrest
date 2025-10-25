@@ -276,6 +276,127 @@ export const projectService = {
     }
   },
 
+  // Task Assignments
+  getTaskAssignments: async (taskId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/assignments`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  assignTask: async (taskId, assignmentData) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/assignments`, assignmentData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  unassignTask: async (assignmentId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/assignments/${assignmentId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Subtasks
+  createSubtask: async (taskId, subtaskData) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/subtasks`, subtaskData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  updateSubtask: async (subtaskId, updateData) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/subtasks/${subtaskId}`, updateData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  deleteSubtask: async (subtaskId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/subtasks/${subtaskId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Comments
+  getTaskComments: async (taskId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/comments`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  createTaskComment: async (taskId, commentData) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/comments`, commentData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  updateTaskComment: async (commentId, updateData) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/comments/${commentId}`, updateData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  deleteTaskComment: async (commentId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/comments/${commentId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Attachments
+  getTaskAttachments: async (taskId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/attachments`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  createTaskAttachment: async (taskId, attachmentData) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/attachments`, attachmentData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  deleteTaskAttachment: async (attachmentId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/attachments/${attachmentId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Workspace Members
   getWorkspaceMembers: async (workspaceId) => {
     try {

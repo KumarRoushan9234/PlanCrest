@@ -91,175 +91,130 @@ const ActivityPanel = ({ project }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Time Range Filter */}
+    <div className="space-y-3">
+      {/* Header - SMALLER & DARKER */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">Project Activity</h3>
+        <div>
+          <h2 className="text-sm font-bold text-white">Activity Feed</h2>
+          <p className="text-[10px] text-gray-500 mt-0.5">
+            Track project changes and updates
+          </p>
+        </div>
         <select
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
-          className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-1.5 bg-black/40 border border-gray-800 rounded-lg text-xs text-white focus:border-blue-600 focus:outline-none transition-colors"
         >
-          <option value="24h">Last 24 Hours</option>
-          <option value="7d">Last 7 Days</option>
-          <option value="30d">Last 30 Days</option>
-          <option value="all">All Time</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="90d">Last 90 days</option>
         </select>
       </div>
 
-      {/* Stats Cards */}
+      {/* Activity Stats - SMALLER & DARKER */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gray-800 border border-gray-700 rounded-lg p-6"
+            className="bg-gradient-to-br from-black/60 to-gray-900/40 border border-gray-800 rounded-lg p-3"
+            whileHover={{ y: -1 }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-gray-400 text-sm font-medium">
-                Tasks Completed
-              </h4>
-              <CheckCircle2 className="w-5 h-5 text-green-400" />
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-gray-600 uppercase font-semibold">
+                Total Activities
+              </span>
+              <Activity className="w-3.5 h-3.5 text-blue-400" />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">
-              {stats.completedTasks || 0}
-            </p>
-            <p className="text-sm text-gray-400">
-              of {stats.totalTasks || 0} total tasks
+            <p className="text-lg font-bold text-white">
+              {stats.totalActivities || 0}
             </p>
           </motion.div>
-
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-gray-800 border border-gray-700 rounded-lg p-6"
+            className="bg-gradient-to-br from-black/60 to-gray-900/40 border border-gray-800 rounded-lg p-3"
+            whileHover={{ y: -1 }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-gray-400 text-sm font-medium">
-                Active Members
-              </h4>
-              <Users className="w-5 h-5 text-blue-400" />
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-gray-600 uppercase font-semibold">
+                Tasks Created
+              </span>
+              <Plus className="w-3.5 h-3.5 text-green-400" />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">
-              {stats.activeMembers || 0}
+            <p className="text-lg font-bold text-white">
+              {stats.tasksCreated || 0}
             </p>
-            <p className="text-sm text-gray-400">contributors this week</p>
           </motion.div>
-
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-gray-800 border border-gray-700 rounded-lg p-6"
+            className="bg-gradient-to-br from-black/60 to-gray-900/40 border border-gray-800 rounded-lg p-3"
+            whileHover={{ y: -1 }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-gray-400 text-sm font-medium">
-                Progress Rate
-              </h4>
-              <TrendingUp className="w-5 h-5 text-purple-400" />
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-gray-600 uppercase font-semibold">
+                Active Users
+              </span>
+              <Users className="w-3.5 h-3.5 text-purple-400" />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">
-              {stats.progressRate || 0}%
+            <p className="text-lg font-bold text-white">
+              {stats.activeUsers || 0}
             </p>
-            <p className="text-sm text-gray-400">completion rate</p>
           </motion.div>
         </div>
       )}
 
-      {/* Activity Timeline */}
-      <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-          <Clock className="w-5 h-5" />
-          Recent Activity
-        </h4>
-
-        {activities.length === 0 ? (
-          <div className="text-center py-12">
-            <Activity className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-300 mb-2">
-              No activity yet
-            </h3>
-            <p className="text-gray-500">
-              Activity will appear here as team members work on the project
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {activities.map((activity, index) => (
-              <motion.div
-                key={activity._id || index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="flex items-start gap-3 pb-4 border-b border-gray-700 last:border-b-0 last:pb-0"
-              >
-                {/* Activity Icon */}
-                <div
-                  className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${getActivityColor(
-                    activity.action
-                  )}/20`}
-                >
+      {/* Activity List - SMALLER & DARKER */}
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+        </div>
+      ) : activities.length === 0 ? (
+        <div className="text-center py-8">
+          <Activity className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+          <p className="text-xs text-gray-500">No activities yet</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {activities.map((activity, index) => (
+            <motion.div
+              key={index}
+              className="bg-gradient-to-r from-black/60 to-gray-900/40 border border-gray-800 rounded-lg p-3 hover:border-gray-700 transition-all"
+              whileHover={{ x: 2 }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gray-800/50 flex items-center justify-center flex-shrink-0 mt-0.5">
                   {getActivityIcon(activity.action)}
                 </div>
-
-                {/* Activity Details */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm">
-                        <span className="font-medium">
-                          {activity.user?.name || "Someone"}
-                        </span>{" "}
-                        <span className="text-gray-400">
-                          {activity.action} {activity.itemType}{" "}
-                          {activity.metadata?.title && (
-                            <span className="font-medium text-white">
-                              "{activity.metadata.title}"
-                            </span>
-                          )}
-                        </span>
-                      </p>
-                      {activity.changes &&
-                        Object.keys(activity.changes).length > 0 && (
-                          <p className="text-gray-500 text-xs mt-1">
-                            Changes:{" "}
-                            {Object.keys(activity.changes)
-                              .slice(0, 3)
-                              .join(", ")}
-                          </p>
-                        )}
-                    </div>
-                    <span className="text-gray-500 text-xs flex-shrink-0">
-                      {formatTimeAgo(activity.createdAt)}
-                    </span>
-                  </div>
+                  <p className="text-white font-semibold text-xs truncate">
+                    {activity.description}
+                  </p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    {activity.user?.name || "Unknown user"} •{" "}
+                    {formatTimeAgo(activity.createdAt)}
+                  </p>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
-      {/* Charts Placeholder */}
-      <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5" />
+      {/* Charts Placeholder - SMALLER & DARKER */}
+      <div className="bg-black/40 border border-gray-800 rounded-lg p-4">
+        <h4 className="text-white font-semibold mb-2 flex items-center gap-1.5 text-xs">
+          <BarChart3 className="w-3.5 h-3.5" />
           Project Insights
         </h4>
-        <div className="text-center py-12">
-          <BarChart3 className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-300 mb-2">
+        <div className="text-center py-6">
+          <BarChart3 className="w-10 h-10 text-gray-600 mx-auto mb-2" />
+          <h3 className="text-sm font-medium text-gray-400 mb-1">
             Coming Soon
           </h3>
-          <p className="text-gray-500">
+          <p className="text-[10px] text-gray-600">
             Charts and graphs will be available here to visualize project
             progress
           </p>
