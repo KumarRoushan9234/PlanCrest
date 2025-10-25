@@ -35,6 +35,12 @@ import AIModePage from "./pages/AIModePage";
 import CalendarPage from "./pages/CalendarPage";
 import InvitationHandler from "./components/InvitationHandler";
 
+// Integration Pages
+import IntegrationLandingPage from "./pages/integrations/IntegrationLandingPage";
+import GoogleCalendarPage from "./pages/integrations/GoogleCalendarPage";
+import GoogleDrivePage from "./pages/integrations/GoogleDrivePage";
+import GitHubPage from "./pages/integrations/GitHubPage";
+
 // Public Route Component (redirects to dashboard if already authenticated)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -255,6 +261,40 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <CalendarPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Integration Routes */}
+                <Route
+                  path="/integrations"
+                  element={
+                    <ProtectedRoute>
+                      <IntegrationLandingPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/integrations/google-calendar"
+                  element={
+                    <ProtectedRoute>
+                      <GoogleCalendarPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/integrations/google-drive"
+                  element={
+                    <ProtectedRoute>
+                      <GoogleDrivePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/integrations/github"
+                  element={
+                    <ProtectedRoute>
+                      <GitHubPage />
                     </ProtectedRoute>
                   }
                 />

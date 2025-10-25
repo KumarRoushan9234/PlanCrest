@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -18,16 +18,20 @@ import {
 import CreateTaskModal from "../modals/CreateTaskModal";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useProject } from "../../contexts/ProjectContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { taskService } from "../../services";
 
 const DashboardTopNav = ({ onCreateProject }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentWorkspace } = useWorkspace();
   const { projects } = useProject();
+  const { user } = useAuth();
   const [expandedSections, setExpandedSections] = useState({
     favorites: false,
   });
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [taskCount, setTaskCount] = useState(0);
 
   // Determine active item based on current route
   const getActiveItem = () => {
@@ -45,6 +49,49 @@ const DashboardTopNav = ({ onCreateProject }) => {
   React.useEffect(() => {
     setActiveItem(getActiveItem());
   }, [location.pathname]);
+
+  // Fetch task count when workspace changes
+  useEffect(() => {
+    if (currentWorkspace?._id && user?._id) {
+      fetchTaskCount();
+    }
+  }, [currentWorkspace, user]);
+
+  const fetchTaskCount = async () => {
+    try {
+      const response = await taskService.getWorkspaceTasks(
+        currentWorkspace._id
+      );
+      if (response?.success && response?.data) {
+        console.log("📊 All tasks:", response.data.length);
+        console.log("👤 Current user ID:", user._id);
+
+        // Filter tasks assigned to current user - simplified logic
+        const userTasks = response.data.filter((task) => {
+          // Check if user is in assignedTo array (simple string comparison)
+          const isAssigned = task.assignedTo?.some((assignee) => {
+            const assigneeId =
+              assignee?.user?._id || assignee?.user || assignee;
+            return assigneeId?.toString() === user._id?.toString();
+          });
+
+          // Also check if user created the task
+          const isCreator = task.createdBy?.toString() === user._id?.toString();
+
+          return isAssigned || isCreator;
+        });
+
+        console.log("✅ User tasks found:", userTasks.length);
+        setTaskCount(userTasks.length);
+      } else {
+        console.log("❌ No tasks data received");
+        setTaskCount(0);
+      }
+    } catch (error) {
+      console.error("Error fetching task count:", error);
+      setTaskCount(0);
+    }
+  };
 
   const toggleSection = (section) => {
     setExpandedSections((prev) => ({
@@ -88,12 +135,13 @@ const DashboardTopNav = ({ onCreateProject }) => {
 
   const handleTaskCreated = () => {
     setIsCreateTaskOpen(false);
-    // Optionally refresh data or show success message
+    // Refresh task count after creating a task
+    fetchTaskCount();
   };
 
   const mainNavItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "tasks", label: "Tasks", icon: List, badge: 12 },
+    { id: "tasks", label: "Tasks", icon: List, badge: taskCount },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "team", label: "Team", icon: Users },
     { id: "activity", label: "Activity", icon: Activity },
@@ -106,7 +154,7 @@ const DashboardTopNav = ({ onCreateProject }) => {
 
   return (
     <motion.nav
-      className="w-full px-6 py-3 border-b border-gray-800/50 backdrop-blur-xl z-50"
+      className="w-full px-6 py-3 border-b border-gray-800/50 backdrop-blur-xl z-40"
       style={{
         backgroundColor: "rgba(10, 10, 11, 0.95)",
         boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.3)",

@@ -47,7 +47,7 @@ const TaskSidebar = ({
   const [activeTab, setActiveTab] = useState("details");
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
-  const [taskData, setTaskData] = useState(task);
+  const [taskData, setTaskData] = useState(task || {});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -200,7 +200,7 @@ const TaskSidebar = ({
 
   // Toggle task status
   const handleToggleStatus = async () => {
-    const newStatus = taskData.status === "completed" ? "todo" : "completed";
+    const newStatus = taskData?.status === "done" ? "todo" : "done";
     await handleUpdateTask({ status: newStatus });
   };
 
@@ -551,7 +551,7 @@ const TaskSidebar = ({
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {taskData.status === "completed" ? (
+                  {taskData?.status === "done" ? (
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                   ) : (
                     <Circle className="w-4 h-4 text-gray-500" />

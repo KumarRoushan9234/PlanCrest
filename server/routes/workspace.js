@@ -19,6 +19,7 @@ import {
   acceptInvitation,
   getWorkspaceTasks,
   getWorkspaceActivity,
+  getWorkspaceOverview,
 } from "../controllers/workspace.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -65,6 +66,13 @@ router.get(
   requireSignin,
   requireWorkspaceMember,
   getWorkspaceActivity,
+  handleAuthError
+);
+router.get(
+  "/workspaces/:workspaceId/overview",
+  requireSignin,
+  requireWorkspaceMember,
+  getWorkspaceOverview,
   handleAuthError
 );
 

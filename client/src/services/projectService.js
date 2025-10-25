@@ -435,4 +435,37 @@ export const projectService = {
       throw error.response?.data || error;
     }
   },
+
+  // Get workspace overview data
+  getWorkspaceOverview: async (workspaceId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/workspaces/${workspaceId}/overview`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get workspace activity feed
+  getWorkspaceActivity: async (workspaceId, params = {}) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/workspaces/${workspaceId}/activity`, { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Update task status (for drag-and-drop)
+  updateTaskStatus: async (taskId, status, columnId = null) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}/status`, {
+        status,
+        columnId
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
 };

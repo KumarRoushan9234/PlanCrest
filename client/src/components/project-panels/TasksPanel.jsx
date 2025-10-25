@@ -198,12 +198,12 @@ const TasksPanel = ({ project, isAdmin }) => {
                     e.stopPropagation();
                     handleTaskStatusChange(
                       task._id,
-                      task.status === "completed" ? "to-do" : "completed"
+                      task.status === "done" ? "to-do" : "done"
                     );
                   }}
                   className="flex-shrink-0"
                 >
-                  {task.status === "completed" ? (
+                  {task.status === "done" ? (
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                   ) : (
                     <Circle className="w-4 h-4 text-gray-600 group-hover:text-gray-500" />
@@ -212,7 +212,7 @@ const TasksPanel = ({ project, isAdmin }) => {
                 <div className="flex-1 min-w-0">
                   <h3
                     className={`text-xs font-semibold ${
-                      task.status === "completed"
+                      task.status === "done"
                         ? "line-through text-gray-600"
                         : "text-white"
                     }`}

@@ -7,7 +7,9 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Layout } from "../../components/common-afterauth";
 import { TaskSidebar } from "../../components/sidebar";
 import { AuthLoader } from "../../components/loaders";
+import CreateTaskModal from "../../components/modals/CreateTaskModal";
 import { taskService } from "../../services";
+import { projectService } from "../../services/projectService";
 import toast from "react-hot-toast";
 import {
   RefreshCw,
@@ -41,6 +43,7 @@ const TaskBoardPage = () => {
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     status: "all",
@@ -109,18 +112,30 @@ const TaskBoardPage = () => {
                 ...task,
                 assignee: primaryAssignee?.user || null,
                 assignments: assignmentsRes?.data || [],
+                // Ensure project is populated for TaskSidebar
+                project:
+                  typeof task.project === "object"
+                    ? task.project
+                    : { _id: task.project },
               };
             } catch (err) {
               console.error(
                 `Error fetching assignments for task ${task._id}:`,
                 err
               );
-              return task;
+              return {
+                ...task,
+                project:
+                  typeof task.project === "object"
+                    ? task.project
+                    : { _id: task.project },
+              };
             }
           })
         );
 
         setTasks(tasksWithAssignments);
+        console.log(`✅ Loaded ${tasksWithAssignments.length} tasks`);
       }
     } catch (error) {
       console.error("Error loading tasks:", error);
@@ -252,15 +267,16 @@ const TaskBoardPage = () => {
     const newStatus = destination.droppableId;
 
     try {
-      // Find the column ID for the new status
+      // Find the task
       const task = tasks.find((t) => t._id === draggableId);
       if (!task) return;
 
-      // Update task status via API
-      await taskService.updateTask(draggableId, {
-        status: newStatus,
-        column: destination.droppableId,
-      });
+      // Update task status via API using the new endpoint
+      await projectService.updateTaskStatus(
+        draggableId,
+        newStatus,
+        destination.droppableId
+      );
 
       // Update local state
       handleTaskUpdate(draggableId, { status: newStatus });
@@ -296,6 +312,13 @@ const TaskBoardPage = () => {
     }
   };
 
+  const handleTaskSidebarClose = () => {
+    setIsTaskSidebarOpen(false);
+    setSelectedTask(null);
+    // Refresh tasks to get latest data
+    loadTasks();
+  };
+
   const handleTaskDelete = async (taskId) => {
     try {
       await taskService.deleteTask(taskId);
@@ -327,6 +350,16 @@ const TaskBoardPage = () => {
       dueDate: "all",
     });
     setSearchQuery("");
+  };
+
+  const handleCreateTask = () => {
+    setIsCreateTaskOpen(true);
+  };
+
+  const handleTaskCreated = () => {
+    setIsCreateTaskOpen(false);
+    // Refresh tasks after creating a new one
+    loadTasks();
   };
 
   const hasActiveFilters =
@@ -363,6 +396,7 @@ const TaskBoardPage = () => {
             {/* Left Actions */}
             <div className="flex items-center gap-3">
               <motion.button
+                onClick={handleCreateTask}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 font-medium"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -527,7 +561,7 @@ const TaskBoardPage = () => {
         {!isStatsOpen && (
           <motion.button
             onClick={toggleStats}
-            className="fixed right-0 top-1/2 transform -translate-y-1/2 p-2 bg-gray-900 border-l border-t border-b border-gray-800 rounded-l-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all z-10"
+            className="fixed right-0 top-1/2 transform -translate-y-1/2 p-2 bg-gray-900 border-l border-t border-b border-gray-800 rounded-l-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all z-30"
             initial={{ x: 0 }}
             animate={{ x: 0 }}
             whileHover={{ x: -4 }}
@@ -551,10 +585,18 @@ const TaskBoardPage = () => {
       {/* Task Sidebar */}
       <TaskSidebar
         isOpen={isTaskSidebarOpen}
-        onClose={() => setIsTaskSidebarOpen(false)}
+        onClose={handleTaskSidebarClose}
         task={selectedTask}
+        project={selectedTask?.project}
         onUpdate={handleTaskSidebarUpdate}
         onDelete={handleTaskDelete}
+      />
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        isOpen={isCreateTaskOpen}
+        onClose={() => setIsCreateTaskOpen(false)}
+        onSuccess={handleTaskCreated}
       />
     </Layout>
   );
@@ -565,7 +607,7 @@ const KanbanBoard = ({ tasks, onTaskClick, onTaskMove, currentUser }) => {
   const columns = [
     { id: "todo", title: "To Do", count: 0 },
     { id: "in_progress", title: "In Progress", count: 0 },
-    { id: "completed", title: "Completed", count: 0 },
+    { id: "done", title: "Completed", count: 0 },
   ];
 
   const getTasksByStatus = (status) => {
@@ -761,7 +803,7 @@ const FilterModal = ({
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[50]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -770,7 +812,7 @@ const FilterModal = ({
 
           {/* Modal */}
           <motion.div
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl z-[201] overflow-hidden"
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl z-[51] overflow-hidden"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}

@@ -230,7 +230,7 @@ const TaskDetailPage = () => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  {task.status === "done" || task.status === "completed" ? (
+                  {task.status === "done" ? (
                     <CheckCircle2 className="w-6 h-6 text-green-500" />
                   ) : (
                     <Circle className="w-6 h-6 text-gray-500" />

@@ -6,6 +6,7 @@ import { Layout } from "../../components/common-afterauth";
 import { TaskSidebar } from "../../components/sidebar";
 import { AuthLoader } from "../../components/loaders";
 import { activityService, taskService } from "../../services";
+import { projectService } from "../../services/projectService";
 import toast from "react-hot-toast";
 import {
   Inbox,
@@ -47,93 +48,198 @@ const OverviewPage = () => {
     try {
       setLoading(true);
 
-      // Fetch user's assigned tasks
-      const tasksResponse = await taskService.getWorkspaceTasks(
+      // Fetch comprehensive overview data from backend
+      const overviewResponse = await projectService.getWorkspaceOverview(
         currentWorkspace._id
       );
 
-      if (tasksResponse?.success && tasksResponse?.data) {
-        // Filter tasks assigned to current user
-        const userTasks = tasksResponse.data.filter((task) => {
-          // Check if user is in the task's assignedTo array or if user is the creator
-          return (
-            task.assignedTo?.some(
-              (a) => a.toString() === user._id || a._id === user._id
-            ) ||
-            task.createdBy?.toString() === user._id ||
-            task.assignedTo?.some(
-              (assignment) =>
-                assignment.user?.toString() === user._id ||
-                assignment.user?._id === user._id
-            )
-          );
-        });
-        setMyTasks(userTasks);
-      } else {
-        // If no tasks endpoint, create some mock data for demonstration
-        const mockTasks = [
-          {
-            _id: "mock-1",
-            title: "Welcome to PlanCrest!",
-            description:
-              "This is your personal inbox. Tasks and notifications will appear here.",
-            status: "todo",
-            priority: "medium",
-            createdAt: new Date().toISOString(),
-            project: { name: "Getting Started" },
-            assignedTo: [{ user: user._id }],
-          },
-          {
-            _id: "mock-2",
-            title: "Create your first project",
-            description: "Start by creating a project to organize your work.",
-            status: "todo",
-            priority: "high",
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            project: { name: "Getting Started" },
-            assignedTo: [{ user: user._id }],
-          },
-        ];
-        setMyTasks(mockTasks);
-      }
+      if (overviewResponse?.success && overviewResponse?.data) {
+        const overview = overviewResponse.data;
 
-      // Try to fetch notifications
-      try {
-        const notificationsResponse = await activityService.getNotifications({
-          limit: 20,
-        });
-        if (notificationsResponse?.success && notificationsResponse?.data) {
-          setNotifications(notificationsResponse.data);
-        }
-      } catch (error) {
-        // If notifications endpoint doesn't exist, use mock data
-        const mockNotifications = [
-          {
-            _id: "notif-1",
-            title: "Welcome to your workspace!",
-            message:
-              "You've successfully joined the workspace. Start collaborating with your team.",
-            type: "workspace_invite",
-            isRead: false,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            _id: "notif-2",
-            title: "Getting started guide",
-            message:
-              "Check out our quick start guide to make the most of PlanCrest.",
-            type: "announcement",
-            isRead: true,
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-          },
+        // Set tasks from overview data
+        const allTasks = [
+          ...overview.tasks.assigned,
+          ...overview.tasks.overdue,
+          ...overview.tasks.dueSoon,
+          ...overview.tasks.completed,
         ];
-        setNotifications(mockNotifications);
+        setMyTasks(allTasks);
+
+        // Set notifications from overview data
+        const allNotifications = [
+          ...overview.notifications.unread,
+          ...overview.notifications.read,
+        ];
+        setNotifications(allNotifications);
+
+        console.log("✅ Overview data loaded:", {
+          tasks: allTasks.length,
+          notifications: allNotifications.length,
+          activities: overview.activities.length,
+          stats: overview.stats,
+        });
+      } else {
+        // Fallback to individual API calls if overview endpoint fails
+        console.log(
+          "📊 Overview endpoint not available, using fallback methods"
+        );
+
+        // Fetch user's assigned tasks
+        const tasksResponse = await taskService.getWorkspaceTasks(
+          currentWorkspace._id
+        );
+        if (tasksResponse?.success && tasksResponse?.data) {
+          // Filter tasks assigned to current user
+          const userTasks = tasksResponse.data.filter((task) => {
+            return (
+              task.assignedTo?.some(
+                (a) => a.toString() === user._id || a._id === user._id
+              ) ||
+              task.createdBy?.toString() === user._id ||
+              task.assignedTo?.some(
+                (assignment) =>
+                  assignment.user?.toString() === user._id ||
+                  assignment.user?._id === user._id
+              )
+            );
+          });
+          setMyTasks(userTasks);
+        } else {
+          // If no tasks, create some demo data
+          const demoTasks = [
+            {
+              _id: "demo-1",
+              title: "Welcome to PlanCrest!",
+              description:
+                "This is your personal inbox. Tasks and notifications will appear here.",
+              status: "todo",
+              priority: "medium",
+              createdAt: new Date().toISOString(),
+              project: { name: "Getting Started", _id: "demo-project" },
+              assignedTo: [{ user: user._id }],
+            },
+            {
+              _id: "demo-2",
+              title: "Create your first project",
+              description: "Start by creating a project to organize your work.",
+              status: "todo",
+              priority: "high",
+              createdAt: new Date(Date.now() - 86400000).toISOString(),
+              project: { name: "Getting Started", _id: "demo-project" },
+              assignedTo: [{ user: user._id }],
+            },
+          ];
+          setMyTasks(demoTasks);
+        }
+
+        // Try to fetch notifications
+        try {
+          const notificationsResponse = await activityService.getNotifications({
+            limit: 20,
+          });
+          if (notificationsResponse?.success && notificationsResponse?.data) {
+            setNotifications(notificationsResponse.data);
+          } else {
+            // Demo notifications
+            const demoNotifications = [
+              {
+                _id: "demo-notif-1",
+                title: "Welcome to your workspace!",
+                message:
+                  "You've successfully joined the workspace. Start collaborating with your team.",
+                type: "workspace_invite",
+                isRead: false,
+                createdAt: new Date().toISOString(),
+              },
+              {
+                _id: "demo-notif-2",
+                title: "Getting started guide",
+                message:
+                  "Check out our quick start guide to make the most of PlanCrest.",
+                type: "announcement",
+                isRead: true,
+                createdAt: new Date(Date.now() - 3600000).toISOString(),
+              },
+            ];
+            setNotifications(demoNotifications);
+          }
+        } catch (error) {
+          console.log("Notifications not available, using demo data");
+          const demoNotifications = [
+            {
+              _id: "demo-notif-1",
+              title: "Welcome to your workspace!",
+              message:
+                "You've successfully joined the workspace. Start collaborating with your team.",
+              type: "workspace_invite",
+              isRead: false,
+              createdAt: new Date().toISOString(),
+            },
+            {
+              _id: "demo-notif-2",
+              title: "Getting started guide",
+              message:
+                "Check out our quick start guide to make the most of PlanCrest.",
+              type: "announcement",
+              isRead: true,
+              createdAt: new Date(Date.now() - 3600000).toISOString(),
+            },
+          ];
+          setNotifications(demoNotifications);
+        }
       }
     } catch (error) {
       console.error("Error fetching overview data:", error);
       // Don't show error toast for overview - it's not critical
-      setMyTasks([]);
-      setNotifications([]);
+
+      // Set demo data as fallback
+      const demoTasks = [
+        {
+          _id: "demo-1",
+          title: "Welcome to PlanCrest!",
+          description:
+            "This is your personal inbox. Tasks and notifications will appear here.",
+          status: "todo",
+          priority: "medium",
+          createdAt: new Date().toISOString(),
+          project: { name: "Getting Started", _id: "demo-project" },
+          assignedTo: [{ user: user._id }],
+        },
+        {
+          _id: "demo-2",
+          title: "Create your first project",
+          description: "Start by creating a project to organize your work.",
+          status: "todo",
+          priority: "high",
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          project: { name: "Getting Started", _id: "demo-project" },
+          assignedTo: [{ user: user._id }],
+        },
+      ];
+
+      const demoNotifications = [
+        {
+          _id: "demo-notif-1",
+          title: "Welcome to your workspace!",
+          message:
+            "You've successfully joined the workspace. Start collaborating with your team.",
+          type: "workspace_invite",
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          _id: "demo-notif-2",
+          title: "Getting started guide",
+          message:
+            "Check out our quick start guide to make the most of PlanCrest.",
+          type: "announcement",
+          isRead: true,
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+        },
+      ];
+
+      setMyTasks(demoTasks);
+      setNotifications(demoNotifications);
     } finally {
       setLoading(false);
     }
@@ -398,7 +504,14 @@ const OverviewPage = () => {
                     whileHover={{ x: 4 }}
                     onClick={() => {
                       if (item.type === "task" && item.taskData) {
-                        setSelectedTask(item.taskData);
+                        // Ensure project is properly set for TaskSidebar
+                        const taskWithProject = {
+                          ...item.taskData,
+                          project: item.taskData.project || {
+                            _id: item.taskData.project,
+                          },
+                        };
+                        setSelectedTask(taskWithProject);
                         setIsTaskSidebarOpen(true);
                       }
                     }}
@@ -514,10 +627,29 @@ const OverviewPage = () => {
       {/* Task Sidebar */}
       <TaskSidebar
         isOpen={isTaskSidebarOpen}
-        onClose={() => setIsTaskSidebarOpen(false)}
+        onClose={() => {
+          setIsTaskSidebarOpen(false);
+          setSelectedTask(null);
+          // Refresh overview data
+          fetchOverviewData();
+        }}
         task={selectedTask}
-        onUpdate={(updatedTask) => setSelectedTask(updatedTask)}
-        onDelete={() => setIsTaskSidebarOpen(false)}
+        project={selectedTask?.project}
+        onUpdate={(updatedTask) => {
+          setSelectedTask(updatedTask);
+          // Update local task list
+          setMyTasks((prevTasks) =>
+            prevTasks.map((task) =>
+              task._id === updatedTask._id ? updatedTask : task
+            )
+          );
+        }}
+        onDelete={() => {
+          setIsTaskSidebarOpen(false);
+          setSelectedTask(null);
+          // Refresh overview data
+          fetchOverviewData();
+        }}
       />
     </Layout>
   );

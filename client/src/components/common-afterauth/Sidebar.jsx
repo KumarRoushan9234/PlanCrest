@@ -322,37 +322,43 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
               >
                 <motion.button
                   onClick={() => {
-                    if (!isIntegrationOpen) {
-                      // Opening integration popup
-                      if (window.innerWidth < 768) {
-                        // Remember if sidebar was open before opening integration
-                        setWasSidebarOpenBeforeIntegration(isMobileSidebarOpen);
-                        // Don't close sidebar when opening integration popup
-                      }
-                    } else {
-                      // Closing integration popup
-                      if (
-                        window.innerWidth < 768 &&
-                        wasSidebarOpenBeforeIntegration
-                      ) {
-                        // Restore sidebar state if it was open before
-                        setIsMobileSidebarOpen(true);
-                      }
-                    }
-                    setIsIntegrationOpen(!isIntegrationOpen);
+                    navigate("/integrations");
                     handleMobileTap("Integration");
+                    if (window.innerWidth < 768) {
+                      setIsMobileSidebarOpen(false);
+                    }
                   }}
-                  className="flex items-center justify-center text-sm font-medium rounded-xl transition-colors text-gray-500 hover:bg-gray-700 hover:text-white"
+                  className="flex items-center justify-center text-sm font-medium rounded-xl transition-colors text-gray-500 hover:bg-gray-700 hover:text-white relative overflow-hidden"
                   style={{ width: "56px", height: "48px", margin: "0 auto" }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
                   <motion.div
-                    animate={{ rotate: isIntegrationOpen ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
+                    animate={{
+                      rotate: [0, 10, -10, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      repeatDelay: 2,
+                    }}
                   >
                     <Blocks className="w-5 h-5 flex-shrink-0" />
                   </motion.div>
+
+                  {/* Animated pulse effect */}
+                  <motion.div
+                    className="absolute inset-0 bg-purple-500/20 rounded-xl"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0, 0.3, 0],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      repeatDelay: 1,
+                    }}
+                  />
                 </motion.button>
 
                 {/* Tooltip */}
@@ -365,7 +371,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                       : "opacity-0"
                   }`}
                 >
-                  Integration
+                  Integrations
                   <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
                 </div>
               </motion.div>

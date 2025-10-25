@@ -13,6 +13,7 @@ import { sendSimpleEmail } from "../utils/mailService.js";
 import { sendTaskAssignedEmail, sendTaskCompletedEmail } from "../utils/emailTemplates.js";
 import { notifyTaskAssignees } from "../utils/notificationHelpers.js";
 import { updateLastSelectedTask } from "../utils/lastSelected.js";
+import { logActivity } from "../utils/activityLogger.js";
 
 /**
  * Create a new task
@@ -283,88 +284,6 @@ export const updateTask = async (req, res) => {
   } catch (error) {
     console.error("Error updating task:", error);
     res.status(500).json({ error: "Failed to update task" });
-  }
-};
-
-/**
- * Update task status
- */
-export const updateTaskStatus = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const { status, columnId } = req.body;
-
-    if (!status || !columnId) {
-      return res.status(400).json({ error: "Status and column ID are required" });
-    }
-
-    const task = await Task.findById(taskId);
-    if (!task) {
-      return res.status(404).json({ error: "Task not found" });
-    }
-
-    const previousStatus = task.status;
-    task.status = status;
-    task.column = columnId;
-    
-    // Set completedAt if task is being completed
-    if ((status === "done" || status === "completed") && previousStatus !== status) {
-      task.completedAt = new Date();
-    }
-    
-    await task.save();
-
-    // Send task completed email notifications
-    if ((status === "done" || status === "completed") && previousStatus !== status) {
-      console.log(`\n📧 Sending task completed emails`);
-      try {
-        const userId = req.auth._id;
-        const [project, completedBy, workspace, assignments] = await Promise.all([
-          Project.findById(task.project),
-          User.findById(userId),
-          Workspace.findById((await Project.findById(task.project)).workspace),
-          TaskAssignment.find({ task: taskId, status: "active" }).populate("user"),
-        ]);
-
-        // Send email to task creator and assignees
-        const recipients = [task.createdBy];
-        assignments.forEach((assignment) => {
-          if (!recipients.includes(assignment.user._id)) {
-            recipients.push(assignment.user._id);
-          }
-        });
-
-        for (const recipientId of recipients) {
-          try {
-            const recipient = await User.findById(recipientId);
-            if (recipient && recipient._id.toString() !== userId.toString()) {
-              await sendTaskCompletedEmail({
-                task,
-                project,
-                workspace,
-                completedBy,
-                recipient,
-              });
-              console.log(`✅ Task completed email sent to ${recipient.email}`);
-            }
-          } catch (err) {
-            console.error(`⚠️ Failed to send email to recipient:`, err.message);
-          }
-        }
-      } catch (emailError) {
-        console.error(`⚠️ Failed to send task completed emails:`, emailError.message);
-        // Don't fail the request if email fails
-      }
-    }
-
-    res.json({
-      success: true,
-      message: "Task status updated successfully",
-      data: { status, column: columnId },
-    });
-  } catch (error) {
-    console.error("Error updating task status:", error);
-    res.status(500).json({ error: "Failed to update task status" });
   }
 };
 
@@ -797,35 +716,6 @@ export const deleteLabel = async (req, res) => {
   }
 };
 
-export default {
-  createTask,
-  getProjectTasks,
-  getTask,
-  updateTask,
-  updateTaskStatus,
-  updateTaskPosition,
-  deleteTask,
-  assignTask,
-  getTaskAssignments,
-  unassignTask,
-  createSubtask,
-  updateSubtask,
-  deleteSubtask,
-  createLabel,
-  getProjectLabels,
-  updateLabel,
-  deleteLabel,
-  // Comments
-  createTaskComment,
-  getTaskComments,
-  updateTaskComment,
-  deleteTaskComment,
-  // Attachments
-  createTaskAttachment,
-  getTaskAttachments,
-  deleteTaskAttachment,
-  uploadTaskAttachment,
-};
 
 /**
  * Create a comment on a task
@@ -1125,4 +1015,158 @@ export async function uploadTaskAttachment(req, res) {
     res.status(500).json({ error: "Failed to upload file" });
   }
 }
+
+/**
+ * Update task status (for drag-and-drop)
+ * PUT /api/tasks/:taskId/status
+ */
+export const updateTaskStatus = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { status, columnId } = req.body;
+    const userId = req.auth._id;
+
+    console.log(`\n📋 Updating task status: ${taskId} to ${status}`);
+
+    // Find the task
+    const task = await Task.findById(taskId)
+      .populate('project', 'name workspace')
+      .populate('createdBy', 'name email');
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    // Check if user has permission to update this task
+    const project = await Project.findById(task.project._id);
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    // Check if user is project member
+    const ProjectMember = (await import('../models/projectMember.js')).default;
+    const member = await ProjectMember.findOne({
+      project: task.project._id,
+      user: userId,
+      status: 'active'
+    });
+
+    if (!member && member.role !== 'owner' && member.role !== 'admin') {
+      return res.status(403).json({ error: "Permission denied" });
+    }
+
+    // Update task status
+    const oldStatus = task.status;
+    task.status = status;
+    // Don't update column if columnId is a status string (like "in_progress")
+    // Only update if it's a valid ObjectId
+    if (columnId && columnId.length === 24 && /^[0-9a-fA-F]{24}$/.test(columnId)) {
+      task.column = columnId;
+    }
+
+    // Set completion date if status is done
+    if (status === 'done') {
+      task.completedAt = new Date();
+    } else if (oldStatus === 'done') {
+      // If moving from done back to active, clear completion date
+      task.completedAt = null;
+    }
+
+    await task.save();
+
+    // Log activity
+    try {
+      await logActivity({
+        workspace: project.workspace,
+        actor: userId,
+        actorModel: 'User',
+        target: taskId,
+        targetType: 'Task',
+        action: 'moved',
+        changes: {
+          status: { from: oldStatus, to: status }
+        },
+        metadata: {
+          taskTitle: task.title,
+          projectName: project.name
+        }
+      });
+    } catch (activityError) {
+      console.log('Activity logging failed:', activityError.message);
+    }
+
+    // Send notifications to assignees if status changed significantly
+    if (oldStatus !== status) {
+      try {
+        const assignments = await TaskAssignment.find({ task: taskId })
+          .populate('user', 'name email');
+        
+        for (const assignment of assignments) {
+          if (assignment.user._id.toString() !== userId.toString()) {
+            // Send notification to other assignees
+            const Notification = (await import('../models/notification.js')).default;
+            await Notification.create({
+              recipient: assignment.user._id,
+              recipientModel: 'User',
+              sender: userId,
+              senderModel: 'User',
+              type: 'task_updated',
+              title: `Task status updated`,
+              message: `"${task.title}" status changed from ${oldStatus} to ${status}`,
+              workspace: project.workspace,
+              project: task.project._id,
+              relatedTo: {
+                model: 'Task',
+                id: taskId
+              }
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.log('Notification sending failed:', notificationError.message);
+      }
+    }
+
+    console.log(`✅ Task status updated successfully`);
+
+    res.json({
+      success: true,
+      data: task,
+      message: `Task status updated to ${status}`
+    });
+  } catch (error) {
+    console.error("Error updating task status:", error);
+    res.status(500).json({ error: "Failed to update task status" });
+  }
+}
+
+export default {
+  createTask,
+  getProjectTasks,
+  getTask,
+  updateTask,
+  updateTaskStatus,
+  updateTaskPosition,
+  deleteTask,
+  assignTask,
+  getTaskAssignments,
+  unassignTask,
+  createSubtask,
+  updateSubtask,
+  deleteSubtask,
+  createLabel,
+  getProjectLabels,
+  updateLabel,
+  deleteLabel,
+  // Comments
+  createTaskComment,
+  getTaskComments,
+  updateTaskComment,
+  deleteTaskComment,
+  // Attachments
+  createTaskAttachment,
+  getTaskAttachments,
+  deleteTaskAttachment,
+  uploadTaskAttachment,
+};
 

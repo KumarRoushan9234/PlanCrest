@@ -996,13 +996,225 @@ export const getWorkspaceTasks = async (req, res) => {
 };
 
 /**
- * Get workspace activity (placeholder - returns empty array for now)
- * To be implemented with proper activity tracking
+ * Get comprehensive workspace activity feed
+ * GET /api/workspaces/:workspaceId/activity
  */
 export const getWorkspaceActivity = async (req, res) => {
   try {
     const { workspaceId } = req.params;
+    const { limit = 50, skip = 0, type, userId } = req.query;
+    const currentUserId = req.auth._id;
+
+    console.log(`\n📊 Fetching workspace activity for workspace: ${workspaceId}`);
+
+    // Get workspace first
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    // Check if user is owner or member
+    const isOwner = workspace.owner.toString() === currentUserId.toString();
+    const member = await WorkspaceMember.findOne({
+      workspace: workspaceId,
+      user: currentUserId,
+      status: "active",
+    });
+
+    if (!isOwner && !member) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Get activities from multiple sources
+    const activities = [];
+
+    // 1. Get activity logs
+    try {
+      const ActivityLog = (await import('../models/activityLog.js')).default;
+      const activityLogs = await ActivityLog.find({ workspace: workspaceId })
+        .populate('actor', 'name email avatar')
+        .populate('target', 'title name')
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .skip(parseInt(skip));
+
+      activities.push(...activityLogs.map(log => ({
+        _id: log._id,
+        type: 'activity',
+        action: log.action,
+        targetType: log.targetType,
+        description: `${log.action} ${log.targetType.toLowerCase()}`,
+        user: {
+          _id: log.actor._id,
+          name: log.actor.name,
+          avatar: log.actor.avatar
+        },
+        target: log.target,
+        timestamp: log.createdAt,
+        metadata: {
+          changes: log.changes,
+          targetName: log.targetName
+        }
+      })));
+    } catch (error) {
+      console.log('Activity logs not available');
+    }
+
+    // 2. Get recent tasks
+    try {
+      const Task = (await import('../models/task.js')).default;
+      const recentTasks = await Task.find({ 
+        workspace: workspaceId,
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+      })
+        .populate('createdBy', 'name email avatar')
+        .populate('project', 'name key')
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+      activities.push(...recentTasks.map(task => ({
+        _id: `task-${task._id}`,
+        type: 'task',
+        action: 'created',
+        targetType: 'Task',
+        description: `Created task "${task.title}"`,
+        user: {
+          _id: task.createdBy._id,
+          name: task.createdBy.name,
+          avatar: task.createdBy.avatar
+        },
+        target: {
+          _id: task._id,
+          title: task.title,
+          project: task.project
+        },
+        timestamp: task.createdAt,
+        metadata: {
+          project: task.project,
+          status: task.status,
+          priority: task.priority
+        }
+      })));
+    } catch (error) {
+      console.log('Recent tasks not available');
+    }
+
+    // 3. Get recent projects
+    try {
+      const Project = (await import('../models/project.js')).default;
+      const recentProjects = await Project.find({ 
+        workspace: workspaceId,
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+      })
+        .populate('createdBy', 'name email avatar')
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+      activities.push(...recentProjects.map(project => ({
+        _id: `project-${project._id}`,
+        type: 'project',
+        action: 'created',
+        targetType: 'Project',
+        description: `Created project "${project.name}"`,
+        user: {
+          _id: project.createdBy._id,
+          name: project.createdBy.name,
+          avatar: project.createdBy.avatar
+        },
+        target: {
+          _id: project._id,
+          title: project.name,
+          key: project.key
+        },
+        timestamp: project.createdAt,
+        metadata: {
+          status: project.status,
+          visibility: project.visibility
+        }
+      })));
+    } catch (error) {
+      console.log('Recent projects not available');
+    }
+
+    // 4. Get recent comments
+    try {
+      const Comment = (await import('../models/comment.js')).default;
+      const recentComments = await Comment.find({ 
+        workspace: workspaceId,
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+      })
+        .populate('author', 'name email avatar')
+        .populate('task', 'title')
+        .populate('project', 'name')
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+      activities.push(...recentComments.map(comment => ({
+        _id: `comment-${comment._id}`,
+        type: 'comment',
+        action: 'commented',
+        targetType: 'Comment',
+        description: `Commented on ${comment.task ? `task "${comment.task.title}"` : `project "${comment.project.name}"`}`,
+        user: {
+          _id: comment.author._id,
+          name: comment.author.name,
+          avatar: comment.author.avatar
+        },
+        target: {
+          _id: comment._id,
+          title: comment.content.substring(0, 50) + '...',
+          task: comment.task,
+          project: comment.project
+        },
+        timestamp: comment.createdAt,
+        metadata: {
+          task: comment.task,
+          project: comment.project
+        }
+      })));
+    } catch (error) {
+      console.log('Recent comments not available');
+    }
+
+    // Sort all activities by timestamp
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // Apply filters
+    let filteredActivities = activities;
+    if (type) {
+      filteredActivities = activities.filter(activity => activity.type === type);
+    }
+
+    // Limit results
+    const paginatedActivities = filteredActivities.slice(0, parseInt(limit));
+
+    console.log(`✅ Found ${paginatedActivities.length} activities`);
+
+    res.json({
+      success: true,
+      data: paginatedActivities,
+      pagination: {
+        limit: parseInt(limit),
+        skip: parseInt(skip),
+        total: filteredActivities.length
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching workspace activity:", error);
+    res.status(500).json({ error: "Failed to fetch workspace activity" });
+  }
+};
+
+/**
+ * Get user overview data for workspace
+ * GET /api/workspaces/:workspaceId/overview
+ */
+export const getWorkspaceOverview = async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
     const userId = req.auth._id;
+
+    console.log(`\n📊 Fetching workspace overview for user: ${userId}`);
 
     // Get workspace first
     const workspace = await Workspace.findById(workspaceId);
@@ -1022,41 +1234,143 @@ export const getWorkspaceActivity = async (req, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    // Get recent activities from the workspace
+    const overview = {
+      tasks: {
+        assigned: [],
+        overdue: [],
+        dueSoon: [],
+        completed: []
+      },
+      notifications: {
+        unread: [],
+        read: []
+      },
+      activities: [],
+      stats: {
+        totalTasks: 0,
+        completedTasks: 0,
+        overdueTasks: 0,
+        unreadNotifications: 0,
+        recentActivities: 0
+      }
+    };
+
+    // 1. Get user's assigned tasks
     try {
-      const { getItemActivity } = await import('../utils/activityLogger.js');
-      const activities = await getItemActivity(workspaceId, 'workspace');
+      const Task = (await import('../models/task.js')).default;
+      const TaskAssignment = (await import('../models/taskAssignment.js')).default;
       
-      // Transform activities for frontend
-      const transformedActivities = activities.map(activity => ({
+      // Get task assignments for user
+      const assignments = await TaskAssignment.find({ 
+        user: userId,
+        role: 'assignee'
+      }).populate('task');
+
+      const taskIds = assignments.map(a => a.task._id);
+      
+      if (taskIds.length > 0) {
+        const tasks = await Task.find({ 
+          _id: { $in: taskIds },
+          workspace: workspaceId
+        })
+          .populate('project', 'name key')
+          .populate('createdBy', 'name email avatar')
+          .sort({ createdAt: -1 });
+
+        // Categorize tasks
+        const now = new Date();
+        const twoDaysFromNow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+        tasks.forEach(task => {
+          if (task.status === 'completed' || task.status === 'done') {
+            overview.tasks.completed.push(task);
+          } else {
+            overview.tasks.assigned.push(task);
+            
+            // Check if overdue
+            if (task.dueDate && new Date(task.dueDate) < now) {
+              overview.tasks.overdue.push(task);
+            }
+            // Check if due soon (within 2 days)
+            else if (task.dueDate && new Date(task.dueDate) <= twoDaysFromNow) {
+              overview.tasks.dueSoon.push(task);
+            }
+          }
+        });
+
+        overview.stats.totalTasks = tasks.length;
+        overview.stats.completedTasks = overview.tasks.completed.length;
+        overview.stats.overdueTasks = overview.tasks.overdue.length;
+      }
+    } catch (error) {
+      console.log('Tasks not available:', error.message);
+    }
+
+    // 2. Get user notifications
+    try {
+      const Notification = (await import('../models/notification.js')).default;
+      
+      const notifications = await Notification.find({ 
+        recipient: userId,
+        workspace: workspaceId
+      })
+        .populate('sender', 'name email avatar')
+        .sort({ createdAt: -1 })
+        .limit(50);
+
+      overview.notifications.unread = notifications.filter(n => !n.isRead);
+      overview.notifications.read = notifications.filter(n => n.isRead);
+      overview.stats.unreadNotifications = overview.notifications.unread.length;
+    } catch (error) {
+      console.log('Notifications not available:', error.message);
+    }
+
+    // 3. Get recent activities
+    try {
+      const ActivityLog = (await import('../models/activityLog.js')).default;
+      
+      const activities = await ActivityLog.find({ 
+        workspace: workspaceId,
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+      })
+        .populate('actor', 'name email avatar')
+        .populate('target', 'title name')
+        .sort({ createdAt: -1 })
+        .limit(20);
+
+      overview.activities = activities.map(activity => ({
         _id: activity._id,
-        type: activity.action,
-        action: activity.description,
-        description: activity.details,
+        type: 'activity',
+        action: activity.action,
+        targetType: activity.targetType,
+        description: `${activity.action} ${activity.targetType.toLowerCase()}`,
         user: {
-          _id: activity.user,
-          name: activity.userName || 'Unknown User',
-          avatar: activity.userAvatar
+          _id: activity.actor._id,
+          name: activity.actor.name,
+          avatar: activity.actor.avatar
         },
         target: activity.target,
         timestamp: activity.createdAt,
-        metadata: activity.metadata
+        metadata: {
+          changes: activity.changes,
+          targetName: activity.targetName
+        }
       }));
 
-      res.json({
-        success: true,
-        data: transformedActivities,
-      });
-    } catch (activityError) {
-      console.log('Activity tracking not available, returning empty array');
-      res.json({
-        success: true,
-        data: [],
-      });
+      overview.stats.recentActivities = activities.length;
+    } catch (error) {
+      console.log('Activities not available:', error.message);
     }
+
+    console.log(`✅ Overview data fetched successfully`);
+
+    res.json({
+      success: true,
+      data: overview
+    });
   } catch (error) {
-    console.error("Error fetching workspace activity:", error);
-    res.status(500).json({ error: "Failed to fetch workspace activity" });
+    console.error("Error fetching workspace overview:", error);
+    res.status(500).json({ error: "Failed to fetch workspace overview" });
   }
 };
 

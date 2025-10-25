@@ -34,6 +34,7 @@ export { default as ActivityLog } from "./activityLog.js";
 export { default as Notification } from "./notification.js";
 export { default as TimeEntry } from "./timeEntry.js";
 export { default as Integration } from "./integration.js";
+export { default as IntegrationTemplate } from "./integrationTemplate.js";
 
 // Calendar Models
 export { default as CalendarEvent } from "./calendarEvent.js";
