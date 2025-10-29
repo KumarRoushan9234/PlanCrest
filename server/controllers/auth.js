@@ -2,8 +2,8 @@ import User from "../models/user.js";
 import { hashPassword, comparePassword } from "../utils/auth.js";
 import jwt from "jsonwebtoken";
 import { nanoid } from "nanoid";
-import nodemailer from "nodemailer";
 import bcrypt from "bcrypt";
+import { sendSimpleEmail } from "../utils/mailService.js";
 
 export const register = async (req, res) => {
   try {
@@ -33,79 +33,47 @@ export const register = async (req, res) => {
     await newUser.save();
 
     // Send verification email
-    let transporterConfig;
-
-    // Nodemailer configuration
-    switch (process.env.EMAIL_SERVICE) {
-      case "gmail":
-        transporterConfig = {
-          service: "gmail",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      case "outlook":
-        transporterConfig = {
-          service: "hotmail",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      case "yahoo":
-        transporterConfig = {
-          service: "yahoo",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      case "zoho":
-        transporterConfig = {
-          host: "smtp.zoho.in",
-          port: 587,
-          secure: false,
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      default:
-        throw new Error(
-          `Unsupported email service: ${process.env.EMAIL_SERVICE}`
-        );
-    }
-
-    // Create transporter
-    const transporter = nodemailer.createTransport(transporterConfig);
-
+    console.log(`📧 Sending verification email to: ${email}`);
     
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    const emailResult = await sendSimpleEmail({
       to: email,
-      subject: "Email Verification for DevStream",
+      subject: "Email Verification - PlanCrest",
       html: `
-        <html>
-          <h1>Email Verification</h1>
-          <p>Use this code to verify your email:</p>
-          <h2 style="color:red;">${verificationCode}</h2>
-          <i>devStream.org</i>
-        </html>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Welcome to PlanCrest!</h1>
+          </div>
+          <div style="padding: 30px; background: #f8f9fa;">
+            <h2 style="color: #333; margin-bottom: 20px;">Email Verification</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              Thank you for signing up! Please use the verification code below to complete your registration:
+            </p>
+            <div style="background: #fff; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
+              <div style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 8px;">${verificationCode}</div>
+            </div>
+            <p style="color: #666; line-height: 1.6; font-size: 14px;">
+              This code will expire in 24 hours. If you didn't create an account with PlanCrest, please ignore this email.
+            </p>
+            <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+              This email was sent from PlanCrest Project Management
+            </p>
+          </div>
+        </div>
       `,
-    };
+      text: `Welcome to PlanCrest! Use this verification code to complete your registration: ${verificationCode}. This code will expire in 24 hours.`
+    });
 
-    await transporter.sendMail(mailOptions);
-    return res.json({ message: "Verification code sent to email" });
+    if (emailResult.success) {
+      console.log(`✅ Verification email sent successfully to: ${email}`);
+      return res.json({ message: "Verification code sent to email" });
+    } else {
+      console.error(`❌ Failed to send verification email:`, emailResult.error);
+      // Still return success but log the error
+      return res.json({ 
+        message: "Account created but email verification failed. Please contact support.",
+        warning: "Email delivery failed"
+      });
+    }
   } catch (error) {
     console.error("Error in register:", error);
     res.status(500).json({ error: "Internal server error" });

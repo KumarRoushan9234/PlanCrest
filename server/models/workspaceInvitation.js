@@ -21,7 +21,7 @@ const workspaceInvitationSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "member", "guest"],
+      enum: ["admin", "member", "employee", "client", "guest"],
       default: "member",
     },
     message: {

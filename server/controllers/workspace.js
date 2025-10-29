@@ -434,7 +434,7 @@ export const inviteToWorkspace = async (req, res) => {
 
     await invitation.save();
 
-    // Send invitation email
+    // Send invitation email (non-blocking with timeout)
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
     const inviteUrl = `${clientUrl}/invite/${token}`;
     const inviter = await User.findById(invitedBy);
@@ -442,54 +442,55 @@ export const inviteToWorkspace = async (req, res) => {
     console.log(`📧 Sending invitation email to: ${email}`);
     console.log(`📧 Invite URL: ${inviteUrl}`);
     
-    try {
-      const emailResult = await sendSimpleEmail({
-        to: email,
-        subject: `Invitation to join ${workspace.name}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #f8f9fa; padding: 30px; border-radius: 8px;">
-              <h2 style="color: #333; margin-bottom: 20px;">Workspace Invitation</h2>
-              <p style="color: #666; line-height: 1.6;">
-                <strong>${inviter.name}</strong> has invited you to join <strong>${workspace.name}</strong>
+    // Send email asynchronously without blocking the response
+    sendSimpleEmail({
+      to: email,
+      subject: `Invitation to join ${workspace.name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 8px;">
+            <h2 style="color: #333; margin-bottom: 20px;">Workspace Invitation</h2>
+            <p style="color: #666; line-height: 1.6;">
+              <strong>${inviter.name}</strong> has invited you to join <strong>${workspace.name}</strong>
+            </p>
+            ${message ? `<p style="color: #666; font-style: italic; background: #e9ecef; padding: 15px; border-radius: 4px; margin: 15px 0;"><em>"${message}"</em></p>` : ''}
+            <p style="color: #666; line-height: 1.6;">
+              You will be joining as: <strong style="color: #6366f1;">${role}</strong>
+            </p>
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Accept Invitation</a>
+            </div>
+            <p style="color: #999; font-size: 12px; text-align: center;">
+              This invitation expires in 14 days.
+            </p>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+              <p style="color: #666; font-size: 11px;">
+                If the button doesn't work, copy and paste this link into your browser:<br/>
+                <a href="${inviteUrl}" style="color: #6366f1; word-break: break-all;">${inviteUrl}</a>
               </p>
-              ${message ? `<p style="color: #666; font-style: italic; background: #e9ecef; padding: 15px; border-radius: 4px; margin: 15px 0;"><em>"${message}"</em></p>` : ''}
-              <p style="color: #666; line-height: 1.6;">
-                You will be joining as: <strong style="color: #6366f1;">${role}</strong>
-              </p>
-              <div style="margin: 30px 0; text-align: center;">
-                <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Accept Invitation</a>
-              </div>
-              <p style="color: #999; font-size: 12px; text-align: center;">
-                This invitation expires in 14 days.
-              </p>
-              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
-                <p style="color: #666; font-size: 11px;">
-                  If the button doesn't work, copy and paste this link into your browser:<br/>
-                  <a href="${inviteUrl}" style="color: #6366f1; word-break: break-all;">${inviteUrl}</a>
-                </p>
-              </div>
             </div>
           </div>
-        `,
-        text: `${inviter.name} has invited you to join ${workspace.name}. You will be joining as ${role}. ${message ? `Message: ${message}` : ''} Accept the invitation: ${inviteUrl}`
-      });
-
+        </div>
+      `,
+      text: `${inviter.name} has invited you to join ${workspace.name}. You will be joining as ${role}. ${message ? `Message: ${message}` : ''} Accept the invitation: ${inviteUrl}`
+    })
+    .then((emailResult) => {
       if (emailResult.success) {
         console.log(`✅ Invitation email sent successfully to: ${email}`);
       } else {
         console.error(`❌ Failed to send invitation email:`, emailResult.error);
-        // Don't fail the request, but log the error
       }
-    } catch (emailError) {
+    })
+    .catch((emailError) => {
       console.error(`❌ Email sending error:`, emailError.message);
       // Don't fail the request if email fails
-    }
+    });
 
+    // Return response immediately, don't wait for email
     res.status(201).json({
       success: true,
       message: "Invitation sent successfully",
-      data: { email, role, token },
+      data: { email, role, token, inviteUrl },
     });
   } catch (error) {
     console.error("Error inviting to workspace:", error);
