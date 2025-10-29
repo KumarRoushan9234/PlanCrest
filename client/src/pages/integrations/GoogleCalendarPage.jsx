@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import IntegrationLayout from "../../components/common-afterauth/IntegrationLayout";
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { SiGooglecalendar } from "react-icons/si";
 import IntegrationSidebar from "../../components/integration/IntegrationSidebar";
+import connectorService from "../../services/connectorService";
 
 const GoogleCalendarPage = () => {
   const navigate = useNavigate();
@@ -108,20 +109,37 @@ const GoogleCalendarPage = () => {
     { label: "Upcoming", value: "12", icon: Clock, color: "text-orange-500" },
   ];
 
-  const handleConnect = () => {
-    // Simulate OAuth flow
-    console.log("Connecting to Google Calendar with scope:", selectedScope);
-    setTimeout(() => {
+  const handleConnect = async () => {
+    try {
+      console.log("Connecting to Google Calendar with scope:", selectedScope);
+      await connectorService.connectGoogleCalendar(selectedScope, null);
       setIsConnected(true);
-    }, 1000);
+    } catch (error) {
+      console.error("Error connecting Google Calendar:", error);
+    }
   };
 
-  const handleDisconnect = () => {
-    setIsConnected(false);
+  const handleDisconnect = async () => {
+    try {
+      // Get connector and disconnect
+      const { connectors } = await connectorService.getAllConnectors(selectedScope, null);
+      const connector = connectors.find(c => c.type === "google_calendar");
+      if (connector) {
+        await connectorService.deleteConnector(connector._id);
+      }
+      setIsConnected(false);
+    } catch (error) {
+      console.error("Error disconnecting Google Calendar:", error);
+    }
   };
 
-  const handleSyncNow = () => {
-    console.log("Syncing calendar...");
+  const handleSyncNow = async () => {
+    try {
+      console.log("Syncing calendar...");
+      await connectorService.syncGoogleCalendar(selectedScope, null);
+    } catch (error) {
+      console.error("Error syncing calendar:", error);
+    }
   };
 
   return (
@@ -129,7 +147,7 @@ const GoogleCalendarPage = () => {
       <div className="w-full h-full p-4" style={{ backgroundColor: "#0a0a0b" }}>
         {/* Back Button */}
         <motion.button
-          onClick={() => navigate("/integrations")}
+          onClick={() => navigate("/connectors")}
           className="flex items-center gap-1.5 text-gray-400 hover:text-white mb-4 transition-colors duration-200"
           whileHover={{ x: -3 }}
           whileTap={{ scale: 0.95 }}

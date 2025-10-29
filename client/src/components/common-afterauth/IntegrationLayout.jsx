@@ -32,7 +32,7 @@ const IntegrationLayout = ({ children }) => {
         <main
           className="flex-1"
           style={{
-            marginLeft: "280px",
+            marginLeft: "284px", // 64px (main sidebar) + 220px (integration sidebar)
             minHeight: "calc(100vh - 56px)",
           }}
         >

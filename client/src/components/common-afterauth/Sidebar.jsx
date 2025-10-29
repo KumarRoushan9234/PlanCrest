@@ -322,8 +322,8 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
               >
                 <motion.button
                   onClick={() => {
-                    navigate("/integrations");
-                    handleMobileTap("Integration");
+                    navigate("/connectors");
+                    handleMobileTap("Connector");
                     if (window.innerWidth < 768) {
                       setIsMobileSidebarOpen(false);
                     }

@@ -69,12 +69,12 @@ const IntegrationSidebar = () => {
       items: [
         {
           name: "Google Calendar",
-          path: "/integrations/google-calendar",
+          path: "/connectors/google-calendar",
           icon: SiGooglecalendar,
         },
         {
           name: "Google Drive",
-          path: "/integrations/google-drive",
+          path: "/connectors/google-drive",
           icon: SiGoogledrive,
         },
         { name: "Google Meet", path: "/integrations/google-meet", icon: Video },
@@ -88,9 +88,9 @@ const IntegrationSidebar = () => {
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
       items: [
-        { name: "GitHub", path: "/integrations/github", icon: FaGithub },
-        { name: "GitLab", path: "/integrations/gitlab", icon: FaGitlab },
-        { name: "Bitbucket", path: "/integrations/bitbucket", icon: GitBranch },
+        { name: "GitHub", path: "/connectors/github", icon: FaGithub },
+        { name: "GitLab", path: "/connectors/gitlab", icon: FaGitlab },
+        { name: "Bitbucket", path: "/connectors/bitbucket", icon: GitBranch },
       ],
     },
     {
@@ -100,10 +100,10 @@ const IntegrationSidebar = () => {
       color: "text-green-500",
       bgColor: "bg-green-500/10",
       items: [
-        { name: "Slack", path: "/integrations/slack", icon: FaSlack },
+        { name: "Slack", path: "/connectors/slack", icon: FaSlack },
         {
           name: "Microsoft Teams",
-          path: "/integrations/teams",
+          path: "/connectors/teams",
           icon: FaMicrosoft,
         },
       ],
@@ -117,12 +117,12 @@ const IntegrationSidebar = () => {
       items: [
         {
           name: "Google Calendar",
-          path: "/integrations/google-calendar",
+          path: "/connectors/google-calendar",
           icon: SiGooglecalendar,
         },
         {
           name: "Outlook Calendar",
-          path: "/integrations/outlook-calendar",
+          path: "/connectors/outlook-calendar",
           icon: FaMicrosoft,
         },
       ],
@@ -134,8 +134,8 @@ const IntegrationSidebar = () => {
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
       items: [
-        { name: "Figma", path: "/integrations/figma", icon: FaFigma },
-        { name: "Adobe Creative", path: "/integrations/adobe", icon: Palette },
+        { name: "Figma", path: "/connectors/figma", icon: FaFigma },
+        { name: "Adobe Creative", path: "/connectors/adobe", icon: Palette },
       ],
     },
     {
@@ -145,9 +145,9 @@ const IntegrationSidebar = () => {
       color: "text-cyan-500",
       bgColor: "bg-cyan-500/10",
       items: [
-        { name: "AWS S3", path: "/integrations/aws-s3", icon: Cloud },
-        { name: "Dropbox", path: "/integrations/dropbox", icon: FaDropbox },
-        { name: "OneDrive", path: "/integrations/onedrive", icon: FaMicrosoft },
+        { name: "AWS S3", path: "/connectors/aws-s3", icon: Cloud },
+        { name: "Dropbox", path: "/connectors/dropbox", icon: FaDropbox },
+        { name: "OneDrive", path: "/connectors/onedrive", icon: FaMicrosoft },
       ],
     },
     {
@@ -159,11 +159,11 @@ const IntegrationSidebar = () => {
       items: [
         {
           name: "GitHub Actions",
-          path: "/integrations/github-actions",
+          path: "/connectors/github-actions",
           icon: FaGithub,
         },
-        { name: "GitLab CI", path: "/integrations/gitlab-ci", icon: FaGitlab },
-        { name: "Jenkins", path: "/integrations/jenkins", icon: Settings },
+        { name: "GitLab CI", path: "/connectors/gitlab-ci", icon: FaGitlab },
+        { name: "Jenkins", path: "/connectors/jenkins", icon: Settings },
       ],
     },
     {
@@ -173,8 +173,8 @@ const IntegrationSidebar = () => {
       color: "text-indigo-500",
       bgColor: "bg-indigo-500/10",
       items: [
-        { name: "Jira", path: "/integrations/jira", icon: FaJira },
-        { name: "Trello", path: "/integrations/trello", icon: FaTrello },
+        { name: "Jira", path: "/connectors/jira", icon: FaJira },
+        { name: "Trello", path: "/connectors/trello", icon: FaTrello },
       ],
     },
     {
@@ -186,10 +186,10 @@ const IntegrationSidebar = () => {
       items: [
         {
           name: "Google Analytics",
-          path: "/integrations/google-analytics",
+          path: "/connectors/google-analytics",
           icon: BarChart3,
         },
-        { name: "Mixpanel", path: "/integrations/mixpanel", icon: SiMixpanel },
+        { name: "Mixpanel", path: "/connectors/mixpanel", icon: SiMixpanel },
       ],
     },
   ];
@@ -197,19 +197,19 @@ const IntegrationSidebar = () => {
   const scopeItems = [
     {
       name: "Personal",
-      path: "/integrations?scope=personal",
+      path: "/connectors?scope=personal",
       icon: User,
       color: "text-blue-400",
     },
     {
       name: "Workspace",
-      path: "/integrations?scope=workspace",
+      path: "/connectors?scope=workspace",
       icon: Building2,
       color: "text-purple-400",
     },
     {
       name: "Project",
-      path: "/integrations?scope=project",
+      path: "/connectors?scope=project",
       icon: FolderKanban,
       color: "text-green-400",
     },
@@ -241,9 +241,9 @@ const IntegrationSidebar = () => {
         <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
           {/* Home Button */}
           <motion.button
-            onClick={() => navigate("/integrations")}
+            onClick={() => navigate("/connectors")}
             className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-200 ${
-              location.pathname === "/integrations"
+              location.pathname === "/connectors"
                 ? "bg-purple-600 text-white"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
             }`}

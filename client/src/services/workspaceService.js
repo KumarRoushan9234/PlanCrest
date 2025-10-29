@@ -4,6 +4,7 @@ const API_BASE_URL = 'http://localhost:8000/api';
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
+axios.defaults.timeout = 60000; // 60 seconds timeout for all requests
 
 /**
  * Workspace Service
@@ -106,9 +107,17 @@ export const workspaceService = {
   // Invite user to workspace
   inviteToWorkspace: async (workspaceId, inviteData) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/workspaces/${workspaceId}/invite`, inviteData);
+      const response = await axios.post(
+        `${API_BASE_URL}/workspaces/${workspaceId}/invite`, 
+        inviteData,
+        { timeout: 15000 } // 15 second timeout for invitation requests
+      );
       return response.data;
     } catch (error) {
+      // Handle timeout errors specifically
+      if (error.code === 'ECONNABORTED') {
+        throw { error: 'Request timeout. The invitation may have been created, but email sending is delayed. Please check your email configuration.' };
+      }
       throw error.response?.data || error;
     }
   },

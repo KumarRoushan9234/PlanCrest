@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import IntegrationLayout from "../../components/common-afterauth/IntegrationLayout";
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import IntegrationSidebar from "../../components/integration/IntegrationSidebar";
+import connectorService from "../../services/connectorService";
 
 const GitHubPage = () => {
   const navigate = useNavigate();
@@ -157,19 +158,37 @@ const GitHubPage = () => {
     { name: "plancrest/api", stars: 56, language: "Python", private: true },
   ];
 
-  const handleConnect = () => {
-    console.log("Connecting to GitHub with scope:", selectedScope);
-    setTimeout(() => {
+  const handleConnect = async () => {
+    try {
+      console.log("Connecting to GitHub with scope:", selectedScope);
+      await connectorService.connectGitHub(selectedScope, null);
       setIsConnected(true);
-    }, 1000);
+    } catch (error) {
+      console.error("Error connecting GitHub:", error);
+    }
   };
 
-  const handleDisconnect = () => {
-    setIsConnected(false);
+  const handleDisconnect = async () => {
+    try {
+      const { connectors } = await connectorService.getAllConnectors(selectedScope, null);
+      const connector = connectors.find(c => c.type === "github");
+      if (connector) {
+        await connectorService.deleteConnector(connector._id);
+      }
+      setIsConnected(false);
+    } catch (error) {
+      console.error("Error disconnecting GitHub:", error);
+    }
   };
 
-  const handleSyncNow = () => {
-    console.log("Syncing GitHub data...");
+  const handleSyncNow = async () => {
+    try {
+      console.log("Syncing GitHub data...");
+      const result = await connectorService.getGitHubRepositories(selectedScope, null);
+      console.log("Repositories synced:", result);
+    } catch (error) {
+      console.error("Error syncing GitHub data:", error);
+    }
   };
 
   const getActivityIcon = (type) => {
@@ -203,7 +222,7 @@ const GitHubPage = () => {
       <div className="w-full h-full p-4" style={{ backgroundColor: "#0a0a0b" }}>
         {/* Back Button */}
         <motion.button
-          onClick={() => navigate("/integrations")}
+          onClick={() => navigate("/connectors")}
           className="flex items-center gap-1.5 text-gray-400 hover:text-white mb-4 transition-colors duration-200"
           whileHover={{ x: -3 }}
           whileTap={{ scale: 0.95 }}

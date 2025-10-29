@@ -40,6 +40,8 @@ import IntegrationLandingPage from "./pages/integrations/IntegrationLandingPage"
 import GoogleCalendarPage from "./pages/integrations/GoogleCalendarPage";
 import GoogleDrivePage from "./pages/integrations/GoogleDrivePage";
 import GitHubPage from "./pages/integrations/GitHubPage";
+import GoogleMeetPage from "./pages/integrations/GoogleMeetPage";
+import GmailPage from "./pages/integrations/GmailPage";
 
 // Public Route Component (redirects to dashboard if already authenticated)
 const PublicRoute = ({ children }) => {
@@ -267,7 +269,7 @@ function App() {
 
                 {/* Integration Routes */}
                 <Route
-                  path="/integrations"
+                  path="/connectors"
                   element={
                     <ProtectedRoute>
                       <IntegrationLandingPage />
@@ -275,7 +277,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/integrations/google-calendar"
+                  path="/connectors/google-calendar"
                   element={
                     <ProtectedRoute>
                       <GoogleCalendarPage />
@@ -283,7 +285,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/integrations/google-drive"
+                  path="/connectors/google-drive"
                   element={
                     <ProtectedRoute>
                       <GoogleDrivePage />
@@ -291,10 +293,26 @@ function App() {
                   }
                 />
                 <Route
-                  path="/integrations/github"
+                  path="/connectors/github"
                   element={
                     <ProtectedRoute>
                       <GitHubPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/connectors/google-meet"
+                  element={
+                    <ProtectedRoute>
+                      <GoogleMeetPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/connectors/gmail"
+                  element={
+                    <ProtectedRoute>
+                      <GmailPage />
                     </ProtectedRoute>
                   }
                 />
