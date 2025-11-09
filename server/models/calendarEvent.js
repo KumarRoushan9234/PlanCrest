@@ -65,7 +65,7 @@ const calendarEventSchema = new Schema(
     // Event category
     category: {
       type: String,
-      enum: ["meeting", "deadline", "milestone", "reminder", "other"],
+      enum: ["meeting", "deadline", "milestone", "reminder", "event", "holiday", "other"],
       default: "meeting",
     },
     // Event priority
@@ -157,6 +157,10 @@ const calendarEventSchema = new Schema(
         ref: "Attachment",
       },
     ],
+    metadata: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
     isArchived: {
       type: Boolean,
       default: false,

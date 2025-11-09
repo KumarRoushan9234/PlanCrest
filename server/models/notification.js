@@ -36,6 +36,9 @@ const notificationSchema = new Schema(
         "workspace_invite",
         "document_shared",
         "file_uploaded",
+        "event_invitation",
+        "event_response",
+        "event_reminder",
       ],
     },
     title: {
@@ -54,7 +57,7 @@ const notificationSchema = new Schema(
     relatedTo: {
       model: {
         type: String,
-        enum: ["Task", "Project", "Document", "ChatMessage", "Comment", "Workspace"],
+        enum: ["Task", "Project", "Document", "ChatMessage", "Comment", "Workspace", "CalendarEvent"],
       },
       id: {
         type: Schema.Types.ObjectId,

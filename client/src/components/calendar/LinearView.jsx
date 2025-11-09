@@ -9,6 +9,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Video,
+  MapPin,
 } from "lucide-react";
 
 const LinearView = ({
@@ -17,6 +19,7 @@ const LinearView = ({
   events = [],
   onTaskClick,
   onNavigate,
+  onEventClick,
 }) => {
   // Generate 7 days (current day + 6 following days)
   const getDaysToShow = () => {
@@ -33,17 +36,47 @@ const LinearView = ({
   };
 
   const getItemsForDate = (date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    if (!date || isNaN(date.getTime())) {
+      return { tasks: [], events: [] };
+    }
+
+    // Use local date comparison to avoid timezone issues
+    const dateYear = date.getFullYear();
+    const dateMonth = date.getMonth();
+    const dateDay = date.getDate();
+
     const dateTasks = tasks.filter((t) => {
       if (!t.dueDate) return false;
-      const taskDate = new Date(t.dueDate).toISOString().split("T")[0];
-      return taskDate === dateStr;
+      try {
+        const taskDate = new Date(t.dueDate);
+        if (isNaN(taskDate.getTime())) return false;
+        return (
+          taskDate.getFullYear() === dateYear &&
+          taskDate.getMonth() === dateMonth &&
+          taskDate.getDate() === dateDay
+        );
+      } catch (e) {
+        return false;
+      }
     });
+
     const dateEvents = events.filter((e) => {
-      if (!e.date) return false;
-      const eventDate = new Date(e.date).toISOString().split("T")[0];
-      return eventDate === dateStr;
+      // Check both e.date and e.startDate for compatibility
+      const eventDateValue = e.date || e.startDate;
+      if (!eventDateValue) return false;
+      try {
+        const eventDate = new Date(eventDateValue);
+        if (isNaN(eventDate.getTime())) return false;
+        return (
+          eventDate.getFullYear() === dateYear &&
+          eventDate.getMonth() === dateMonth &&
+          eventDate.getDate() === dateDay
+        );
+      } catch (e) {
+        return false;
+      }
     });
+
     return { tasks: dateTasks, events: dateEvents };
   };
 
@@ -380,7 +413,18 @@ const LinearView = ({
                     {dayEvents.map((event, idx) => (
                       <motion.div
                         key={event._id || idx}
-                        className="p-3 rounded-lg border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 cursor-pointer transition-all duration-200"
+                        onClick={() => {
+                          if (onEventClick) {
+                            onEventClick(event, date);
+                          }
+                        }}
+                        className={`p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                          event.category === "meeting"
+                            ? "border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10"
+                            : event.category === "deadline"
+                            ? "border-red-500/20 bg-red-500/5 hover:bg-red-500/10"
+                            : "border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10"
+                        }`}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{
@@ -389,25 +433,80 @@ const LinearView = ({
                         whileHover={{ x: 4, scale: 1.01 }}
                       >
                         <div className="flex items-start gap-2">
-                          <div className="p-1.5 bg-purple-500/10 rounded-lg">
-                            <CalendarIcon className="w-3 h-3 text-purple-400" />
+                          <div
+                            className={`p-1.5 rounded-lg ${
+                              event.category === "meeting"
+                                ? "bg-orange-500/10"
+                                : event.category === "deadline"
+                                ? "bg-red-500/10"
+                                : "bg-purple-500/10"
+                            }`}
+                          >
+                            <CalendarIcon
+                              className={`w-3 h-3 ${
+                                event.category === "meeting"
+                                  ? "text-orange-400"
+                                  : event.category === "deadline"
+                                  ? "text-red-400"
+                                  : "text-purple-400"
+                              }`}
+                            />
                           </div>
 
                           <div className="flex-1">
-                            <h4 className="text-xs font-medium text-white mb-1">
-                              {event.title}
-                            </h4>
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h4 className="text-xs font-medium text-white">
+                                {event.title}
+                              </h4>
+                              {event.category && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[8px] font-medium capitalize ${
+                                    event.category === "meeting"
+                                      ? "bg-orange-500/20 text-orange-400"
+                                      : event.category === "deadline"
+                                      ? "bg-red-500/20 text-red-400"
+                                      : "bg-purple-500/20 text-purple-400"
+                                  }`}
+                                >
+                                  {event.category}
+                                </span>
+                              )}
+                            </div>
                             {event.description && (
-                              <p className="text-[10px] text-gray-500 mb-1">
+                              <p className="text-[10px] text-gray-500 mb-1.5 line-clamp-2">
                                 {event.description}
                               </p>
                             )}
-                            {event.time && (
-                              <div className="flex items-center gap-1 text-[10px] text-purple-400">
-                                <Clock className="w-2.5 h-2.5" />
-                                <span>{event.time}</span>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-3 text-[10px]">
+                              {event.time && (
+                                <div
+                                  className={`flex items-center gap-1 ${
+                                    event.category === "meeting"
+                                      ? "text-orange-400"
+                                      : event.category === "deadline"
+                                      ? "text-red-400"
+                                      : "text-purple-400"
+                                  }`}
+                                >
+                                  <Clock className="w-2.5 h-2.5" />
+                                  <span>{event.time}</span>
+                                </div>
+                              )}
+                              {event.meetingLink && (
+                                <div className="flex items-center gap-1 text-green-400">
+                                  <Video className="w-2.5 h-2.5" />
+                                  <span>Meet</span>
+                                </div>
+                              )}
+                              {event.location && !event.meetingLink && (
+                                <div className="flex items-center gap-1 text-gray-500">
+                                  <MapPin className="w-2.5 h-2.5" />
+                                  <span className="truncate">
+                                    {event.location}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </motion.div>

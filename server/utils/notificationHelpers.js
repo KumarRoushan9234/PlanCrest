@@ -193,12 +193,22 @@ export const createCalendarNotification = async ({
       event_cancelled: `Event cancelled: ${event.title}`,
     };
     
+    // Map calendar event types to notification types
+    const notificationTypeMap = {
+      event_created: "event_invitation",
+      event_invitation: "event_invitation",
+      event_updated: "event_invitation",
+      event_reminder: "event_reminder",
+      event_cancelled: "event_invitation",
+      event_response: "event_response",
+    };
+
     const notificationData = {
       recipient,
       recipientModel: "User",
       sender,
       senderModel: "User",
-      type: "chat_message", // Using existing type, can add event types to model later
+      type: notificationTypeMap[type] || "event_invitation",
       title: `Event: ${event.title}`,
       message: customMessage || messages[type] || "Calendar notification",
       link: `/workspaces/${workspace}/calendar/events/${event._id}`,
@@ -352,17 +362,13 @@ export const markAllNotificationsAsRead = async (userId) => {
  */
 export const getUnreadNotificationCount = async (userId) => {
   try {
-    console.log(`\n📊 Getting unread notification count for user: ${userId}`);
-    
     const count = await Notification.countDocuments({
       recipient: userId,
       isRead: false,
     });
     
-    console.log(`✅ User has ${count} unread notifications`);
     return count;
   } catch (error) {
-    console.error("❌ Error getting unread notification count:", error.message);
     throw error;
   }
 };

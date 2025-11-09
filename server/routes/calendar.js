@@ -8,6 +8,7 @@ import {
   addEventAttendee,
   removeEventAttendee,
   updateAttendeeResponse,
+  updateEventResponse,
   getCalendarIntegrations,
   connectGoogleCalendar,
   connectOutlookCalendar,
@@ -74,6 +75,13 @@ router.delete("/calendar/events/:eventId", deleteCalendarEvent);
  * @access  Private
  */
 router.put("/calendar/events/:eventId/response", updateAttendeeResponse);
+
+/**
+ * @route   PATCH /api/workspaces/:workspaceId/calendar/events/:eventId/response
+ * @desc    Update event attendee response (accept/decline/tentative) with sync
+ * @access  Private (Workspace member)
+ */
+router.patch("/workspaces/:workspaceId/calendar/events/:eventId/response", requireWorkspaceAccess, updateEventResponse);
 
 /**
  * Event Attendees Routes

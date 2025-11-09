@@ -116,7 +116,35 @@ const CalendarPage = () => {
       );
 
       if (response?.success && response?.data) {
-        setEvents(response.data);
+        // Add time field for display with proper date handling
+        const eventsWithTime = response.data.map((event) => {
+          try {
+            const startDate = event.startDate
+              ? new Date(event.startDate)
+              : null;
+            return {
+              ...event,
+              date: startDate, // Use Date object for compatibility
+              startDate: startDate, // Ensure it's a Date object
+              time:
+                startDate && !isNaN(startDate.getTime())
+                  ? startDate.toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })
+                  : null,
+            };
+          } catch (e) {
+            console.error("Error processing event date:", e);
+            return {
+              ...event,
+              date: null,
+              time: null,
+            };
+          }
+        });
+        setEvents(eventsWithTime);
       }
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -127,6 +155,14 @@ const CalendarPage = () => {
   const handleDateSelect = (date) => {
     setSelectedDate(date);
     setIsDaySidebarOpen(true);
+    setIsTaskSidebarOpen(false);
+  };
+
+  const handleEventClick = (event, date) => {
+    // Set the date so sidebar shows events for that day
+    setSelectedDate(date || new Date(event.startDate || event.date));
+    setIsDaySidebarOpen(true);
+    setIsTaskSidebarOpen(false);
   };
 
   const handleTaskClick = (task) => {
@@ -146,9 +182,9 @@ const CalendarPage = () => {
     setSelectedTask(null);
   };
 
-  const handleEventCreated = (newEvent) => {
-    setEvents((prev) => [...prev, newEvent]);
-    fetchEvents(); // Refresh events
+  const handleEventCreated = async (newEvent) => {
+    // Refresh events to get the latest data from server
+    await fetchEvents();
     toast.success("Event created successfully!");
   };
 
@@ -189,12 +225,29 @@ const CalendarPage = () => {
   };
 
   const getEventsForSelectedDate = () => {
-    if (!selectedDate) return [];
-    const dateStr = selectedDate.toISOString().split("T")[0];
+    if (!selectedDate || isNaN(selectedDate.getTime())) return [];
+
+    // Use local date comparison to avoid timezone issues
+    const selectedYear = selectedDate.getFullYear();
+    const selectedMonth = selectedDate.getMonth();
+    const selectedDay = selectedDate.getDate();
+
     return events.filter((e) => {
-      if (!e.date) return false;
-      const eventDate = new Date(e.date).toISOString().split("T")[0];
-      return eventDate === dateStr;
+      const eventDateValue = e.date || e.startDate;
+      if (!eventDateValue) return false;
+
+      try {
+        const eventDate = new Date(eventDateValue);
+        if (isNaN(eventDate.getTime())) return false;
+
+        return (
+          eventDate.getFullYear() === selectedYear &&
+          eventDate.getMonth() === selectedMonth &&
+          eventDate.getDate() === selectedDay
+        );
+      } catch (e) {
+        return false;
+      }
     });
   };
 
@@ -241,6 +294,7 @@ const CalendarPage = () => {
                     tasks={tasks}
                     events={events}
                     onNavigate={handleNavigate}
+                    onEventClick={handleEventClick}
                   />
                 </motion.div>
               ) : (
@@ -258,6 +312,7 @@ const CalendarPage = () => {
                     events={events}
                     onTaskClick={handleTaskClick}
                     onNavigate={handleNavigate}
+                    onEventClick={handleEventClick}
                   />
                 </motion.div>
               )}
@@ -274,6 +329,7 @@ const CalendarPage = () => {
         tasks={getTasksForSelectedDate()}
         events={getEventsForSelectedDate()}
         onTaskClick={handleTaskClick}
+        onEventUpdate={fetchEvents}
       />
 
       {/* Task Details Sidebar */}

@@ -15,14 +15,53 @@ import {
   Moon,
   Sunrise,
   Sunset,
+  Video,
+  Copy,
+  Check,
+  ExternalLink,
+  MapPin,
+  ThumbsUp,
+  ThumbsDown,
+  HelpCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
+import { calendarService } from "../../services";
+import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { useAuth } from "../../contexts/AuthContext";
 
-const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], onTaskClick }) => {
+const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], onTaskClick, onEventUpdate }) => {
   const [activeSection, setActiveSection] = useState("all"); // all, tasks, events
+  const [copiedLink, setCopiedLink] = useState(null);
+  const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
 
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
+    }
+  };
+
+  const copyMeetLink = async (link) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedLink(link);
+      toast.success("Meet link copied!");
+      setTimeout(() => setCopiedLink(null), 2000);
+    } catch (error) {
+      toast.error("Failed to copy link");
+    }
+  };
+
+  const handleEventResponse = async (event, response) => {
+    try {
+      await calendarService.respondToEvent(currentWorkspace._id, event._id, response);
+      toast.success(`Event ${response}!`);
+      if (onEventUpdate) {
+        onEventUpdate();
+      }
+    } catch (error) {
+      console.error("Error responding to event:", error);
+      toast.error("Failed to respond to event");
     }
   };
 
@@ -242,6 +281,12 @@ const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], on
                                       {item.description}
                                     </p>
                                   )}
+                                  {/* Event Category Badge */}
+                                  {item.type === 'event' && item.category && (
+                                    <span className="inline-block mt-1 px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded text-[10px] font-medium capitalize">
+                                      {item.category}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
@@ -253,6 +298,111 @@ const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], on
                                 )}
                               </div>
                             </div>
+
+                            {/* Event Meet Link */}
+                            {item.type === 'event' && item.meetingLink && (
+                              <div className="mt-3 p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <Video className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                                    <a
+                                      href={item.meetingLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-green-400 hover:text-green-300 truncate flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Join Meeting
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                  <motion.button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyMeetLink(item.meetingLink);
+                                    }}
+                                    className="p-1 hover:bg-green-500/20 rounded transition-colors"
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.95 }}
+                                  >
+                                    {copiedLink === item.meetingLink ? (
+                                      <Check className="w-3.5 h-3.5 text-green-400" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5 text-green-400" />
+                                    )}
+                                  </motion.button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Event Location */}
+                            {item.type === 'event' && item.location && !item.meetingLink && (
+                              <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                                <MapPin className="w-3 h-3" />
+                                <span>{item.location}</span>
+                              </div>
+                            )}
+
+                            {/* Event Response Buttons */}
+                            {item.type === 'event' && item.attendees && (
+                              <div className="mt-3 pt-3 border-t border-gray-800">
+                                {(() => {
+                                  const userAttendee = item.attendees.find(a => a.user?._id === user._id || a.user === user._id);
+                                  const currentResponse = userAttendee?.response;
+
+                                  return currentResponse === 'pending' ? (
+                                    <div className="flex gap-2">
+                                      <motion.button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEventResponse(item, 'accepted');
+                                        }}
+                                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 rounded text-xs font-medium transition-colors"
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                      >
+                                        <ThumbsUp className="w-3 h-3" />
+                                        Accept
+                                      </motion.button>
+                                      <motion.button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEventResponse(item, 'tentative');
+                                        }}
+                                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded text-xs font-medium transition-colors"
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                      >
+                                        <HelpCircle className="w-3 h-3" />
+                                        Maybe
+                                      </motion.button>
+                                      <motion.button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEventResponse(item, 'declined');
+                                        }}
+                                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded text-xs font-medium transition-colors"
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                      >
+                                        <ThumbsDown className="w-3 h-3" />
+                                        Decline
+                                      </motion.button>
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-center py-1">
+                                      <span className={`px-2 py-1 rounded ${
+                                        currentResponse === 'accepted' ? 'bg-green-500/20 text-green-400' :
+                                        currentResponse === 'declined' ? 'bg-red-500/20 text-red-400' :
+                                        'bg-yellow-500/20 text-yellow-400'
+                                      }`}>
+                                        You {currentResponse} this event
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
 
                             {/* Footer */}
                             <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-800">

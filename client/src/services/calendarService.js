@@ -26,7 +26,10 @@ export const calendarService = {
     try {
       const response = await axios.post(
         `${API_BASE_URL}/workspaces/${workspaceId}/calendar/events`,
-        eventData
+        eventData,
+        {
+          timeout: 10000, // 10 second timeout (event creation should be fast now)
+        }
       );
       return response.data;
     } catch (error) {
@@ -94,6 +97,19 @@ export const calendarService = {
       const res = await axios.put(`${API_BASE_URL}/calendar/events/${eventId}/response`, {
         response,
       });
+      return res.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Respond to event invitation (accept/decline/tentative) with sync
+  respondToEvent: async (workspaceId, eventId, response) => {
+    try {
+      const res = await axios.patch(
+        `${API_BASE_URL}/workspaces/${workspaceId}/calendar/events/${eventId}/response`,
+        { response }
+      );
       return res.data;
     } catch (error) {
       throw error.response?.data || error;

@@ -14,6 +14,7 @@ const MonthView = ({
   tasks = [],
   events = [],
   onNavigate,
+  onEventClick,
 }) => {
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -27,15 +28,47 @@ const MonthView = ({
   };
 
   const getItemsForDate = (date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    if (!date || isNaN(date.getTime())) {
+      return { tasks: [], events: [] };
+    }
+
+    // Use local date comparison to avoid timezone issues
+    const dateYear = date.getFullYear();
+    const dateMonth = date.getMonth();
+    const dateDay = date.getDate();
+
     const dateTasks = tasks.filter((t) => {
-      const taskDate = new Date(t.dueDate).toISOString().split("T")[0];
-      return taskDate === dateStr;
+      if (!t.dueDate) return false;
+      try {
+        const taskDate = new Date(t.dueDate);
+        if (isNaN(taskDate.getTime())) return false;
+        return (
+          taskDate.getFullYear() === dateYear &&
+          taskDate.getMonth() === dateMonth &&
+          taskDate.getDate() === dateDay
+        );
+      } catch (e) {
+        return false;
+      }
     });
+
     const dateEvents = events.filter((e) => {
-      const eventDate = new Date(e.date).toISOString().split("T")[0];
-      return eventDate === dateStr;
+      // Check both e.date and e.startDate for compatibility
+      const eventDateValue = e.date || e.startDate;
+      if (!eventDateValue) return false;
+      try {
+        const eventDate = new Date(eventDateValue);
+        if (isNaN(eventDate.getTime())) return false;
+        return (
+          eventDate.getFullYear() === dateYear &&
+          eventDate.getMonth() === dateMonth &&
+          eventDate.getDate() === dateDay
+        );
+      } catch (e) {
+        return false;
+      }
     });
+
     return { tasks: dateTasks, events: dateEvents };
   };
 
@@ -112,7 +145,7 @@ const MonthView = ({
 
             return (
               <motion.div
-                key={date.toISOString()}
+                key={date ? date.getTime() : `day-${index}`}
                 onClick={() => onDateSelect(date)}
                 className={`aspect-square p-1 border-r border-b transition-all duration-200 cursor-pointer relative overflow-hidden ${
                   today
@@ -177,9 +210,19 @@ const MonthView = ({
                   {dayEvents.slice(0, 1).map((event, idx) => (
                     <motion.div
                       key={event._id || idx}
-                      className={`flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-medium ${
-                        event.type === "meeting"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onEventClick) {
+                          onEventClick(event, date);
+                        } else if (onDateSelect) {
+                          onDateSelect(date);
+                        }
+                      }}
+                      className={`flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-medium cursor-pointer hover:opacity-80 transition-opacity ${
+                        event.category === "meeting"
                           ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                          : event.category === "deadline"
+                          ? "bg-red-500/10 text-red-400 border border-red-500/20"
                           : "bg-purple-500/10 text-purple-400 border border-purple-500/20"
                       }`}
                       initial={{ opacity: 0, x: -10 }}
@@ -187,9 +230,14 @@ const MonthView = ({
                       transition={{
                         delay: 0.1 + (dayTasks.slice(0, 2).length + idx) * 0.05,
                       }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
                       <CalendarIcon className="w-1.5 h-1.5" />
                       <span className="truncate flex-1">{event.title}</span>
+                      {event.meetingLink && (
+                        <span className="text-[6px]">📹</span>
+                      )}
                     </motion.div>
                   ))}
 

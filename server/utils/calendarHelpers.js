@@ -8,11 +8,7 @@ import { createCalendarNotification } from "./notificationHelpers.js";
  */
 export const generateRecurringEvents = (event, startDate, endDate) => {
   try {
-    console.log(`\n🔄 Generating recurring events for: ${event.title}`);
-    console.log(`📅 From: ${startDate} to: ${endDate}`);
-    
     if (!event.recurring?.enabled) {
-      console.log(`⚠️ Event is not recurring`);
       return [event];
     }
     
@@ -63,10 +59,8 @@ export const generateRecurringEvents = (event, startDate, endDate) => {
       occurrenceCount++;
     }
     
-    console.log(`✅ Generated ${instances.length} recurring event instances`);
     return instances;
   } catch (error) {
-    console.error("❌ Error generating recurring events:", error.message);
     return [event];
   }
 };
@@ -76,10 +70,6 @@ export const generateRecurringEvents = (event, startDate, endDate) => {
  */
 export const calculateEventConflicts = async (event, userId, workspaceId) => {
   try {
-    console.log(`\n🔍 Checking for event conflicts`);
-    console.log(`👤 User: ${userId}`);
-    console.log(`📅 Event: ${event.title}`);
-    
     const conflicts = await CalendarEvent.find({
       workspace: workspaceId,
       "attendees.user": userId,
@@ -104,10 +94,8 @@ export const calculateEventConflicts = async (event, userId, workspaceId) => {
       ],
     }).populate("createdBy", "name email");
     
-    console.log(`📊 Found ${conflicts.length} conflicting events`);
     return conflicts;
   } catch (error) {
-    console.error("❌ Error calculating event conflicts:", error.message);
     throw error;
   }
 };
@@ -117,8 +105,6 @@ export const calculateEventConflicts = async (event, userId, workspaceId) => {
  */
 export const sendEventReminders = async () => {
   try {
-    console.log(`\n⏰ Checking for events with pending reminders`);
-    
     const now = new Date();
     
     // Find events with pending reminders
@@ -127,8 +113,6 @@ export const sendEventReminders = async () => {
       status: "scheduled",
       "reminders.sent": false,
     }).populate("attendees.user createdBy workspace");
-    
-    console.log(`📊 Found ${eventsWithReminders.length} events with pending reminders`);
     
     for (const event of eventsWithReminders) {
       for (let i = 0; i < event.reminders.length; i++) {
@@ -140,8 +124,6 @@ export const sendEventReminders = async () => {
         
         // Check if it's time to send the reminder
         if (now >= reminderTime) {
-          console.log(`📬 Sending reminder for event: ${event.title} (${reminder.minutesBefore} min before)`);
-          
           // Send reminders to all attendees
           for (const attendee of event.attendees) {
             try {
@@ -164,22 +146,17 @@ export const sendEventReminders = async () => {
                 });
               }
             } catch (error) {
-              console.error(`⚠️ Failed to send reminder to ${attendee.user.email}:`, error.message);
+              // Silent fail for individual reminder
             }
           }
           
           // Mark reminder as sent
           event.reminders[i].sent = true;
           await event.save();
-          
-          console.log(`✅ Reminder sent for event: ${event.title}`);
         }
       }
     }
-    
-    console.log(`✅ Event reminder check completed`);
   } catch (error) {
-    console.error("❌ Error sending event reminders:", error.message);
     throw error;
   }
 };
@@ -189,9 +166,6 @@ export const sendEventReminders = async () => {
  */
 export const updateEventAttendees = async (eventId, attendees) => {
   try {
-    console.log(`\n👥 Updating attendees for event: ${eventId}`);
-    console.log(`📊 New attendees count: ${attendees.length}`);
-    
     const event = await CalendarEvent.findById(eventId);
     if (!event) {
       throw new Error("Event not found");
@@ -200,10 +174,8 @@ export const updateEventAttendees = async (eventId, attendees) => {
     event.attendees = attendees;
     await event.save();
     
-    console.log(`✅ Event attendees updated successfully`);
     return event;
   } catch (error) {
-    console.error("❌ Error updating event attendees:", error.message);
     throw error;
   }
 };
@@ -213,17 +185,12 @@ export const updateEventAttendees = async (eventId, attendees) => {
  */
 export const exportCalendarData = async (workspaceId, startDate, endDate) => {
   try {
-    console.log(`\n📤 Exporting calendar data for workspace: ${workspaceId}`);
-    console.log(`📅 Date range: ${startDate} to ${endDate}`);
-    
     const events = await CalendarEvent.find({
       workspace: workspaceId,
       startDate: { $gte: new Date(startDate), $lte: new Date(endDate) },
       status: { $ne: "cancelled" },
       isArchived: false,
     }).populate("createdBy attendees.user");
-    
-    console.log(`📊 Found ${events.length} events to export`);
     
     // Generate ICS format
     let icsContent = [
@@ -268,11 +235,9 @@ export const exportCalendarData = async (workspaceId, startDate, endDate) => {
     icsContent.push("END:VCALENDAR");
     
     const icsString = icsContent.join("\r\n");
-    console.log(`✅ Calendar data exported successfully`);
     
     return icsString;
   } catch (error) {
-    console.error("❌ Error exporting calendar data:", error.message);
     throw error;
   }
 };
@@ -283,8 +248,6 @@ export const exportCalendarData = async (workspaceId, startDate, endDate) => {
  */
 export const syncGoogleCalendar = async (userId, workspaceId) => {
   try {
-    console.log(`\n🔄 Syncing Google Calendar for user: ${userId}`);
-    
     const integration = await CalendarIntegration.findOne({
       user: userId,
       workspace: workspaceId,
@@ -298,12 +261,8 @@ export const syncGoogleCalendar = async (userId, workspaceId) => {
     
     // Check if token needs refresh
     if (integration.needsRefresh()) {
-      console.log("🔄 Token needs refresh");
       // TODO: Implement token refresh logic with Google OAuth
     }
-    
-    console.log("✅ Google Calendar sync initiated");
-    console.log("⚠️ Note: Full Google Calendar API implementation pending");
     
     // Update sync status
     integration.syncStatus.lastSyncAt = new Date();
@@ -315,7 +274,6 @@ export const syncGoogleCalendar = async (userId, workspaceId) => {
       message: "Google Calendar sync initiated (API implementation pending)",
     };
   } catch (error) {
-    console.error("❌ Error syncing Google Calendar:", error.message);
     throw error;
   }
 };
@@ -326,8 +284,6 @@ export const syncGoogleCalendar = async (userId, workspaceId) => {
  */
 export const syncOutlookCalendar = async (userId, workspaceId) => {
   try {
-    console.log(`\n🔄 Syncing Outlook Calendar for user: ${userId}`);
-    
     const integration = await CalendarIntegration.findOne({
       user: userId,
       workspace: workspaceId,
@@ -341,12 +297,8 @@ export const syncOutlookCalendar = async (userId, workspaceId) => {
     
     // Check if token needs refresh
     if (integration.needsRefresh()) {
-      console.log("🔄 Token needs refresh");
       // TODO: Implement token refresh logic with Microsoft OAuth
     }
-    
-    console.log("✅ Outlook Calendar sync initiated");
-    console.log("⚠️ Note: Full Microsoft Graph API implementation pending");
     
     // Update sync status
     integration.syncStatus.lastSyncAt = new Date();
@@ -358,7 +310,6 @@ export const syncOutlookCalendar = async (userId, workspaceId) => {
       message: "Outlook Calendar sync initiated (API implementation pending)",
     };
   } catch (error) {
-    console.error("❌ Error syncing Outlook Calendar:", error.message);
     throw error;
   }
 };
@@ -368,10 +319,6 @@ export const syncOutlookCalendar = async (userId, workspaceId) => {
  */
 export const getUserAvailability = async (userId, workspaceId, startDate, endDate) => {
   try {
-    console.log(`\n📊 Checking user availability`);
-    console.log(`👤 User: ${userId}`);
-    console.log(`📅 Range: ${startDate} to ${endDate}`);
-    
     const events = await CalendarEvent.find({
       workspace: workspaceId,
       "attendees.user": userId,
@@ -380,8 +327,6 @@ export const getUserAvailability = async (userId, workspaceId, startDate, endDat
       endDate: { $gt: new Date(startDate) },
     }).sort({ startDate: 1 });
     
-    console.log(`📊 Found ${events.length} events in the time range`);
-    
     // Calculate busy time slots
     const busySlots = events.map((event) => ({
       start: event.startDate,
@@ -389,13 +334,11 @@ export const getUserAvailability = async (userId, workspaceId, startDate, endDat
       event: event.title,
     }));
     
-    console.log(`✅ User availability calculated`);
     return {
       busy: busySlots,
       available: busySlots.length === 0,
     };
   } catch (error) {
-    console.error("❌ Error getting user availability:", error.message);
     throw error;
   }
 };
@@ -411,10 +354,6 @@ export const findOptimalMeetingTime = async (
   endDate
 ) => {
   try {
-    console.log(`\n🔍 Finding optimal meeting time`);
-    console.log(`👥 Users: ${userIds.length}`);
-    console.log(`⏱️ Duration: ${duration} minutes`);
-    
     // Get availability for all users
     const availabilities = await Promise.all(
       userIds.map((userId) => getUserAvailability(userId, workspaceId, startDate, endDate))
@@ -449,15 +388,11 @@ export const findOptimalMeetingTime = async (
       current.setMinutes(current.getMinutes() + 30);
     }
     
-    console.log(`✅ Found ${slots.length} optimal meeting slots`);
     return slots;
   } catch (error) {
-    console.error("❌ Error finding optimal meeting time:", error.message);
     throw error;
   }
 };
-
-console.log("✅ Calendar helpers initialized");
 
 export default {
   generateRecurringEvents,
@@ -470,4 +405,3 @@ export default {
   getUserAvailability,
   findOptimalMeetingTime,
 };
-

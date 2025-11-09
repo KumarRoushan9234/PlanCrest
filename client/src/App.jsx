@@ -38,6 +38,7 @@ import InvitationHandler from "./components/InvitationHandler";
 // Integration Pages
 import IntegrationLandingPage from "./pages/integrations/IntegrationLandingPage";
 import GoogleCalendarPage from "./pages/integrations/GoogleCalendarPage";
+import GoogleCalendarDocumentationPage from "./pages/integrations/GoogleCalendarDocumentationPage";
 import GoogleDrivePage from "./pages/integrations/GoogleDrivePage";
 import GitHubPage from "./pages/integrations/GitHubPage";
 import GoogleMeetPage from "./pages/integrations/GoogleMeetPage";
@@ -281,6 +282,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <GoogleCalendarPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/connectors/google-calendar/documentation"
+                  element={
+                    <ProtectedRoute>
+                      <GoogleCalendarDocumentationPage />
                     </ProtectedRoute>
                   }
                 />

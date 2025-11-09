@@ -121,19 +121,13 @@ export const markAllAsRead = async (req, res) => {
 export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.auth._id;
-
-    console.log(`\n📊 Getting unread notification count for user: ${userId}`);
-
     const count = await getUnreadNotificationCount(userId);
-
-    console.log(`✅ User has ${count} unread notifications`);
 
     res.json({
       success: true,
       data: { count },
     });
   } catch (error) {
-    console.error("❌ Error getting unread count:", error.message);
     res.status(500).json({ error: "Failed to get unread count" });
   }
 };

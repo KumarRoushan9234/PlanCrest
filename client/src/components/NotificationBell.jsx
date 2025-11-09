@@ -9,20 +9,21 @@ const NotificationBell = () => {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Fetch notifications and unread count
+  // Fetch notifications and unread count (disabled for now)
   useEffect(() => {
-    fetchUnreadCount();
-    fetchNotifications();
+    // Notification polling disabled
+    // fetchUnreadCount();
+    // fetchNotifications();
 
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(() => {
-      fetchUnreadCount();
-      if (isOpen) {
-        fetchNotifications();
-      }
-    }, 30000);
+    // Poll for new notifications every 30 seconds (disabled)
+    // const interval = setInterval(() => {
+    //   fetchUnreadCount();
+    //   if (isOpen) {
+    //     fetchNotifications();
+    //   }
+    // }, 30000);
 
-    return () => clearInterval(interval);
+    // return () => clearInterval(interval);
   }, [isOpen]);
 
   // Close dropdown when clicking outside
@@ -38,12 +39,14 @@ const NotificationBell = () => {
   }, []);
 
   const fetchUnreadCount = async () => {
-    try {
-      const response = await notificationService.getUnreadCount();
-      setUnreadCount(response.data?.count || 0);
-    } catch (error) {
-      console.error("Error fetching unread count:", error);
-    }
+    // Disabled for now
+    return;
+    // try {
+    //   const response = await notificationService.getUnreadCount();
+    //   setUnreadCount(response.data?.count || 0);
+    // } catch (error) {
+    //   console.error("Error fetching unread count:", error);
+    // }
   };
 
   const fetchNotifications = async () => {
