@@ -154,34 +154,61 @@ export const connectorService = {
 
   connectGoogleDrive: async (scope, scopeId) => {
     try {
+      console.log("🔗 Initiating Google Drive connection...");
       const response = await axios.post(`${API_BASE_URL}/connectors/google-drive/connect`, {
         scope,
         scopeId,
       });
 
       if (response.data.authUrl) {
+        console.log("📝 Opening OAuth popup...");
         const popup = openOAuthPopup(response.data.authUrl, "Connect Google Drive");
 
         return new Promise((resolve, reject) => {
-          const checkPopup = setInterval(() => {
-            if (popup.closed) {
-              clearInterval(checkPopup);
+          let resolved = false;
+          
+          // Listen for OAuth success message (primary method)
+          const handleMessage = (event) => {
+            console.log("📨 Received message:", event.data);
+            if (event.data.type === 'oauth-success' && !resolved) {
+              resolved = true;
+              console.log("✅ OAuth success message received!");
+              window.removeEventListener('message', handleMessage);
+              clearTimeout(timeoutId);
+              try {
+                if (popup && !popup.closed) {
+                  popup.close();
+                }
+              } catch (e) {
+                console.log("Could not close popup (COOP policy)");
+              }
               resolve({ success: true });
             }
-          }, 500);
+          };
+          window.addEventListener('message', handleMessage);
 
-          setTimeout(() => {
-            clearInterval(checkPopup);
-            if (!popup.closed) {
-              popup.close();
+          // Timeout as fallback (5 minutes)
+          const timeoutId = setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              console.error("⏱️ OAuth timeout");
+              window.removeEventListener('message', handleMessage);
+              try {
+                if (popup) {
+                  popup.close();
+                }
+              } catch (e) {
+                console.log("Could not close popup (COOP policy)");
+              }
+              reject(new Error("OAuth timeout"));
             }
-            reject(new Error("OAuth timeout"));
           }, 300000);
         });
       }
 
       return response.data;
     } catch (error) {
+      console.error("❌ Error in connectGoogleDrive:", error);
       throw error.response?.data || error;
     }
   },
@@ -196,6 +223,145 @@ export const connectorService = {
       });
       return response.data;
     } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // ==================== GOOGLE MEET ====================
+
+  connectGoogleMeet: async (scope, scopeId) => {
+    try {
+      console.log("🔗 Initiating Google Meet connection...");
+      const response = await axios.post(`${API_BASE_URL}/connectors/google-meet/connect`, {
+        scope,
+        scopeId,
+      });
+
+      if (response.data.authUrl) {
+        console.log("📝 Opening OAuth popup...");
+        const popup = openOAuthPopup(response.data.authUrl, "Connect Google Meet");
+
+        return new Promise((resolve, reject) => {
+          let resolved = false;
+          
+          // Listen for OAuth success message (primary method)
+          const handleMessage = (event) => {
+            console.log("📨 Received message:", event.data);
+            if (event.data.type === 'oauth-success' && !resolved) {
+              resolved = true;
+              console.log("✅ OAuth success message received!");
+              window.removeEventListener('message', handleMessage);
+              clearTimeout(timeoutId);
+              try {
+                if (popup && !popup.closed) {
+                  popup.close();
+                }
+              } catch (e) {
+                console.log("Could not close popup (COOP policy)");
+              }
+              resolve({ success: true });
+            }
+          };
+          window.addEventListener('message', handleMessage);
+
+          // Timeout as fallback (5 minutes)
+          const timeoutId = setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              console.error("⏱️ OAuth timeout");
+              window.removeEventListener('message', handleMessage);
+              try {
+                if (popup) {
+                  popup.close();
+                }
+              } catch (e) {
+                console.log("Could not close popup (COOP policy)");
+              }
+              reject(new Error("OAuth timeout"));
+            }
+          }, 300000);
+        });
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("❌ Error in connectGoogleMeet:", error);
+      throw error.response?.data || error;
+    }
+  },
+
+  createGoogleMeetLink: async (scope, scopeId, eventDetails) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/connectors/google-meet/create-link`, {
+        scope,
+        scopeId,
+        eventDetails,
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // ==================== GMAIL ====================
+
+  connectGmail: async (scope, scopeId) => {
+    try {
+      console.log("🔗 Initiating Gmail connection...");
+      const response = await axios.post(`${API_BASE_URL}/connectors/gmail/connect`, {
+        scope,
+        scopeId,
+      });
+
+      if (response.data.authUrl) {
+        console.log("📝 Opening OAuth popup...");
+        const popup = openOAuthPopup(response.data.authUrl, "Connect Gmail");
+
+        return new Promise((resolve, reject) => {
+          let resolved = false;
+          
+          // Listen for OAuth success message (primary method)
+          const handleMessage = (event) => {
+            console.log("📨 Received message:", event.data);
+            if (event.data.type === 'oauth-success' && !resolved) {
+              resolved = true;
+              console.log("✅ OAuth success message received!");
+              window.removeEventListener('message', handleMessage);
+              clearTimeout(timeoutId);
+              try {
+                if (popup && !popup.closed) {
+                  popup.close();
+                }
+              } catch (e) {
+                console.log("Could not close popup (COOP policy)");
+              }
+              resolve({ success: true });
+            }
+          };
+          window.addEventListener('message', handleMessage);
+
+          // Timeout as fallback (5 minutes)
+          const timeoutId = setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              console.error("⏱️ OAuth timeout");
+              window.removeEventListener('message', handleMessage);
+              try {
+                if (popup) {
+                  popup.close();
+                }
+              } catch (e) {
+                console.log("Could not close popup (COOP policy)");
+              }
+              reject(new Error("OAuth timeout"));
+            }
+          }, 300000);
+        });
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("❌ Error in connectGmail:", error);
       throw error.response?.data || error;
     }
   },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import IntegrationLayout from "../../components/common-afterauth/IntegrationLayout";
 import {
   ArrowLeft,
@@ -30,9 +30,12 @@ import connectorService from "../../services/connectorService";
 
 const GitHubPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [selectedScope, setSelectedScope] = useState("personal");
+  const [connector, setConnector] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [syncSettings, setSyncSettings] = useState({
     syncIssues: true,
     syncPullRequests: true,
@@ -158,26 +161,75 @@ const GitHubPage = () => {
     { name: "plancrest/api", stars: 56, language: "Python", private: true },
   ];
 
+  // Fetch connector status
+  const fetchConnector = async () => {
+    try {
+      setLoading(true);
+      const { connectors } = await connectorService.getAllConnectors(selectedScope, null);
+      const githubConnector = connectors?.find((c) => c.type === "github");
+
+      if (githubConnector) {
+        setIsConnected(true);
+        setConnector(githubConnector);
+      } else {
+        setIsConnected(false);
+        setConnector(null);
+      }
+    } catch (error) {
+      console.error("Error fetching connector:", error);
+      setIsConnected(false);
+      setConnector(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check for OAuth callback
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+
+    if (success === "true") {
+      setIsConnected(true);
+      fetchConnector();
+      window.history.replaceState({}, "", "/connectors/github");
+    } else if (error === "true") {
+      alert("Failed to connect GitHub. Please try again.");
+      window.history.replaceState({}, "", "/connectors/github");
+    }
+  }, [searchParams]);
+
+  // Fetch connector on mount and when scope changes
+  useEffect(() => {
+    fetchConnector();
+  }, [selectedScope]);
+
   const handleConnect = async () => {
     try {
       console.log("Connecting to GitHub with scope:", selectedScope);
       await connectorService.connectGitHub(selectedScope, null);
-      setIsConnected(true);
+      await fetchConnector();
     } catch (error) {
       console.error("Error connecting GitHub:", error);
+      alert("Failed to initiate connection. Please try again.");
     }
   };
 
   const handleDisconnect = async () => {
+    if (!confirm("Are you sure you want to disconnect GitHub?")) {
+      return;
+    }
+
     try {
-      const { connectors } = await connectorService.getAllConnectors(selectedScope, null);
-      const connector = connectors.find(c => c.type === "github");
       if (connector) {
         await connectorService.deleteConnector(connector._id);
-      }
       setIsConnected(false);
+        setConnector(null);
+        alert("GitHub disconnected successfully");
+      }
     } catch (error) {
       console.error("Error disconnecting GitHub:", error);
+      alert("Failed to disconnect. Please try again.");
     }
   };
 
@@ -736,7 +788,7 @@ const GitHubPage = () => {
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Account</p>
                       <p className="text-sm text-white font-medium">
-                        @username
+                        {connector?.metadata?.userInfo?.username || connector?.config?.username || "N/A"}
                       </p>
                     </div>
                     <div>
@@ -746,9 +798,11 @@ const GitHubPage = () => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-400 mb-1">Organization</p>
+                      <p className="text-xs text-gray-400 mb-1">Connected</p>
                       <p className="text-sm text-white font-medium">
-                        plancrest
+                        {connector?.metadata?.connectedAt
+                          ? new Date(connector.metadata.connectedAt).toLocaleDateString()
+                          : "N/A"}
                       </p>
                     </div>
                     <div>

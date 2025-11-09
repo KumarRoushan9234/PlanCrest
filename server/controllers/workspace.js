@@ -193,25 +193,50 @@ export const getWorkspaceMembers = async (req, res) => {
       status: "active",
     }).populate("user", "name email avatar title department");
 
+    // Build project membership map for members in this workspace
+    const projectsInWorkspace = await (await import("../models/project.js")).default
+      .find({ workspace: workspaceId })
+      .select("_id name");
+
+    const ProjectMember = (await import("../models/projectMember.js")).default;
+
+    // Helper to load a user's projects within this workspace
+    const loadUserProjects = async (userId) => {
+      const memberships = await ProjectMember.find({ user: userId, status: "active" })
+        .select("project role")
+        .populate({ path: "project", select: "_id name workspace" });
+      return memberships
+        .filter((m) => m.project && m.project.workspace?.toString() === workspaceId.toString())
+        .map((m) => ({ _id: m.project._id, name: m.project.name, role: m.role }));
+    };
+
     // Add owner to the list
     const owner = await User.findById(workspace.owner).select("name email avatar title department");
     
+    const ownerProjects = owner ? await loadUserProjects(owner._id) : [];
+
     const allMembers = [
-      {
+      owner && {
         user: owner,
         role: "owner",
         joinedAt: workspace.createdAt,
         status: "active",
+        projects: ownerProjects,
       },
-      ...members.map(m => ({
-        _id: m._id,
-        user: m.user,
-        role: m.role,
-        joinedAt: m.joinedAt,
-        status: m.status,
-        customPermissions: m.customPermissions,
-      })),
-    ];
+      ...(
+        await Promise.all(
+          members.map(async (m) => ({
+            _id: m._id,
+            user: m.user,
+            role: m.role,
+            joinedAt: m.joinedAt,
+            status: m.status,
+            customPermissions: m.customPermissions,
+            projects: await loadUserProjects(m.user?._id),
+          }))
+        )
+      ),
+    ].filter(Boolean);
 
     res.json({
       success: true,

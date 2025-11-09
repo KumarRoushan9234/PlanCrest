@@ -24,11 +24,7 @@ import {
   Filter,
 } from "lucide-react";
 import { FaGoogle } from "react-icons/fa";
-import {
-  connectGmail,
-  getAllIntegrations,
-  deleteIntegration,
-} from "../../services/integrationService";
+import connectorService from "../../services/connectorService";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useProject } from "../../contexts/ProjectContext";
@@ -42,7 +38,7 @@ const GmailPage = () => {
 
   const [isConnected, setIsConnected] = useState(false);
   const [selectedScope, setSelectedScope] = useState("personal");
-  const [integration, setIntegration] = useState(null);
+  const [connector, setConnector] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
 
@@ -53,16 +49,16 @@ const GmailPage = () => {
 
     if (success === "true") {
       setIsConnected(true);
-      fetchIntegration();
-      window.history.replaceState({}, "", "/integrations/gmail");
+      fetchConnector();
+      window.history.replaceState({}, "", "/connectors/gmail");
     } else if (error === "true") {
       alert("Failed to connect Gmail. Please try again.");
-      window.history.replaceState({}, "", "/integrations/gmail");
+      window.history.replaceState({}, "", "/connectors/gmail");
     }
   }, [searchParams]);
 
-  // Fetch integration status
-  const fetchIntegration = async () => {
+  // Fetch connector status
+  const fetchConnector = async () => {
     try {
       setLoading(true);
       const scopeId =
@@ -72,31 +68,30 @@ const GmailPage = () => {
           ? selectedProject?._id
           : null;
 
-      const response = await getAllIntegrations({
-        scope: selectedScope,
-        scopeId,
-      });
-
-      const gmailIntegration = response.integrations?.find(
-        (int) => int.type === "gmail"
+      const { connectors } = await connectorService.getAllConnectors(
+        selectedScope,
+        scopeId
       );
+      const gmailConnector = connectors?.find((c) => c.type === "gmail");
 
-      if (gmailIntegration) {
+      if (gmailConnector) {
         setIsConnected(true);
-        setIntegration(gmailIntegration);
+        setConnector(gmailConnector);
       } else {
         setIsConnected(false);
-        setIntegration(null);
+        setConnector(null);
       }
     } catch (error) {
-      console.error("Error fetching integration:", error);
+      console.error("Error fetching connector:", error);
+      setIsConnected(false);
+      setConnector(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchIntegration();
+    fetchConnector();
   }, [selectedScope]);
 
   // Handle connect
@@ -110,16 +105,18 @@ const GmailPage = () => {
           ? selectedProject?._id
           : null;
 
-      const response = await connectGmail({
-        scope: selectedScope,
-        scopeId,
-      });
-
-      // Redirect to OAuth URL
-      window.location.href = response.authUrl;
+      console.log("Connecting to Gmail with scope:", selectedScope);
+      const result = await connectorService.connectGmail(selectedScope, scopeId);
+      console.log("Connection result:", result);
+      
+      // Wait a bit for the database to be updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await fetchConnector();
+      alert("✅ Gmail connected successfully!");
     } catch (error) {
       console.error("Error connecting Gmail:", error);
-      alert("Failed to initiate connection. Please try again.");
+      alert("❌ Failed to initiate connection. Please try again.");
     } finally {
       setConnecting(false);
     }
@@ -132,10 +129,12 @@ const GmailPage = () => {
     }
 
     try {
-      await deleteIntegration(integration._id);
-      setIsConnected(false);
-      setIntegration(null);
-      alert("Gmail disconnected successfully");
+      if (connector) {
+        await connectorService.deleteConnector(connector._id);
+        setIsConnected(false);
+        setConnector(null);
+        alert("Gmail disconnected successfully");
+      }
     } catch (error) {
       console.error("Error disconnecting:", error);
       alert("Failed to disconnect. Please try again.");
@@ -437,7 +436,7 @@ const GmailPage = () => {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">Account</p>
                     <p className="text-xs text-white font-medium">
-                      {integration?.metadata?.userInfo?.email || "N/A"}
+                      {connector?.metadata?.userInfo?.email || "N/A"}
                     </p>
                   </div>
                   <div>
@@ -449,8 +448,10 @@ const GmailPage = () => {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">Connected</p>
                     <p className="text-xs text-white font-medium">
-                      {integration?.createdAt
-                        ? new Date(integration.createdAt).toLocaleDateString()
+                      {connector?.metadata?.connectedAt
+                        ? new Date(
+                            connector.metadata.connectedAt
+                          ).toLocaleDateString()
                         : "N/A"}
                     </p>
                   </div>

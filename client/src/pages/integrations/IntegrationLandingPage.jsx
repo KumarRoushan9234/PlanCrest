@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import IntegrationLayout from "../../components/common-afterauth/IntegrationLayout";
+import connectorService from "../../services/connectorService";
 import {
   Search,
   Plus,
@@ -32,39 +33,118 @@ import {
   SiZoom,
   SiGooglecalendar,
   SiGoogledrive,
+  SiGmail,
+  SiGooglemeet,
   SiMixpanel,
 } from "react-icons/si";
 
 const IntegrationLandingPage = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedScope, setSelectedScope] = useState("all");
+  const [selectedScope, setSelectedScope] = useState("personal");
+  const [connectedIntegrations, setConnectedIntegrations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with actual API calls
-  const connectedIntegrations = [
+  // Mapping for connector types to display info
+  const connectorTypeMap = {
+    google_calendar: {
+      name: "Google Calendar",
+      icon: SiGooglecalendar,
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+      path: "/connectors/google-calendar",
+    },
+    github: {
+      name: "GitHub",
+      icon: FaGithub,
+      color: "text-gray-500",
+      bgColor: "bg-gray-500/10",
+      path: "/connectors/github",
+    },
+    google_drive: {
+      name: "Google Drive",
+      icon: SiGoogledrive,
+      color: "text-green-500",
+      bgColor: "bg-green-500/10",
+      path: "/connectors/google-drive",
+    },
+    google_meet: {
+      name: "Google Meet",
+      icon: SiGooglemeet,
+      color: "text-blue-600",
+      bgColor: "bg-blue-600/10",
+      path: "/connectors/google-meet",
+    },
+    gmail: {
+      name: "Gmail",
+      icon: SiGmail,
+      color: "text-red-500",
+      bgColor: "bg-red-500/10",
+      path: "/connectors/gmail",
+    },
+  };
+
+  // Fetch connected integrations
+  useEffect(() => {
+    fetchConnectors();
+  }, [selectedScope]);
+
+  const fetchConnectors = async () => {
+    try {
+      setLoading(true);
+      const scope = selectedScope === "all" ? "personal" : selectedScope;
+      const { connectors } = await connectorService.getAllConnectors(
+        scope,
+        null
+      );
+
+      const mapped = connectors.map((connector) => {
+        const typeInfo = connectorTypeMap[connector.type] || {
+          name: connector.name || connector.type,
+          icon: Cloud,
+          color: "text-gray-500",
+          bgColor: "bg-gray-500/10",
+          path: `/connectors/${connector.type}`,
+        };
+
+        return {
+          id: connector._id,
+          type: connector.type,
+          name: typeInfo.name,
+          icon: typeInfo.icon,
+          color: typeInfo.color,
+          bgColor: typeInfo.bgColor,
+          status: connector.status,
+          lastSync: connector.metadata?.lastSync
+            ? new Date(connector.metadata.lastSync).toLocaleString()
+            : "Never",
+          scope: connector.scope,
+          path: typeInfo.path,
+          email: connector.metadata?.userInfo?.email || connector.config?.email,
+        };
+      });
+
+      setConnectedIntegrations(mapped);
+    } catch (error) {
+      console.error("Error fetching connectors:", error);
+      setConnectedIntegrations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const availableIntegrations = [
     {
       id: "google-calendar",
       name: "Google Calendar",
       icon: SiGooglecalendar,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
-      status: "connected",
-      lastSync: "2 minutes ago",
-      scope: "personal",
+      category: "Productivity",
+      description: "Sync events and manage schedules",
+      popular: true,
+      path: "/connectors/google-calendar",
     },
-    {
-      id: "github",
-      name: "GitHub",
-      icon: FaGithub,
-      color: "text-gray-500",
-      bgColor: "bg-gray-500/10",
-      status: "connected",
-      lastSync: "1 hour ago",
-      scope: "workspace",
-    },
-  ];
-
-  const availableIntegrations = [
     {
       id: "google-drive",
       name: "Google Drive",
@@ -74,7 +154,40 @@ const IntegrationLandingPage = () => {
       category: "Storage",
       description: "Store and share files",
       popular: true,
-      path: "/integrations/google-drive",
+      path: "/connectors/google-drive",
+    },
+    {
+      id: "google-meet",
+      name: "Google Meet",
+      icon: SiGooglemeet,
+      color: "text-blue-600",
+      bgColor: "bg-blue-600/10",
+      category: "Communication",
+      description: "Video conferencing and meetings",
+      popular: true,
+      path: "/connectors/google-meet",
+    },
+    {
+      id: "gmail",
+      name: "Gmail",
+      icon: SiGmail,
+      color: "text-red-500",
+      bgColor: "bg-red-500/10",
+      category: "Communication",
+      description: "Email management and automation",
+      popular: true,
+      path: "/connectors/gmail",
+    },
+    {
+      id: "github",
+      name: "GitHub",
+      icon: FaGithub,
+      color: "text-gray-500",
+      bgColor: "bg-gray-500/10",
+      category: "Development",
+      description: "Version control and code collaboration",
+      popular: true,
+      path: "/connectors/github",
     },
     {
       id: "slack",
@@ -122,6 +235,35 @@ const IntegrationLandingPage = () => {
     },
   ];
 
+  // Filter out already connected integrations
+  const connectedTypes = connectedIntegrations.map((c) => c.type);
+  const filteredAvailable = availableIntegrations.filter(
+    (integration) => !connectedTypes.includes(integration.id.replace(/-/g, "_"))
+  );
+
+  // Get most recent sync time
+  const getMostRecentSync = () => {
+    if (connectedIntegrations.length === 0) return "Never";
+    const mostRecent = connectedIntegrations.reduce((latest, current) => {
+      if (!current.lastSync || current.lastSync === "Never") return latest;
+      if (!latest || latest === "Never") return current.lastSync;
+      const currentTime = new Date(current.lastSync).getTime();
+      const latestTime = new Date(latest).getTime();
+      return currentTime > latestTime ? current.lastSync : latest;
+    }, null);
+
+    if (!mostRecent || mostRecent === "Never") return "Never";
+    const timeDiff = Date.now() - new Date(mostRecent).getTime();
+    const minutes = Math.floor(timeDiff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return "Just now";
+  };
+
   const stats = [
     {
       label: "Connected",
@@ -132,22 +274,27 @@ const IntegrationLandingPage = () => {
     },
     {
       label: "Available",
-      value: availableIntegrations.length,
+      value: filteredAvailable.length,
       icon: Plus,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
     },
     {
       label: "Last Sync",
-      value: "2m ago",
+      value: getMostRecentSync(),
       icon: Clock,
       color: "text-yellow-500",
       bgColor: "bg-yellow-500/10",
     },
     {
-      label: "Automations",
-      value: "12",
-      icon: Zap,
+      label: "Scope",
+      value: selectedScope.charAt(0).toUpperCase() + selectedScope.slice(1),
+      icon:
+        selectedScope === "personal"
+          ? User
+          : selectedScope === "workspace"
+          ? Building2
+          : FolderKanban,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
     },
@@ -259,53 +406,70 @@ const IntegrationLandingPage = () => {
                 {connectedIntegrations.length} active
               </span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {connectedIntegrations.map((integration, index) => {
-                const Icon = integration.icon;
-                return (
-                  <motion.div
-                    key={integration.id}
-                    className="bg-[#0d0d0e] border border-gray-800 rounded-lg p-3 hover:border-gray-700 transition-all duration-200"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`p-1.5 rounded-lg ${integration.bgColor}`}
-                        >
-                          <Icon className={`w-4 h-4 ${integration.color}`} />
+            {loading ? (
+              <div className="col-span-full text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-2"></div>
+                <p className="text-sm text-gray-400">Loading connections...</p>
+              </div>
+            ) : connectedIntegrations.length === 0 ? (
+              <div className="col-span-full text-center py-8 bg-gray-900/20 rounded-lg border border-dashed border-gray-700">
+                <p className="text-sm text-gray-400 mb-2">
+                  No integrations connected yet
+                </p>
+                <p className="text-xs text-gray-500">
+                  Connect your first integration below
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {connectedIntegrations.map((integration, index) => {
+                  const Icon = integration.icon;
+                  return (
+                    <motion.div
+                      key={integration.id}
+                      className="bg-[#0d0d0e] border border-gray-800 rounded-lg p-3 hover:border-gray-700 transition-all duration-200 cursor-pointer"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1, duration: 0.3 }}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => navigate(integration.path)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`p-1.5 rounded-lg ${integration.bgColor}`}
+                          >
+                            <Icon className={`w-4 h-4 ${integration.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-white text-xs">
+                              {integration.name}
+                            </h3>
+                            <p className="text-xs text-gray-500 truncate">
+                              {integration.email || integration.scope}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-medium text-white text-xs">
-                            {integration.name}
-                          </h3>
-                          <p className="text-xs text-gray-400 capitalize">
-                            {integration.scope}
-                          </p>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          <span className="text-xs text-green-400">Active</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                        <span className="text-xs text-green-400">Active</span>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">
+                          {integration.lastSync !== "Never"
+                            ? `Synced ${integration.lastSync}`
+                            : "Never synced"}
+                        </span>
+                        <span className="text-purple-400 capitalize px-2 py-0.5 bg-purple-500/10 rounded">
+                          {integration.scope}
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Last sync: {integration.lastSync}</span>
-                      <motion.button
-                        className="text-purple-400 hover:text-purple-300 transition-colors"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Manage
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Available Integrations */}
@@ -313,11 +477,11 @@ const IntegrationLandingPage = () => {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-semibold text-white">Available</h2>
               <span className="text-sm text-gray-400">
-                {availableIntegrations.length} integrations
+                {filteredAvailable.length} integrations
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {availableIntegrations.map((integration, index) => {
+              {filteredAvailable.map((integration, index) => {
                 const Icon = integration.icon;
                 return (
                   <motion.div

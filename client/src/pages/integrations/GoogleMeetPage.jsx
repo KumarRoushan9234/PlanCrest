@@ -22,11 +22,7 @@ import {
   FolderKanban,
 } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
-import {
-  connectGoogleMeet,
-  getAllIntegrations,
-  deleteIntegration,
-} from "../../services/integrationService";
+import connectorService from "../../services/connectorService";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useProject } from "../../contexts/ProjectContext";
@@ -40,28 +36,12 @@ const GoogleMeetPage = () => {
 
   const [isConnected, setIsConnected] = useState(false);
   const [selectedScope, setSelectedScope] = useState("personal");
-  const [integration, setIntegration] = useState(null);
+  const [connector, setConnector] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
 
-  // Check for OAuth callback
-  useEffect(() => {
-    const success = searchParams.get("success");
-    const error = searchParams.get("error");
-
-    if (success === "true") {
-      setIsConnected(true);
-      fetchIntegration();
-      // Remove query params
-      window.history.replaceState({}, "", "/integrations/google-meet");
-    } else if (error === "true") {
-      alert("Failed to connect Google Meet. Please try again.");
-      window.history.replaceState({}, "", "/integrations/google-meet");
-    }
-  }, [searchParams]);
-
-  // Fetch integration status
-  const fetchIntegration = async () => {
+  // Fetch connector status
+  const fetchConnector = async () => {
     try {
       setLoading(true);
       const scopeId =
@@ -71,31 +51,46 @@ const GoogleMeetPage = () => {
           ? selectedProject?._id
           : null;
 
-      const response = await getAllIntegrations({
-        scope: selectedScope,
-        scopeId,
-      });
-
-      const meetIntegration = response.integrations?.find(
-        (int) => int.type === "google_meet"
+      const { connectors } = await connectorService.getAllConnectors(
+        selectedScope,
+        scopeId
       );
+      const meetConnector = connectors?.find((c) => c.type === "google_meet");
 
-      if (meetIntegration) {
+      if (meetConnector) {
         setIsConnected(true);
-        setIntegration(meetIntegration);
+        setConnector(meetConnector);
       } else {
         setIsConnected(false);
-        setIntegration(null);
+        setConnector(null);
       }
     } catch (error) {
-      console.error("Error fetching integration:", error);
+      console.error("Error fetching connector:", error);
+      setIsConnected(false);
+      setConnector(null);
     } finally {
       setLoading(false);
     }
   };
 
+  // Check for OAuth callback
   useEffect(() => {
-    fetchIntegration();
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+
+    if (success === "true") {
+      setIsConnected(true);
+      fetchConnector();
+      // Remove query params
+      window.history.replaceState({}, "", "/connectors/google-meet");
+    } else if (error === "true") {
+      alert("Failed to connect Google Meet. Please try again.");
+      window.history.replaceState({}, "", "/connectors/google-meet");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    fetchConnector();
   }, [selectedScope]);
 
   // Handle connect
@@ -109,16 +104,18 @@ const GoogleMeetPage = () => {
           ? selectedProject?._id
           : null;
 
-      const response = await connectGoogleMeet({
-        scope: selectedScope,
-        scopeId,
-      });
-
-      // Redirect to OAuth URL
-      window.location.href = response.authUrl;
+      console.log("Connecting to Google Meet with scope:", selectedScope);
+      const result = await connectorService.connectGoogleMeet(selectedScope, scopeId);
+      console.log("Connection result:", result);
+      
+      // Wait a bit for the database to be updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await fetchConnector();
+      alert("✅ Google Meet connected successfully!");
     } catch (error) {
       console.error("Error connecting Google Meet:", error);
-      alert("Failed to initiate connection. Please try again.");
+      alert("❌ Failed to initiate connection. Please try again.");
     } finally {
       setConnecting(false);
     }
@@ -131,10 +128,12 @@ const GoogleMeetPage = () => {
     }
 
     try {
-      await deleteIntegration(integration._id);
-      setIsConnected(false);
-      setIntegration(null);
-      alert("Google Meet disconnected successfully");
+      if (connector) {
+        await connectorService.deleteConnector(connector._id);
+        setIsConnected(false);
+        setConnector(null);
+        alert("Google Meet disconnected successfully");
+      }
     } catch (error) {
       console.error("Error disconnecting:", error);
       alert("Failed to disconnect. Please try again.");
@@ -422,7 +421,7 @@ const GoogleMeetPage = () => {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">Account</p>
                     <p className="text-xs text-white font-medium">
-                      {integration?.metadata?.userInfo?.email || "N/A"}
+                      {connector?.metadata?.userInfo?.email || "N/A"}
                     </p>
                   </div>
                   <div>
@@ -434,8 +433,10 @@ const GoogleMeetPage = () => {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">Connected</p>
                     <p className="text-xs text-white font-medium">
-                      {integration?.createdAt
-                        ? new Date(integration.createdAt).toLocaleDateString()
+                      {connector?.metadata?.connectedAt
+                        ? new Date(
+                            connector.metadata.connectedAt
+                          ).toLocaleDateString()
                         : "N/A"}
                     </p>
                   </div>

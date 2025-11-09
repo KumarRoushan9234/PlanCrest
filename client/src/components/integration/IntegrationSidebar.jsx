@@ -34,6 +34,8 @@ import {
   SiZoom,
   SiGooglecalendar,
   SiGoogledrive,
+  SiGooglemeet,
+  SiGmail,
   SiMixpanel,
 } from "react-icons/si";
 
@@ -77,8 +79,8 @@ const IntegrationSidebar = () => {
           path: "/connectors/google-drive",
           icon: SiGoogledrive,
         },
-        { name: "Google Meet", path: "/integrations/google-meet", icon: Video },
-        { name: "Gmail", path: "/integrations/gmail", icon: FaGoogle },
+        { name: "Google Meet", path: "/connectors/google-meet", icon: SiGooglemeet },
+        { name: "Gmail", path: "/connectors/gmail", icon: SiGmail },
       ],
     },
     {

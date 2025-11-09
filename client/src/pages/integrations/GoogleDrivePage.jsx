@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import IntegrationLayout from "../../components/common-afterauth/IntegrationLayout";
 import {
   ArrowLeft,
@@ -31,9 +31,12 @@ import connectorService from "../../services/connectorService";
 
 const GoogleDrivePage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [selectedScope, setSelectedScope] = useState("personal");
+  const [connector, setConnector] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [syncSettings, setSyncSettings] = useState({
     autoSync: true,
     syncOnUpload: true,
@@ -41,6 +44,52 @@ const GoogleDrivePage = () => {
     maxFileSize: "100",
   });
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+  // Fetch connector status
+  const fetchConnector = async () => {
+    try {
+      setLoading(true);
+      const { connectors } = await connectorService.getAllConnectors(
+        selectedScope,
+        null
+      );
+      const driveConnector = connectors?.find((c) => c.type === "google_drive");
+
+      if (driveConnector) {
+        setIsConnected(true);
+        setConnector(driveConnector);
+      } else {
+        setIsConnected(false);
+        setConnector(null);
+      }
+    } catch (error) {
+      console.error("Error fetching connector:", error);
+      setIsConnected(false);
+      setConnector(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check for OAuth callback
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+
+    if (success === "true") {
+      setIsConnected(true);
+      fetchConnector();
+      window.history.replaceState({}, "", "/connectors/google-drive");
+    } else if (error === "true") {
+      alert("Failed to connect Google Drive. Please try again.");
+      window.history.replaceState({}, "", "/connectors/google-drive");
+    }
+  }, [searchParams]);
+
+  // Fetch connector on mount and when scope changes
+  useEffect(() => {
+    fetchConnector();
+  }, [selectedScope]);
 
   const scopeOptions = [
     {
@@ -157,30 +206,45 @@ const GoogleDrivePage = () => {
   const handleConnect = async () => {
     try {
       console.log("Connecting to Google Drive with scope:", selectedScope);
-      await connectorService.connectGoogleDrive(selectedScope, null);
-      setIsConnected(true);
+      const result = await connectorService.connectGoogleDrive(selectedScope, null);
+      console.log("Connection result:", result);
+      
+      // Wait a bit for the database to be updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await fetchConnector();
+      alert("✅ Google Drive connected successfully!");
     } catch (error) {
       console.error("Error connecting Google Drive:", error);
+      alert("❌ Failed to connect. Please try again.");
     }
   };
 
   const handleDisconnect = async () => {
+    if (!confirm("Are you sure you want to disconnect Google Drive?")) {
+      return;
+    }
+
     try {
-      const { connectors } = await connectorService.getAllConnectors(selectedScope, null);
-      const connector = connectors.find(c => c.type === "google_drive");
       if (connector) {
         await connectorService.deleteConnector(connector._id);
+        setIsConnected(false);
+        setConnector(null);
+        alert("Google Drive disconnected successfully");
       }
-      setIsConnected(false);
     } catch (error) {
-      console.error("Error disconnecting Google Drive:", error);
+      console.error("Error disconnecting:", error);
+      alert("Failed to disconnect. Please try again.");
     }
   };
 
   const handleSyncNow = async () => {
     try {
       console.log("Syncing files...");
-      const result = await connectorService.getGoogleDriveFiles(selectedScope, null);
+      const result = await connectorService.getGoogleDriveFiles(
+        selectedScope,
+        null
+      );
       console.log("Files synced:", result);
     } catch (error) {
       console.error("Error syncing files:", error);
@@ -644,7 +708,9 @@ const GoogleDrivePage = () => {
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Account</p>
                       <p className="text-sm text-white font-medium">
-                        user@example.com
+                        {connector?.metadata?.userInfo?.email ||
+                          connector?.config?.email ||
+                          "N/A"}
                       </p>
                     </div>
                     <div>

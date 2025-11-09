@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import IntegrationLayout from "../../components/common-afterauth/IntegrationLayout";
 import {
   ArrowLeft,
@@ -23,12 +23,18 @@ import {
 import { SiGooglecalendar } from "react-icons/si";
 import IntegrationSidebar from "../../components/integration/IntegrationSidebar";
 import connectorService from "../../services/connectorService";
+import AccountSelector from "../../components/integration/AccountSelector";
 
 const GoogleCalendarPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [selectedScope, setSelectedScope] = useState("personal");
+  const [connector, setConnector] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStats, setSyncStats] = useState(null);
   const [syncSettings, setSyncSettings] = useState({
     syncDirection: "bidirectional",
     syncFrequency: "15",
@@ -109,36 +115,124 @@ const GoogleCalendarPage = () => {
     { label: "Upcoming", value: "12", icon: Clock, color: "text-orange-500" },
   ];
 
+  // Fetch connector status
+  const fetchConnector = async () => {
+    try {
+      setLoading(true);
+      const { connectors } = await connectorService.getAllConnectors(
+        selectedScope,
+        null
+      );
+      const calendarConnector = connectors?.find(
+        (c) => c.type === "google_calendar"
+      );
+
+      if (calendarConnector) {
+        setIsConnected(true);
+        setConnector(calendarConnector);
+      } else {
+        setIsConnected(false);
+        setConnector(null);
+      }
+    } catch (error) {
+      console.error("Error fetching connector:", error);
+      setIsConnected(false);
+      setConnector(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check for OAuth callback
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+
+    if (success === "true") {
+      setIsConnected(true);
+      fetchConnector();
+      // Remove query params
+      window.history.replaceState({}, "", "/connectors/google-calendar");
+    } else if (error === "true") {
+      alert("Failed to connect Google Calendar. Please try again.");
+      window.history.replaceState({}, "", "/connectors/google-calendar");
+    }
+  }, [searchParams]);
+
+  // Fetch connector on mount and when scope changes
+  useEffect(() => {
+    fetchConnector();
+  }, [selectedScope]);
+
   const handleConnect = async () => {
     try {
       console.log("Connecting to Google Calendar with scope:", selectedScope);
-      await connectorService.connectGoogleCalendar(selectedScope, null);
-      setIsConnected(true);
+      const response = await connectorService.connectGoogleCalendar(
+        selectedScope,
+        null
+      );
+
+      // Redirect to OAuth URL
+      if (response.authUrl) {
+        window.location.href = response.authUrl;
+      }
     } catch (error) {
       console.error("Error connecting Google Calendar:", error);
+      alert("Failed to initiate connection. Please try again.");
     }
   };
 
   const handleDisconnect = async () => {
+    if (!confirm("Are you sure you want to disconnect Google Calendar?")) {
+      return;
+    }
+
     try {
-      // Get connector and disconnect
-      const { connectors } = await connectorService.getAllConnectors(selectedScope, null);
-      const connector = connectors.find(c => c.type === "google_calendar");
       if (connector) {
         await connectorService.deleteConnector(connector._id);
+        setIsConnected(false);
+        setConnector(null);
       }
-      setIsConnected(false);
     } catch (error) {
       console.error("Error disconnecting Google Calendar:", error);
+      alert("Failed to disconnect. Please try again.");
     }
   };
 
   const handleSyncNow = async () => {
     try {
+      setSyncing(true);
       console.log("Syncing calendar...");
-      await connectorService.syncGoogleCalendar(selectedScope, null);
+      const response = await connectorService.syncGoogleCalendar(
+        selectedScope,
+        null
+      );
+
+      if (response.success) {
+        setSyncStats(response.stats);
+
+        // Show success message with stats
+        const message =
+          `✅ Sync Complete!\n\n` +
+          `📥 Imported: ${response.stats.imported} events\n` +
+          `🔄 Updated: ${response.stats.updated} events\n` +
+          `📤 Exported: ${response.stats.exported} events\n` +
+          `📊 Total: ${response.stats.total} events`;
+
+        alert(message);
+
+        // Refresh connector data
+        await fetchConnector();
+      }
     } catch (error) {
       console.error("Error syncing calendar:", error);
+      alert(
+        `❌ Failed to sync calendar:\n${
+          error.response?.data?.message || error.message
+        }`
+      );
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -201,12 +295,19 @@ const GoogleCalendarPage = () => {
             {isConnected && (
               <motion.button
                 onClick={handleSyncNow}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                disabled={syncing}
+                className={`px-3 py-1.5 ${
+                  syncing
+                    ? "bg-blue-600/50 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                } text-white rounded-lg text-xs font-medium flex items-center gap-1.5`}
+                whileHover={syncing ? {} : { scale: 1.05 }}
+                whileTap={syncing ? {} : { scale: 0.95 }}
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Sync Now
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`}
+                />
+                {syncing ? "Syncing..." : "Sync Now"}
               </motion.button>
             )}
           </div>
@@ -614,7 +715,7 @@ const GoogleCalendarPage = () => {
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Account</p>
                       <p className="text-sm text-white font-medium">
-                        user@example.com
+                        {connector?.metadata?.userInfo?.email || connector?.config?.email || "N/A"}
                       </p>
                     </div>
                     <div>
@@ -626,7 +727,9 @@ const GoogleCalendarPage = () => {
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Connected</p>
                       <p className="text-sm text-white font-medium">
-                        Jan 15, 2025
+                        {connector?.metadata?.connectedAt
+                          ? new Date(connector.metadata.connectedAt).toLocaleDateString()
+                          : "N/A"}
                       </p>
                     </div>
                     <div>
@@ -651,12 +754,19 @@ const GoogleCalendarPage = () => {
                   <div className="space-y-3">
                     <motion.button
                       onClick={handleSyncNow}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      disabled={syncing}
+                      className={`w-full py-2 ${
+                        syncing
+                          ? "bg-blue-600/50 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      } text-white rounded-lg font-medium flex items-center justify-center gap-2`}
+                      whileHover={syncing ? {} : { scale: 1.02 }}
+                      whileTap={syncing ? {} : { scale: 0.98 }}
                     >
-                      <RefreshCw className="w-4 h-4" />
-                      Sync Now
+                      <RefreshCw
+                        className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`}
+                      />
+                      {syncing ? "Syncing Calendar..." : "Sync Now"}
                     </motion.button>
                     <motion.button
                       onClick={handleDisconnect}

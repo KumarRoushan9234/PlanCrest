@@ -219,92 +219,53 @@ export const forgotPassword = async (req, res) => {
       return res.status(400).send("User not found");
     }
 
-    let transporterConfig;
-
-    // Nodemailer configuration
-    switch (process.env.EMAIL_SERVICE) {
-      case "gmail":
-        transporterConfig = {
-          service: "gmail",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      case "outlook":
-        transporterConfig = {
-          service: "hotmail",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      case "yahoo":
-        transporterConfig = {
-          service: "yahoo",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      case "zoho":
-        transporterConfig = {
-          host: "smtp.zoho.in",
-          port: 587,
-          secure: false,
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        };
-        break;
-
-      default:
-        throw new Error(
-          `Unsupported email service: ${process.env.EMAIL_SERVICE}`
-        );
-    }
-
-    // Create transporter
-    const transporter = nodemailer.createTransport(transporterConfig);
-
-    // Verify connection configuration
-    await transporter.verify();
-
-    // Email details
-    const mailDetails = {
-      from: process.env.EMAIL_USER, // Sender email address
-      to: email, // Recipient email address
-      subject: "Reset Password",
+    // Send password reset email using the mail service utility
+    console.log(`📧 Sending password reset email to: ${email}`);
+    
+    const emailResult = await sendSimpleEmail({
+      to: email,
+      subject: "Reset Password - PlanCrest",
       html: `
-        <html>
-          <h1>Reset Password</h1>
-          <p>Use this code to reset your password:</p>
-          <h2 style="color:red;">${shortCode}</h2>
-          <i>devStream.org</i>
-        </html>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Password Reset Request</h1>
+          </div>
+          <div style="padding: 30px; background: #f8f9fa;">
+            <h2 style="color: #333; margin-bottom: 20px;">Reset Your Password</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              You requested to reset your password. Use the code below to reset your password:
+            </p>
+            <div style="background: #fff; padding: 30px; border-radius: 8px; text-align: center; margin: 20px 0;">
+              <div style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 8px;">${shortCode}</div>
+            </div>
+            <p style="color: #666; line-height: 1.6; font-size: 14px;">
+              This code will expire in 1 hour. If you didn't request a password reset, please ignore this email.
+            </p>
+            <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+              This email was sent from PlanCrest Project Management
+            </p>
+          </div>
+        </div>
       `,
-    };
-
-    // Send the email
-    await transporter.sendMail(mailDetails);
-    console.log("Email sent successfully");
-
-    // Respond to the client
-    res.json({
-      ok: true,
-      message:
-        "Reset code sent to email successfully, If not received Check SPAM.",
+      text: `Reset your password using this code: ${shortCode}. This code will expire in 1 hour. If you didn't request a password reset, please ignore this email.`
     });
+
+    if (emailResult.success) {
+      console.log(`✅ Password reset email sent successfully to: ${email}`);
+      return res.json({
+        ok: true,
+        message: "Reset code sent to email successfully. If not received, check SPAM.",
+      });
+    } else {
+      console.error(`❌ Failed to send password reset email:`, emailResult.error);
+      return res.status(500).json({
+        error: "Error sending email",
+        message: emailResult.error || "Failed to send password reset email. Please try again later.",
+      });
+    }
   } catch (error) {
-    console.error("Error sending email:", error);
-    res.status(500).send("Error sending email");
+    console.error("Error in forgotPassword:", error);
+    res.status(500).json({ error: "Error sending email", message: error.message });
   }
 };
 

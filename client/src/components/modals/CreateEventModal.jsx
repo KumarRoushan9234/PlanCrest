@@ -1,45 +1,85 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Clock, Users, MapPin, Link as LinkIcon } from 'lucide-react';
-import { calendarService } from '../../services';
-import { useWorkspace } from '../../contexts/WorkspaceContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X,
+  Calendar,
+  Clock,
+  Users,
+  MapPin,
+  Link as LinkIcon,
+  Video,
+} from "lucide-react";
+import { calendarService } from "../../services";
+import connectorService from "../../services/connectorService";
+import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { useAuth } from "../../contexts/AuthContext";
+import toast from "react-hot-toast";
 
-const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null }) => {
+const CreateEventModal = ({
+  isOpen,
+  onClose,
+  onEventCreated,
+  initialDate = null,
+}) => {
   const { currentWorkspace, workspaceMembers } = useWorkspace();
   const { user } = useAuth();
-  
+
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: '',
-    category: 'meeting',
-    location: '',
-    meetingLink: '',
+    title: "",
+    description: "",
+    startDate: "",
+    startTime: "",
+    endDate: "",
+    endTime: "",
+    category: "meeting",
+    location: "",
+    meetingLink: "",
     attendees: [],
     allDay: false,
     recurring: false,
-    recurringPattern: 'daily',
-    recurringEndDate: '',
+    recurringPattern: "daily",
+    recurringEndDate: "",
   });
-  
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [generateMeetLink, setGenerateMeetLink] = useState(false);
+  const [generatingMeetLink, setGeneratingMeetLink] = useState(false);
+  const [meetConnected, setMeetConnected] = useState(false);
+
+  // Check if Google Meet is connected
+  useEffect(() => {
+    const checkMeetConnection = async () => {
+      try {
+        const { connectors } = await connectorService.getAllConnectors(
+          "workspace",
+          currentWorkspace?._id
+        );
+        const meetConnector = connectors?.find((c) => c.type === "google_meet");
+        setMeetConnected(!!meetConnector);
+      } catch (error) {
+        console.error("Error checking Meet connection:", error);
+      }
+    };
+
+    if (isOpen && currentWorkspace) {
+      checkMeetConnection();
+    }
+  }, [isOpen, currentWorkspace]);
 
   useEffect(() => {
     if (isOpen && initialDate) {
       const date = new Date(initialDate);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = date.toISOString().split("T")[0];
       const timeStr = date.toTimeString().slice(0, 5);
       setFormData((prev) => ({
         ...prev,
         startDate: dateStr,
         startTime: timeStr,
         endDate: dateStr,
-        endTime: new Date(date.getTime() + 60 * 60 * 1000).toTimeString().slice(0, 5),
+        endTime: new Date(date.getTime() + 60 * 60 * 1000)
+          .toTimeString()
+          .slice(0, 5),
       }));
     }
   }, [isOpen, initialDate]);
@@ -48,7 +88,7 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -63,15 +103,15 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!formData.title.trim()) {
-      setError('Event title is required');
+      setError("Event title is required");
       return;
     }
 
     if (!formData.startDate || !formData.startTime) {
-      setError('Start date and time are required');
+      setError("Start date and time are required");
       return;
     }
 
@@ -79,10 +119,61 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
       setLoading(true);
 
       // Combine date and time
-      const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`);
-      const endDateTime = formData.endDate && formData.endTime
-        ? new Date(`${formData.endDate}T${formData.endTime}`)
-        : new Date(startDateTime.getTime() + 60 * 60 * 1000); // Default 1 hour duration
+      const startDateTime = new Date(
+        `${formData.startDate}T${formData.startTime}`
+      );
+      const endDateTime =
+        formData.endDate && formData.endTime
+          ? new Date(`${formData.endDate}T${formData.endTime}`)
+          : new Date(startDateTime.getTime() + 60 * 60 * 1000); // Default 1 hour duration
+
+      let meetingLinkToUse = formData.meetingLink;
+
+      // Generate Google Meet link if requested
+      if (
+        generateMeetLink &&
+        meetConnected &&
+        formData.category === "meeting"
+      ) {
+        try {
+          setGeneratingMeetLink(true);
+
+          // Get attendee emails
+          const attendeeEmails = formData.attendees
+            .map((userId) => {
+              const member = workspaceMembers?.find(
+                (m) => m.user._id === userId
+              );
+              return member?.user?.email;
+            })
+            .filter(Boolean);
+
+          const meetResponse = await connectorService.createGoogleMeetLink(
+            "workspace",
+            currentWorkspace?._id,
+            {
+              title: formData.title,
+              description: formData.description,
+              startDate: startDateTime.toISOString(),
+              endDate: endDateTime.toISOString(),
+              timezone: "UTC",
+              attendeeEmails,
+            }
+          );
+
+          if (meetResponse.success && meetResponse.meetLink) {
+            meetingLinkToUse = meetResponse.meetLink;
+            toast.success("Google Meet link created!");
+          }
+        } catch (meetError) {
+          console.error("Error creating Meet link:", meetError);
+          toast.error(
+            "Failed to create Meet link, event will be created without it"
+          );
+        } finally {
+          setGeneratingMeetLink(false);
+        }
+      }
 
       const eventData = {
         title: formData.title,
@@ -91,11 +182,11 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
         endDate: endDateTime.toISOString(),
         category: formData.category,
         location: formData.location,
-        meetingLink: formData.meetingLink,
+        meetingLink: meetingLinkToUse,
         allDay: formData.allDay,
         attendees: formData.attendees.map((userId) => ({
           user: userId,
-          response: 'pending',
+          response: "pending",
         })),
       };
 
@@ -109,7 +200,10 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
         };
       }
 
-      const response = await calendarService.createEvent(currentWorkspace._id, eventData);
+      const response = await calendarService.createEvent(
+        currentWorkspace._id,
+        eventData
+      );
 
       if (onEventCreated) {
         onEventCreated(response.data);
@@ -117,26 +211,26 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
 
       // Reset form
       setFormData({
-        title: '',
-        description: '',
-        startDate: '',
-        startTime: '',
-        endDate: '',
-        endTime: '',
-        category: 'meeting',
-        location: '',
-        meetingLink: '',
+        title: "",
+        description: "",
+        startDate: "",
+        startTime: "",
+        endDate: "",
+        endTime: "",
+        category: "meeting",
+        location: "",
+        meetingLink: "",
         attendees: [],
         allDay: false,
         recurring: false,
-        recurringPattern: 'daily',
-        recurringEndDate: '',
+        recurringPattern: "daily",
+        recurringEndDate: "",
       });
 
       onClose();
     } catch (err) {
-      console.error('Error creating event:', err);
-      setError(err.message || 'Failed to create event');
+      console.error("Error creating event:", err);
+      setError(err.message || "Failed to create event");
     } finally {
       setLoading(false);
     }
@@ -165,7 +259,9 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
           >
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-xl font-bold text-gray-800">Create Calendar Event</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                Create Calendar Event
+              </h2>
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -328,12 +424,29 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
                   <LinkIcon className="w-4 h-4 inline mr-1" />
                   Meeting Link
                 </label>
+
+                {meetConnected && formData.category === "meeting" && (
+                  <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={generateMeetLink}
+                      onChange={(e) => setGenerateMeetLink(e.target.checked)}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-600 flex items-center gap-1">
+                      <Video className="w-4 h-4 text-blue-600" />
+                      Generate Google Meet link automatically
+                    </span>
+                  </label>
+                )}
+
                 <input
                   type="url"
                   name="meetingLink"
                   value={formData.meetingLink}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={generateMeetLink}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="https://meet.google.com/..."
                 />
               </div>
@@ -366,7 +479,9 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
                           <div className="text-sm font-medium text-gray-900">
                             {member.user.name}
                           </div>
-                          <div className="text-xs text-gray-500">{member.user.email}</div>
+                          <div className="text-xs text-gray-500">
+                            {member.user.email}
+                          </div>
                         </div>
                       </div>
                     </label>
@@ -385,7 +500,10 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
                     onChange={handleChange}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="recurring" className="ml-2 text-sm text-gray-700">
+                  <label
+                    htmlFor="recurring"
+                    className="ml-2 text-sm text-gray-700"
+                  >
                     Recurring event
                   </label>
                 </div>
@@ -439,7 +557,7 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
                   disabled={loading}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Creating...' : 'Create Event'}
+                  {loading ? "Creating..." : "Create Event"}
                 </button>
               </div>
             </form>
@@ -451,4 +569,3 @@ const CreateEventModal = ({ isOpen, onClose, onEventCreated, initialDate = null 
 };
 
 export default CreateEventModal;
-

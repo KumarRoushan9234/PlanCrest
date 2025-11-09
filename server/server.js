@@ -16,12 +16,19 @@ const csrfProtection = csrf({ cookie: true });
 const app = express();
 
 mongoose
-  .connect(process.env.DATABASE, {})
+  .connect(process.env.DATABASE, {
+    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+    connectTimeoutMS: 10000, // Give up initial connection after 10s
+  })
   .then(async () => {
     console.log("**DB CONNECTED**");
     await seedProjectTemplates();
   })
-  .catch((err) => console.error("DB CONNECTION ERR =>", err));
+  .catch((err) => {
+    console.error("DB CONNECTION ERR =>", err);
+    console.error("Please check your DATABASE connection string in .env file");
+  });
 
 // Apply middlewares
 

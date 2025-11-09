@@ -98,8 +98,34 @@ export const createTask = async (req, res) => {
       );
 
       await Promise.all(assignmentPromises);
+      // Send emails to assignees (non-blocking)
+      try {
+        const [projectDoc, creatorUser, workspaceDoc] = await Promise.all([
+          Project.findById(projectId),
+          User.findById(userId),
+          Workspace.findById((await Project.findById(projectId)).workspace),
+        ]);
 
-      // TODO: Send notifications to assignees
+        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+        const taskUrl = `${clientUrl}/projects/${projectDoc?._id}/tasks/${task._id}`;
+
+        for (const assigneeId of assignees) {
+          const assigneeUser = await User.findById(assigneeId);
+          if (!assigneeUser?.email) continue;
+
+          sendTaskAssignedEmail({
+            task,
+            project: projectDoc,
+            workspace: workspaceDoc,
+            assignedBy: creatorUser,
+            assignee: assigneeUser,
+          }).catch((e) => {
+            console.error("⚠️ Failed to send task created/assigned email:", e.message);
+          });
+        }
+      } catch (emailErr) {
+        console.error("⚠️ Error preparing task assignment emails:", emailErr.message);
+      }
     }
 
     // Update user's last selected task
