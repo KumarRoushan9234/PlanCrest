@@ -39,6 +39,12 @@ const notificationSchema = new Schema(
         "event_invitation",
         "event_response",
         "event_reminder",
+        "integration_connected",
+        "integration_event",
+        "github_pull_request",
+        "github_commit",
+        "github_issue",
+        "github_push",
       ],
     },
     title: {
@@ -57,7 +63,16 @@ const notificationSchema = new Schema(
     relatedTo: {
       model: {
         type: String,
-        enum: ["Task", "Project", "Document", "ChatMessage", "Comment", "Workspace", "CalendarEvent"],
+        enum: [
+          "Task",
+          "Project",
+          "Document",
+          "ChatMessage",
+          "Comment",
+          "Workspace",
+          "CalendarEvent",
+          "Connector",
+        ],
       },
       id: {
         type: Schema.Types.ObjectId,
@@ -85,6 +100,22 @@ const notificationSchema = new Schema(
     sentAt: {
       type: Date,
     },
+    priority: {
+      type: String,
+      enum: ["low", "normal", "high", "critical"],
+      default: "normal",
+    },
+    source: {
+      type: String,
+      trim: true,
+    },
+    externalId: {
+      type: String,
+      trim: true,
+    },
+    metadata: {
+      type: Schema.Types.Mixed,
+    },
   },
   { timestamps: true }
 );
@@ -95,6 +126,7 @@ notificationSchema.index({ workspace: 1 });
 notificationSchema.index({ project: 1 });
 notificationSchema.index({ type: 1 });
 notificationSchema.index({ createdAt: -1 });
+notificationSchema.index({ externalId: 1, recipient: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model("Notification", notificationSchema);
 

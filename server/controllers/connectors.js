@@ -1,9 +1,19 @@
-import { Connector, User, Workspace, Project } from "../models/index.js";
+import {
+  Connector,
+  User,
+  Workspace,
+  Project,
+  WorkspaceMember,
+  ProjectMember,
+  Notification,
+} from "../models/index.js";
 import CalendarEvent from "../models/calendarEvent.js";
 import axios from "axios";
 import { google } from "googleapis";
 import { Octokit } from "@octokit/rest";
 import crypto from "crypto";
+import { createNotification } from "../utils/notificationHelpers.js";
+import { sendSimpleEmail } from "../utils/mailService.js";
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -87,6 +97,244 @@ const checkConnectorPermissions = async (userId, scope, scopeId) => {
   }
 
   return false;
+};
+
+const GITHUB_NOTIFICATION_TYPES = {
+  pullRequest: "github_pull_request",
+  commit: "github_commit",
+  issue: "github_issue",
+  push: "github_push",
+};
+
+const PRIORITY_ROLE_MAP = {
+  critical: { workspace: ["owner", "admin"], project: ["admin"] },
+  high: { workspace: ["owner", "admin"], project: ["admin", "member"] },
+  normal: { workspace: ["owner", "admin", "employee"], project: ["admin", "member"] },
+  low: { workspace: ["owner", "admin", "employee"], project: ["admin", "member", "viewer"] },
+};
+
+const fetchWorkspaceRecipients = async (workspaceId, roles = []) => {
+  if (!workspaceId) return [];
+
+  const query = { workspace: workspaceId, status: "active" };
+  if (roles.length) {
+    query.role = { $in: roles };
+  }
+
+  const members = await WorkspaceMember.find(query).populate("user", "name email");
+  return members
+    .filter((member) => member.user && member.user.email)
+    .map((member) => ({
+      userId: member.user._id,
+      email: member.user.email,
+      name: member.user.name,
+      role: member.role,
+    }));
+};
+
+const fetchProjectRecipients = async (projectId, roles = []) => {
+  if (!projectId) return [];
+
+  const query = { project: projectId, status: "active" };
+  if (roles.length) {
+    query.role = { $in: roles };
+  }
+
+  const members = await ProjectMember.find(query).populate("user", "name email");
+  return members
+    .filter((member) => member.user && member.user.email)
+    .map((member) => ({
+      userId: member.user._id,
+      email: member.user.email,
+      name: member.user.name,
+      role: member.role,
+    }));
+};
+
+const dedupeRecipients = (recipients) => {
+  const map = new Map();
+  recipients.forEach((recipient) => {
+    if (!recipient?.userId) return;
+    const key = recipient.userId.toString();
+    if (!map.has(key)) {
+      map.set(key, recipient);
+    }
+  });
+  return Array.from(map.values());
+};
+
+const resolveGitHubRecipients = async ({
+  scope,
+  userId,
+  workspaceId,
+  projectId,
+  priority = "normal",
+}) => {
+  const roleConfig = PRIORITY_ROLE_MAP[priority] || PRIORITY_ROLE_MAP.normal;
+  const recipients = [];
+
+  if (workspaceId) {
+    recipients.push(...(await fetchWorkspaceRecipients(workspaceId, roleConfig.workspace || [])));
+  }
+
+  if (projectId) {
+    recipients.push(...(await fetchProjectRecipients(projectId, roleConfig.project || [])));
+  }
+
+  if (!workspaceId && !projectId) {
+    const user = await User.findById(userId).select("name email");
+    if (user?.email) {
+      recipients.push({
+        userId: user._id,
+        email: user.email,
+        name: user.name,
+        role: "owner",
+      });
+    }
+  }
+
+  return dedupeRecipients(recipients);
+};
+
+const buildGitHubEmail = ({ title, message, link, metadata }) => {
+  const repository = metadata?.repository ? `<p style="color:#6b7280;">Repository: <strong>${metadata.repository}</strong></p>` : "";
+  const actor = metadata?.actor ? `<p style="color:#6b7280;">Actor: <strong>${metadata.actor}</strong></p>` : "";
+  const branch = metadata?.branch ? `<p style="color:#6b7280;">Branch: <strong>${metadata.branch}</strong></p>` : "";
+  const additional = metadata?.details
+    ? `<p style="color:#6b7280;">${metadata.details}</p>`
+    : "";
+  const button = link
+    ? `<p style="margin-top:16px;"><a href="${link}" style="background:#111827;color:#ffffff;padding:10px 18px;border-radius:6px;text-decoration:none;">View on GitHub</a></p>`
+    : "";
+
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 16px; color: #111827;">
+      <h2 style="margin-bottom: 12px;">${title}</h2>
+      <p style="color:#374151; line-height:1.6;">${message}</p>
+      ${repository}
+      ${actor}
+      ${branch}
+      ${additional}
+      ${button}
+    </div>
+  `;
+};
+
+const dispatchGitHubNotifications = async ({
+  scope,
+  userId,
+  workspaceId,
+  projectId,
+  notification,
+  priority = "normal",
+  sendEmail = true,
+}) => {
+  const recipients = await resolveGitHubRecipients({
+    scope,
+    userId,
+    workspaceId,
+    projectId,
+    priority,
+  });
+
+  if (!recipients.length) {
+    return [];
+  }
+
+  const emailSubject = notification.emailSubject || notification.title;
+  const emailBody =
+    notification.emailBody ||
+    buildGitHubEmail({
+      title: notification.title,
+      message: notification.message,
+      link: notification.link,
+      metadata: notification.metadata,
+    });
+  const emailText =
+    notification.emailText ||
+    `${notification.title}\n${notification.message || ""}\n${notification.link || ""}`.trim();
+
+  const createdNotifications = [];
+  const emailPromises = [];
+
+  for (const recipient of recipients) {
+    if (
+      notification.externalId &&
+      (await Notification.findOne({
+        externalId: notification.externalId,
+        recipient: recipient.userId,
+      }))
+    ) {
+      continue;
+    }
+
+    const payload = {
+      recipient: recipient.userId,
+      recipientModel: "User",
+      sender: notification.sender || userId,
+      senderModel: "User",
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      link: notification.link,
+      workspace: workspaceId,
+      project: projectId,
+      priority,
+      source: notification.source || "github",
+      externalId: notification.externalId,
+      relatedTo: notification.relatedTo,
+      metadata: {
+        ...(notification.metadata || {}),
+        recipientRole: recipient.role,
+      },
+    };
+
+    const created = await createNotification(payload);
+    createdNotifications.push(created);
+
+    if (sendEmail && recipient.email) {
+      emailPromises.push(
+        sendSimpleEmail({
+          to: recipient.email,
+          subject: emailSubject,
+          html: emailBody,
+          text: emailText,
+        }).catch((err) => {
+          console.error("Error sending GitHub notification email:", err.message);
+        })
+      );
+    }
+  }
+
+  if (emailPromises.length) {
+    await Promise.all(emailPromises);
+  }
+
+  return createdNotifications;
+};
+
+const canManageWorkspaceIntegration = async (workspaceId, userId) => {
+  if (!workspaceId) return true;
+
+  const membership = await WorkspaceMember.findOne({
+    workspace: workspaceId,
+    user: userId,
+    status: "active",
+  }).select("role");
+
+  return membership && (membership.role === "owner" || membership.role === "admin");
+};
+
+const canManageProjectIntegration = async (projectId, userId) => {
+  if (!projectId) return true;
+
+  const membership = await ProjectMember.findOne({
+    project: projectId,
+    user: userId,
+    status: "active",
+  }).select("role");
+
+  return membership && membership.role === "admin";
 };
 
 // Unified Google OAuth callback handler
@@ -184,9 +432,21 @@ export const getAllConnectors = async (req, res) => {
 
     const query = { user: userId, status: "active" };
 
-    if (scope) query.scope = scope;
-    if (scope === "workspace" && scopeId) query.workspace = scopeId;
-    if (scope === "project" && scopeId) query.project = scopeId;
+    if (scope) {
+      query.scope = scope;
+      if (scope === "workspace" && scopeId) {
+        query.workspace = scopeId;
+      } else if (scope === "project" && scopeId) {
+        query.project = scopeId;
+      } else if (scope === "personal") {
+        query.$or = [
+          { workspace: { $exists: false } },
+          { workspace: null },
+          { project: { $exists: false } },
+          { project: null },
+        ];
+      }
+    }
 
     const connectors = await Connector.find(query)
       .select("-config.accessToken -config.refreshToken -config.apiKey")
@@ -612,9 +872,40 @@ export const connectGitHub = async (req, res) => {
       return res.status(400).json({ error: "Invalid scope" });
     }
 
-    const hasPermission = await checkConnectorPermissions(userId, scope, scopeId);
-    if (!hasPermission) {
-      return res.status(403).json({ error: "Insufficient permissions" });
+    // For project scope, require personal GitHub to be connected first
+    if (scope === "project") {
+      const personalConnector = await Connector.findOne({
+        user: userId,
+        type: "github",
+        status: "active",
+        scope: "personal",
+      });
+
+      if (!personalConnector) {
+        return res.status(400).json({ 
+          error: "Please connect your personal GitHub account first. Project repositories are linked from your personal GitHub account." 
+        });
+      }
+
+      const allowed = await canManageProjectIntegration(scopeId, userId);
+      if (!allowed) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
+
+      // For project scope, we don't need to connect a new account
+      // Just return success - repositories will be selected from personal account
+      return res.json({ 
+        success: true, 
+        message: "Use your personal GitHub account to link repositories to this project",
+        usesPersonalAccount: true
+      });
+    }
+
+    if (scope === "workspace") {
+      const allowed = await canManageWorkspaceIntegration(scopeId, userId);
+      if (!allowed) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
     }
 
     const state = generateStateToken(userId, scope, scopeId, "github");
@@ -686,52 +977,71 @@ export const githubCallback = async (req, res) => {
       connectorData.project = stateData.scopeId;
     }
 
-    const existingConnector = await Connector.findOne({
+    const existingConnectorQuery = {
       user: stateData.userId,
       type: "github",
       scope: stateData.scope,
       status: "active",
-    });
+    };
 
-    if (existingConnector) {
-      await Connector.findByIdAndUpdate(existingConnector._id, connectorData, { new: true });
-    } else {
-      await Connector.create(connectorData);
+    if (stateData.scope === "workspace" && stateData.scopeId) {
+      existingConnectorQuery.workspace = stateData.scopeId;
+    } else if (stateData.scope === "project" && stateData.scopeId) {
+      existingConnectorQuery.project = stateData.scopeId;
     }
 
-    (async () => {
-      try {
-        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-        const wsId = connectorData.workspace;
-        if (!wsId) return;
-        const ws = await Workspace.findById(wsId);
-        const members = await (await import("../models/workspaceMember.js")).default
-          .find({ workspace: wsId, status: "active" })
-          .populate("user", "name email");
-        const recipients = members
-          .filter((m) => ["owner", "admin"].includes(m.role))
-          .map((m) => m.user?.email)
-          .filter(Boolean);
-        const subject = `New Integration Connected: GitHub`;
-        const html = `
-          <div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">
-            <h2 style=\"color:#333;\">Integration Connected</h2>
-            <p>GitHub has been connected to workspace <strong>${ws?.name}</strong>.</p>
-            <p><a href=\"${clientUrl}/connectors\" style=\"background:#6366f1;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;\">View Integrations</a></p>
-          </div>`;
-        const { sendSimpleEmail } = await import("../utils/mailService.js");
-        await Promise.all(
-          recipients.map((to) =>
-            sendSimpleEmail({
-              to,
-              subject,
-              html,
-              text: `GitHub connected to ${ws?.name}. View: ${clientUrl}/connectors`,
-            })
-          )
-        );
-      } catch (_) {}
-    })();
+    const existingConnector = await Connector.findOne(existingConnectorQuery);
+
+    let connectorRecord;
+    if (existingConnector) {
+      connectorRecord = await Connector.findByIdAndUpdate(
+        existingConnector._id,
+        connectorData,
+        { new: true }
+      );
+    } else {
+      connectorRecord = await Connector.create(connectorData);
+    }
+
+    try {
+      const workspaceId = connectorRecord.workspace;
+      const projectId = connectorRecord.project;
+      const workspaceName = workspaceId
+        ? (await Workspace.findById(workspaceId).select("name"))?.name
+        : undefined;
+      const projectName = projectId
+        ? (await Project.findById(projectId).select("name"))?.name
+        : undefined;
+
+      await dispatchGitHubNotifications({
+        scope: stateData.scope,
+        userId: stateData.userId,
+        workspaceId,
+        projectId,
+        priority: "normal",
+        notification: {
+          type: "integration_connected",
+          title: "GitHub integration connected",
+          message: `${userInfo.login || "A teammate"} connected GitHub${
+            workspaceName ? ` to workspace ${workspaceName}` : ""
+          }${projectName ? ` for project ${projectName}` : ""}.`,
+          link: "https://github.com",
+          source: "github",
+          externalId: `github:connector:${connectorRecord._id}:connected`,
+          relatedTo: {
+            model: "Connector",
+            id: connectorRecord._id,
+          },
+          metadata: {
+            provider: "github",
+            username: userInfo.login,
+            repository: null,
+          },
+        },
+      });
+    } catch (notificationError) {
+      console.error("Failed to publish GitHub connection notification:", notificationError);
+    }
 
     sendOAuthSuccessResponse(res, '/connectors/github');
   } catch (error) {
@@ -745,32 +1055,735 @@ export const getGitHubRepositories = async (req, res) => {
     const { scope, scopeId } = req.query;
     const userId = req.auth._id;
 
-    const query = {
-      user: userId,
-      type: "github",
-      scope,
-      status: "active",
-    };
+    let connector;
 
-    if (scope === "workspace") query.workspace = scopeId;
-    if (scope === "project") query.project = scopeId;
+    // For project scope, always use personal GitHub connector
+    if (scope === "project") {
+      connector = await Connector.findOne({
+        user: userId,
+        type: "github",
+        status: "active",
+        scope: "personal",
+      });
 
-    const connector = await Connector.findOne(query);
+      if (!connector) {
+        return res.status(404).json({ 
+          error: "Personal GitHub account not connected. Please connect your personal GitHub account first." 
+        });
+      }
+    } else {
+      // For personal and workspace, use the specific connector
+      const query = {
+        user: userId,
+        type: "github",
+        status: "active",
+      };
 
-    if (!connector) {
-      return res.status(404).json({ error: "Connector not found" });
+      if (scope) {
+        query.scope = scope;
+      }
+      if (scope === "workspace" && scopeId) {
+        query.workspace = scopeId;
+      }
+
+      connector = await Connector.findOne(query);
+
+      if (!connector) {
+        return res.status(404).json({ error: "Connector not found" });
+      }
     }
 
     const octokit = new Octokit({ auth: connector.config.accessToken });
-    const { data: repos } = await octokit.repos.listForAuthenticatedUser({
-      sort: "updated",
-      per_page: 100,
-    });
+    
+    try {
+      const { data: repos } = await octokit.repos.listForAuthenticatedUser({
+        sort: "updated",
+        per_page: 100,
+      });
 
-    res.json({ success: true, repositories: repos });
+      const repositories = repos.map((repo) => ({
+        id: repo.id,
+        nodeId: repo.node_id,
+        name: repo.name,
+        fullName: repo.full_name,
+        private: repo.private,
+        visibility: repo.visibility,
+        description: repo.description,
+        defaultBranch: repo.default_branch,
+        owner: repo.owner?.login,
+        htmlUrl: repo.html_url,
+        sshUrl: repo.ssh_url,
+        pushedAt: repo.pushed_at,
+        updatedAt: repo.updated_at,
+        language: repo.language,
+        permissions: repo.permissions,
+        topics: repo.topics,
+        size: repo.size,
+      }));
+
+      res.json({
+        success: true,
+        repositories,
+        linkedResources: connector.linkedResources || [],
+      });
+    } catch (apiError) {
+      // Handle GitHub API authentication errors
+      if (apiError.status === 401 || apiError.message?.includes("Bad credentials")) {
+        console.error("GitHub authentication failed - token may be expired or invalid");
+        
+        // Mark connector as needing re-authentication
+        try {
+          connector.status = "error";
+          connector.metadata = connector.metadata || {};
+          connector.metadata.lastError = "Authentication failed. Please reconnect your GitHub account.";
+          connector.metadata.lastErrorAt = new Date();
+          await connector.save();
+        } catch (saveError) {
+          console.error("Error updating connector status:", saveError);
+        }
+        
+        return res.status(401).json({ 
+          error: "GitHub authentication failed. Please reconnect your GitHub account.",
+          requiresReconnect: true
+        });
+      }
+      
+      throw apiError; // Re-throw other errors
+    }
   } catch (error) {
     console.error("Error fetching GitHub repositories:", error);
     res.status(500).json({ error: "Failed to fetch repositories" });
+  }
+};
+
+export const linkGitHubRepository = async (req, res) => {
+  try {
+    const userId = req.auth._id;
+    const {
+      scope,
+      scopeId,
+      repository,
+      workspaceId: targetWorkspaceId,
+      projectId: targetProjectId,
+    } = req.body;
+
+    if (!repository?.id || !repository?.fullName) {
+      return res.status(400).json({ error: "Repository information is required" });
+    }
+
+    // For project scope, always use personal GitHub connector
+    let connector;
+    if (scope === "project") {
+      connector = await Connector.findOne({
+        user: userId,
+        type: "github",
+        status: "active",
+        scope: "personal",
+      });
+
+      if (!connector) {
+        return res.status(404).json({ 
+          error: "Personal GitHub account not connected. Please connect your personal GitHub account first." 
+        });
+      }
+    } else {
+      const connectorQuery = {
+        user: userId,
+        type: "github",
+        status: "active",
+        scope: scope || "personal",
+      };
+
+      if (scope === "workspace" && scopeId) {
+        connectorQuery.workspace = scopeId;
+      }
+
+      connector = await Connector.findOne(connectorQuery);
+      if (!connector) {
+        return res.status(404).json({ error: "GitHub connector not found" });
+      }
+    }
+
+    const currentUser = await User.findById(userId).select("name email");
+
+    let workspaceId = connector.workspace ? connector.workspace.toString() : null;
+    let projectId = connector.project ? connector.project.toString() : null;
+
+    if (scope === "personal") {
+      workspaceId = targetWorkspaceId || workspaceId;
+      projectId = targetProjectId || projectId;
+    } else if (scope === "workspace") {
+      workspaceId = scopeId || workspaceId;
+      projectId = targetProjectId || projectId;
+    } else if (scope === "project") {
+      projectId = scopeId || projectId;
+    }
+
+    if (projectId && !workspaceId) {
+      const project = await Project.findById(projectId).select("workspace");
+      workspaceId = project?.workspace?.toString() || workspaceId;
+    }
+
+    if (workspaceId) {
+      const allowed = await canManageWorkspaceIntegration(workspaceId, userId);
+      if (!allowed) {
+        return res.status(403).json({ error: "You do not have permission to link repositories for this workspace" });
+      }
+    }
+
+    if (projectId) {
+      const allowed = await canManageProjectIntegration(projectId, userId);
+      if (!allowed) {
+        return res.status(403).json({ error: "You do not have permission to link repositories for this project" });
+      }
+    }
+
+    const octokit = new Octokit({ auth: connector.config.accessToken });
+
+    const [owner, repoName] = repository.fullName.split("/");
+    const { data: repoInfo } = await octokit.repos.get({
+      owner,
+      repo: repoName,
+    });
+
+    const repositoryId = repoInfo.id.toString();
+
+    connector.linkedResources = connector.linkedResources || [];
+    const alreadyLinked = connector.linkedResources.find(
+      (linked) =>
+        linked.repositoryId === repositoryId &&
+        (workspaceId ? linked.workspace?.toString() === workspaceId.toString() : true) &&
+        (projectId ? linked.project?.toString() === projectId.toString() : true)
+    );
+
+    if (alreadyLinked) {
+      return res.json({
+        success: true,
+        message: "Repository already linked",
+        linkedResource: alreadyLinked,
+      });
+    }
+
+    // For project scope, ensure only one repository is linked
+    if (projectId) {
+      const existingProjectRepo = connector.linkedResources.find(
+        (linked) => linked.project?.toString() === projectId.toString()
+      );
+      if (existingProjectRepo) {
+        return res.status(400).json({
+          error: "A project can only have one linked repository. Please unlink the existing repository first.",
+        });
+      }
+    }
+
+    const linkedResource = {
+      repositoryId,
+      repositoryNodeId: repoInfo.node_id,
+      repositoryName: repoInfo.name,
+      repositoryFullName: repoInfo.full_name,
+      defaultBranch: repoInfo.default_branch,
+      scope: connector.scope,
+      workspace: workspaceId,
+      project: projectId,
+      visibility: repoInfo.visibility,
+      permissions: repoInfo.permissions,
+      topics: repoInfo.topics,
+      connectedBy: userId,
+      connectedAt: new Date(),
+    };
+
+    connector.linkedResources.push(linkedResource);
+    await connector.save();
+
+    try {
+      const workspaceName = workspaceId
+        ? (await Workspace.findById(workspaceId).select("name"))?.name
+        : undefined;
+      const projectName = projectId
+        ? (await Project.findById(projectId).select("name"))?.name
+        : undefined;
+
+      await dispatchGitHubNotifications({
+        scope: connector.scope,
+        userId,
+        workspaceId,
+        projectId,
+        priority: "high",
+        notification: {
+          type: "integration_event",
+          title: `Linked repository: ${repoInfo.full_name}`,
+          message: `${currentUser?.name || "A teammate"} linked ${repoInfo.full_name}${
+            projectName ? ` to project ${projectName}` : workspaceName ? ` to workspace ${workspaceName}` : ""
+          }.`,
+          link: repoInfo.html_url,
+          source: "github",
+          externalId: `github:repo:${repositoryId}:link:${workspaceId || "personal"}:${projectId || "none"}`,
+          relatedTo: {
+            model: "Connector",
+            id: connector._id,
+          },
+          metadata: {
+            repository: repoInfo.full_name,
+            actor: currentUser?.name || currentUser?.email,
+            branch: repoInfo.default_branch,
+            visibility: repoInfo.visibility,
+          },
+        },
+      });
+    } catch (notifyError) {
+      console.error("Failed to send repository linkage notification:", notifyError);
+    }
+
+    const sanitizedConnector = connector.toObject();
+    if (sanitizedConnector.config) {
+      delete sanitizedConnector.config.accessToken;
+      delete sanitizedConnector.config.refreshToken;
+      delete sanitizedConnector.config.apiKey;
+    }
+
+    res.json({
+      success: true,
+      message: "Repository linked successfully",
+      connector: sanitizedConnector,
+      linkedResource,
+    });
+  } catch (error) {
+    console.error("Error linking GitHub repository:", error);
+    res.status(500).json({ error: "Failed to link repository" });
+  }
+};
+
+export const unlinkGitHubRepository = async (req, res) => {
+  try {
+    const userId = req.auth._id;
+    const { connectorId, repositoryFullName, workspaceId: targetWorkspaceId, projectId: targetProjectId } = req.body;
+
+    if (!connectorId || !repositoryFullName) {
+      return res.status(400).json({ error: "Connector ID and repository full name are required" });
+    }
+
+    const connector = await Connector.findOne({
+      _id: connectorId,
+      user: userId,
+      type: "github",
+      status: "active",
+    });
+
+    if (!connector) {
+      return res.status(404).json({ error: "GitHub connector not found" });
+    }
+
+    let workspaceId = targetWorkspaceId || (connector.workspace ? connector.workspace.toString() : null);
+    let projectId = targetProjectId || (connector.project ? connector.project.toString() : null);
+
+    const resourceIndex = connector.linkedResources.findIndex((resource) => {
+      const matchesRepo = resource.repositoryFullName === repositoryFullName;
+      const matchesWorkspace = workspaceId ? resource.workspace?.toString() === workspaceId.toString() : true;
+      const matchesProject = projectId ? resource.project?.toString() === projectId.toString() : true;
+      return matchesRepo && matchesWorkspace && matchesProject;
+    });
+
+    if (resourceIndex === -1) {
+      return res.status(404).json({ error: "Linked repository not found" });
+    }
+
+    const [removed] = connector.linkedResources.splice(resourceIndex, 1);
+    await connector.save();
+
+    try {
+      await dispatchGitHubNotifications({
+        scope: connector.scope,
+        userId,
+        workspaceId: removed.workspace,
+        projectId: removed.project,
+        priority: "normal",
+        notification: {
+          type: "integration_event",
+          title: `Repository unlinked: ${repositoryFullName}`,
+          message: `${(await User.findById(userId).select("name"))?.name || "A teammate"} unlinked ${repositoryFullName}.`,
+          link: `https://github.com/${repositoryFullName}`,
+          source: "github",
+          externalId: `github:repo:${removed.repositoryId}:unlink:${removed.workspace || "personal"}:${removed.project || "none"}`,
+          relatedTo: {
+            model: "Connector",
+            id: connector._id,
+          },
+          metadata: {
+            repository: repositoryFullName,
+            actor: userId,
+          },
+        },
+      });
+    } catch (notifyError) {
+      console.error("Failed to send repository unlink notification:", notifyError);
+    }
+
+    const sanitizedConnector = connector.toObject();
+    if (sanitizedConnector.config) {
+      delete sanitizedConnector.config.accessToken;
+      delete sanitizedConnector.config.refreshToken;
+      delete sanitizedConnector.config.apiKey;
+    }
+
+    res.json({
+      success: true,
+      message: "Repository unlinked successfully",
+      connector: sanitizedConnector,
+    });
+  } catch (error) {
+    console.error("Error unlinking GitHub repository:", error);
+    res.status(500).json({ error: "Failed to unlink repository" });
+  }
+};
+
+export const syncGitHubActivity = async (req, res) => {
+  try {
+    const userId = req.auth._id;
+    const { scope, scopeId, repositoryFullName, options } = req.body;
+
+    if (!repositoryFullName) {
+      return res.status(400).json({ error: "Repository full name is required" });
+    }
+
+    const connectorQuery = {
+      user: userId,
+      type: "github",
+      status: "active",
+      scope: scope || "personal",
+    };
+
+    if (scope === "workspace" && scopeId) {
+      connectorQuery.workspace = scopeId;
+    }
+    if (scope === "project" && scopeId) {
+      connectorQuery.project = scopeId;
+    }
+
+    const connector = await Connector.findOne(connectorQuery);
+    if (!connector) {
+      return res.status(404).json({ error: "GitHub connector not found" });
+    }
+
+    connector.linkedResources = connector.linkedResources || [];
+    const linkedResourceIndex = connector.linkedResources.findIndex(
+      (resource) => resource.repositoryFullName === repositoryFullName
+    );
+
+    if (linkedResourceIndex === -1) {
+      return res.status(404).json({ error: "Repository is not linked to this connector" });
+    }
+
+    const linkedResource = connector.linkedResources[linkedResourceIndex];
+
+    let workspaceId = linkedResource.workspace || connector.workspace;
+    let projectId = linkedResource.project || connector.project;
+
+    if (projectId && !workspaceId) {
+      const project = await Project.findById(projectId).select("workspace");
+      workspaceId = project?.workspace;
+    }
+
+    const octokit = new Octokit({ auth: connector.config.accessToken });
+    const [owner, repoName] = repositoryFullName.split("/");
+
+    const perPage = options?.perPage ? Math.min(options.perPage, 50) : 20;
+    const lastSyncedAt = linkedResource.lastSyncedAt ? new Date(linkedResource.lastSyncedAt) : null;
+
+    const [pullsResponse, commitsResponse, issuesResponse] = await Promise.all([
+      octokit.pulls.list({
+        owner,
+        repo: repoName,
+        state: "open",
+        sort: "updated",
+        direction: "desc",
+        per_page: perPage,
+      }),
+      octokit.repos.listCommits({
+        owner,
+        repo: repoName,
+        per_page: perPage,
+        sha: linkedResource.defaultBranch || undefined,
+      }),
+      octokit.issues.listForRepo({
+        owner,
+        repo: repoName,
+        state: "open",
+        sort: "updated",
+        direction: "desc",
+        per_page: perPage,
+      }),
+    ]);
+
+    const filterBySyncDate = (dateString) => {
+      if (!dateString) return true;
+      if (!lastSyncedAt) return true;
+      return new Date(dateString) > lastSyncedAt;
+    };
+
+    const newPulls = pullsResponse.data
+      .filter((pull) => filterBySyncDate(pull.updated_at))
+      .slice(0, 20);
+
+    const newCommits = commitsResponse.data
+      .filter((commit) => {
+        const committedAt = commit.commit?.committer?.date || commit.commit?.author?.date;
+        return filterBySyncDate(committedAt);
+      })
+      .slice(0, 30);
+
+    const newIssues = issuesResponse.data
+      .filter((issue) => !issue.pull_request)
+      .filter((issue) => filterBySyncDate(issue.updated_at))
+      .slice(0, 20);
+
+    let notificationsCreated = 0;
+
+    for (const pull of newPulls) {
+      const metadata = {
+        repository: repositoryFullName,
+        actor: pull.user?.login,
+        branch: pull.head?.ref,
+        details: `PR #${pull.number} • ${pull.state}`,
+        url: pull.html_url,
+      };
+
+      const created = await dispatchGitHubNotifications({
+        scope: connector.scope,
+        userId,
+        workspaceId,
+        projectId,
+        priority: pull.draft ? "normal" : "high",
+        notification: {
+          type: GITHUB_NOTIFICATION_TYPES.pullRequest,
+          title: `PR: ${pull.title}`,
+          message: `${pull.user?.login || "Someone"} updated PR #${pull.number} (${pull.state})`,
+          link: pull.html_url,
+          source: "github",
+          externalId: `github:${repositoryFullName}:pr:${pull.id}`,
+          relatedTo: {
+            model: "Connector",
+            id: connector._id,
+          },
+          metadata,
+        },
+      });
+
+      notificationsCreated += created.length;
+    }
+
+    for (const commit of newCommits) {
+      const author =
+        commit.author?.login ||
+        commit.commit?.author?.name ||
+        commit.commit?.committer?.name ||
+        "Unknown";
+      const shaShort = commit.sha?.slice(0, 7);
+      const metadata = {
+        repository: repositoryFullName,
+        actor: author,
+        branch: linkedResource.defaultBranch,
+        details: commit.commit?.message,
+        url: commit.html_url,
+      };
+
+      const created = await dispatchGitHubNotifications({
+        scope: connector.scope,
+        userId,
+        workspaceId,
+        projectId,
+        priority: "normal",
+        notification: {
+          type: GITHUB_NOTIFICATION_TYPES.commit,
+          title: `Commit ${shaShort} by ${author}`,
+          message: `${author} pushed ${shaShort} to ${repositoryFullName}`,
+          link: commit.html_url,
+          source: "github",
+          externalId: `github:${repositoryFullName}:commit:${commit.sha}`,
+          relatedTo: {
+            model: "Connector",
+            id: connector._id,
+          },
+          metadata,
+        },
+      });
+
+      notificationsCreated += created.length;
+    }
+
+    for (const issue of newIssues) {
+      const metadata = {
+        repository: repositoryFullName,
+        actor: issue.user?.login,
+        details: `Issue #${issue.number} • ${issue.state}`,
+        url: issue.html_url,
+      };
+
+      const hasBugLabel = issue.labels?.some(
+        (label) => typeof label === "object" && "name" in label && label.name?.toLowerCase().includes("bug")
+      );
+
+      const created = await dispatchGitHubNotifications({
+        scope: connector.scope,
+        userId,
+        workspaceId,
+        projectId,
+        priority: hasBugLabel ? "high" : "normal",
+        notification: {
+          type: GITHUB_NOTIFICATION_TYPES.issue,
+          title: `Issue: ${issue.title}`,
+          message: `${issue.user?.login || "Someone"} updated issue #${issue.number} (${issue.state})`,
+          link: issue.html_url,
+          source: "github",
+          externalId: `github:${repositoryFullName}:issue:${issue.id}`,
+          relatedTo: {
+            model: "Connector",
+            id: connector._id,
+          },
+          metadata,
+        },
+      });
+
+      notificationsCreated += created.length;
+    }
+
+    const syncTime = new Date();
+    connector.linkedResources[linkedResourceIndex].lastSyncedAt = syncTime;
+    connector.metadata = connector.metadata || {};
+    connector.metadata.lastSync = syncTime;
+    connector.metadata.stats = connector.metadata.stats || {};
+    connector.metadata.stats.totalSyncs = (connector.metadata.stats.totalSyncs || 0) + 1;
+    connector.metadata.stats.lastSyncStatus = "success";
+    await connector.save();
+
+    res.json({
+      success: true,
+      data: {
+        repository: repositoryFullName,
+        newPullRequests: newPulls.length,
+        newCommits: newCommits.length,
+        newIssues: newIssues.length,
+        notificationsCreated,
+        syncedAt: syncTime,
+      },
+    });
+  } catch (error) {
+    console.error("Error syncing GitHub activity:", error);
+
+    if (req?.auth?._id) {
+      try {
+        const connector = await Connector.findOne({
+          user: req.auth._id,
+          type: "github",
+          status: "active",
+        });
+        if (connector?.metadata?.stats) {
+          connector.metadata.stats.lastSyncStatus = "error";
+          connector.metadata.stats.errorCount = (connector.metadata.stats.errorCount || 0) + 1;
+          await connector.save();
+        }
+      } catch (updateError) {
+        console.error("Failed to update GitHub connector sync status:", updateError);
+      }
+    }
+
+    res.status(500).json({ error: "Failed to sync GitHub activity", message: error.message });
+  }
+};
+
+export const getGitHubActivity = async (req, res) => {
+  try {
+    const userId = req.auth._id;
+    const { scope, scopeId, repositoryFullName, limit = 25 } = req.query;
+
+    const notificationTypes = [
+      GITHUB_NOTIFICATION_TYPES.pullRequest,
+      GITHUB_NOTIFICATION_TYPES.commit,
+      GITHUB_NOTIFICATION_TYPES.issue,
+      GITHUB_NOTIFICATION_TYPES.push,
+      "integration_event",
+      "integration_connected",
+    ];
+
+    const query = {
+      recipient: userId,
+      type: { $in: notificationTypes },
+    };
+
+    if (scope === "workspace" && scopeId) {
+      query.workspace = scopeId;
+    }
+    if (scope === "project" && scopeId) {
+      query.project = scopeId;
+    }
+    if (repositoryFullName) {
+      query["metadata.repository"] = repositoryFullName;
+    }
+
+    const activities = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit, 10))
+      .lean();
+
+    res.json({
+      success: true,
+      data: activities,
+    });
+  } catch (error) {
+    console.error("Error fetching GitHub activity:", error);
+    res.status(500).json({ error: "Failed to fetch GitHub activity" });
+  }
+};
+
+export const getGitHubRepositoryDetails = async (req, res) => {
+  try {
+    const userId = req.auth._id;
+    const { scope, scopeId, repositoryFullName } = req.query;
+
+    if (!repositoryFullName) {
+      return res.status(400).json({ error: "Repository full name is required" });
+    }
+
+    const connectorQuery = {
+      user: userId,
+      type: "github",
+      status: "active",
+    };
+
+    if (scope) {
+      connectorQuery.scope = scope;
+      if (scope === "workspace" && scopeId) {
+        connectorQuery.workspace = scopeId;
+      } else if (scope === "project" && scopeId) {
+        connectorQuery.project = scopeId;
+      }
+    }
+
+    const connector = await Connector.findOne(connectorQuery);
+    if (!connector) {
+      return res.status(404).json({ error: "GitHub connector not found" });
+    }
+
+    const octokit = new Octokit({ auth: connector.config.accessToken });
+    const [owner, repoName] = repositoryFullName.split("/");
+
+    // Fetch repository details, collaborators, and commits in parallel
+    const [repoData, collaboratorsData, commitsData] = await Promise.all([
+      octokit.repos.get({ owner, repo: repoName }),
+      octokit.repos.listCollaborators({ owner, repo: repoName, per_page: 100 }),
+      octokit.repos.listCommits({ owner, repo: repoName, per_page: 100 }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        repository: repoData.data,
+        collaborators: collaboratorsData.data,
+        commits: commitsData.data,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching repository details:", error);
+    res.status(500).json({ error: "Failed to fetch repository details" });
   }
 };
 
