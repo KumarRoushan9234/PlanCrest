@@ -25,9 +25,15 @@ const chatMessageSchema = new Schema(
       required: true,
       trim: true,
     },
+    // Rich content support
+    contentFormat: {
+      type: String,
+      enum: ["plain", "markdown", "html"],
+      default: "plain",
+    },
     type: {
       type: String,
-      enum: ["text", "file", "image", "system", "task_created", "task_updated"],
+      enum: ["text", "file", "image", "system", "task_created", "task_updated", "code"],
       default: "text",
     },
     attachments: [
@@ -40,6 +46,13 @@ const chatMessageSchema = new Schema(
       {
         type: Schema.Types.ObjectId,
         ref: "User",
+      },
+    ],
+    // Task mentions in messages
+    taskMentions: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Task",
       },
     ],
     // Embedded reactions instead of separate collection
@@ -84,6 +97,10 @@ const chatMessageSchema = new Schema(
       type: Number,
       default: 0,
     },
+    // Message link for sharing
+    messageLink: {
+      type: String,
+    },
     // Read receipts
     readBy: [
       {
@@ -101,7 +118,9 @@ chatMessageSchema.index({ thread: 1, createdAt: -1 });
 chatMessageSchema.index({ parentMessage: 1 });
 chatMessageSchema.index({ sender: 1 });
 chatMessageSchema.index({ mentions: 1 });
+chatMessageSchema.index({ taskMentions: 1 });
 chatMessageSchema.index({ linkedTask: 1 });
 chatMessageSchema.index({ isPinned: 1, channel: 1 });
+chatMessageSchema.index({ createdAt: -1 });
 
 export default mongoose.model("ChatMessage", chatMessageSchema);

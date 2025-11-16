@@ -25,7 +25,7 @@ import Layout from "../components/common-afterauth/Layout";
 import { projectService } from "../services/projectService";
 import { unmaskId, maskId } from "../utils/idMasker";
 import TaskSidebar from "../components/sidebar/TaskSidebar";
-import ChatSidebar from "../components/sidebar/ChatSidebar";
+import TaskChatSidebar from "../components/sidebar/TaskChatSidebar";
 
 const TaskDetailPage = () => {
   const { maskedTaskId, maskedProjectId } = useParams();
@@ -568,11 +568,10 @@ const TaskDetailPage = () => {
 
       {/* Chat Sidebar */}
       {task && project && (
-        <ChatSidebar
+        <TaskChatSidebar
           isOpen={showChatSidebar}
           onClose={() => setShowChatSidebar(false)}
           task={task}
-          project={project}
         />
       )}
     </Layout>

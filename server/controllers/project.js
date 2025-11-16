@@ -9,6 +9,7 @@ import Workspace from "../models/workspace.js";
 import User from "../models/user.js";
 import { updateLastSelectedProject, updateLastSelectedBoard, updateLastSelectedColumn } from "../utils/lastSelected.js";
 import { sendProjectCreatedEmail } from "../utils/emailTemplates.js";
+import { createDefaultChannels } from "../utils/channelHelpers.js";
 
 /**
  * Create a new project
@@ -49,6 +50,14 @@ export const createProject = async (req, res) => {
     });
 
     await project.save();
+
+    // Auto-create default channels for the project
+    try {
+      await createDefaultChannels(project._id, workspaceId, userId);
+    } catch (channelError) {
+      console.error("Error creating default channels:", channelError);
+      // Don't fail project creation if channels fail
+    }
 
     // Add creator as project admin
     const projectMember = new ProjectMember({

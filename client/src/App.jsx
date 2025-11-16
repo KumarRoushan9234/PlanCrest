@@ -33,6 +33,7 @@ import TaskDetailPage from "./pages/TaskDetailPage";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
 import AIModePage from "./pages/AIModePage";
 import CalendarPage from "./pages/CalendarPage";
+import ChatChannelsPage from "./pages/ChatChannelsPage";
 import InvitationHandler from "./components/InvitationHandler";
 
 // Integration Pages
@@ -264,6 +265,15 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <CalendarPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/chat"
+                  element={
+                    <ProtectedRoute>
+                      <ChatChannelsPage />
                     </ProtectedRoute>
                   }
                 />

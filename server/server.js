@@ -56,7 +56,12 @@ app.use(morgan("dev"));
 const routeFiles = readdirSync("./routes");
 for (const routeFile of routeFiles) {
   const route = await import(`./routes/${routeFile}`);
-  app.use("/api", route.default);
+  // Mount chat routes at /api/chat, others at /api
+  if (routeFile === "chat.js") {
+    app.use("/api/chat", route.default);
+  } else {
+    app.use("/api", route.default);
+  }
 }
 
 app.use(csrfProtection);
