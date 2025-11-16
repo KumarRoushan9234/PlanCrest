@@ -1,6 +1,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Hash, Users, MoreVertical, Trash2 } from "lucide-react";
+import { Avatar } from "../shared";
+import { useAuth } from "../../../contexts/AuthContext";
 
 /**
  * Channel Item Component
@@ -15,7 +17,19 @@ const ChannelItem = ({
   showMenu = false,
   onMenuClick,
 }) => {
+  const { user: currentUser } = useAuth();
   const isDirect = channel.category === "direct";
+
+  // For DM channels, get the other user (not the current user)
+  const getDMUser = () => {
+    if (!isDirect || !channel.participants || !currentUser) return null;
+    return channel.participants.find(
+      (p) => p._id?.toString() !== currentUser._id?.toString()
+    );
+  };
+
+  const dmUser = isDirect ? getDMUser() : null;
+  const displayName = isDirect && dmUser ? dmUser.name : channel.name;
 
   return (
     <div className="relative group">
@@ -36,13 +50,20 @@ const ChannelItem = ({
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         onClick={onClick}
       >
-        {isDirect ? (
+        {isDirect && dmUser ? (
+          <Avatar
+            user={dmUser}
+            size="sm"
+            showStatus={true}
+            status={dmUser.status || "offline"}
+          />
+        ) : isDirect ? (
           <Users className="w-4 h-4 flex-shrink-0" />
         ) : (
           <Hash className="w-4 h-4 flex-shrink-0" />
         )}
         <span className="flex-1 text-left text-sm font-medium truncate">
-          {channel.name}
+          {displayName}
         </span>
         {unreadCount > 0 && (
           <motion.span

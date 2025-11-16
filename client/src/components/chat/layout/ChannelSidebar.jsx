@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 const ChannelSidebar = ({ children, className = "" }) => {
   return (
     <motion.div
-      className={`w-80 border-r border-gray-800/50 bg-[#1a1b1d] flex flex-col ${className}`}
+      className={`w-80 border-r border-gray-800/50 bg-[#0f1011] flex flex-col ${className}`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}

@@ -20,6 +20,7 @@ import {
   EmptyState,
   LoadingState,
   ErrorState,
+  Avatar,
 } from "../components/chat/shared/index";
 import {
   CreateChannelModal,
@@ -141,6 +142,19 @@ const ChatChannelsPage = () => {
           return nameMatch || descMatch || projectMatch || memberMatch;
         });
       }
+
+      // Sort by lastMessageAt (most recent first) - backend already sorts, but ensure frontend maintains it
+      filtered.sort((a, b) => {
+        const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        if (aTime !== bTime) {
+          return bTime - aTime; // Descending order (newest first)
+        }
+        // If no messages, sort by creation date
+        const aCreated = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bCreated = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bCreated - aCreated;
+      });
 
       setChannels(filtered);
     } catch (err) {
@@ -380,7 +394,7 @@ const ChatChannelsPage = () => {
           style={{ minHeight: "calc(100vh - 56px)", marginLeft: 55 }}
         >
           {/* Top Bar - Search and Menu */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-[#1a1b1d]">
+          <div className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-[#0f1011]">
             {/* Search Bar - Left Side */}
             <div className="flex-1 max-w-md">
               <div className="relative">
@@ -552,12 +566,40 @@ const ChatChannelsPage = () => {
               {selectedChannel ? (
                 <>
                   {/* Header */}
-                  <div className="p-4 border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-sm">
+                  <div className="p-4 border-b border-gray-800/50 bg-[#0f1011]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
+                        {/* Show DM user avatar in header if it's a DM */}
+                        {selectedChannel.category === "direct" &&
+                          selectedChannel.participants?.find(
+                            (p) => p._id?.toString() !== user?._id?.toString()
+                          ) && (
+                            <Avatar
+                              user={selectedChannel.participants.find(
+                                (p) =>
+                                  p._id?.toString() !== user?._id?.toString()
+                              )}
+                              size="md"
+                              showStatus={true}
+                              status={
+                                selectedChannel.participants.find(
+                                  (p) =>
+                                    p._id?.toString() !== user?._id?.toString()
+                                )?.status || "offline"
+                              }
+                            />
+                          )}
                         <div>
                           <h3 className="text-lg font-semibold text-white">
-                            {selectedChannel.name}
+                            {selectedChannel.category === "direct" &&
+                            selectedChannel.participants?.find(
+                              (p) => p._id?.toString() !== user?._id?.toString()
+                            )
+                              ? selectedChannel.participants.find(
+                                  (p) =>
+                                    p._id?.toString() !== user?._id?.toString()
+                                ).name
+                              : selectedChannel.name}
                           </h3>
                           {selectedChannel.description && (
                             <p className="text-sm text-gray-400">
@@ -632,6 +674,7 @@ const ChatChannelsPage = () => {
                       placeholder={`Message ${selectedChannel.name}...`}
                       disabled={sending}
                       channelId={selectedChannel._id}
+                      channelMembers={selectedChannel.members || []}
                     />
                   </div>
                 </>

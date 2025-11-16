@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Send, Paperclip } from "lucide-react";
 import axios from "axios";
 import EmojiPicker from "./EmojiPicker";
+import MentionAutocomplete from "./MentionAutocomplete";
+import { useWorkspace } from "../../../contexts/WorkspaceContext";
 
 /**
  * Message Input Component
@@ -13,10 +15,15 @@ const MessageInput = ({
   placeholder = "Type your message...",
   disabled = false,
   channelId,
+  channelMembers = [],
 }) => {
+  const { currentWorkspace } = useWorkspace();
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPosition, setMentionPosition] = useState(null);
   const textareaRef = useRef(null);
+  const inputContainerRef = useRef(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -42,10 +49,68 @@ const MessageInput = ({
   };
 
   const handleKeyDown = (e) => {
+    // Don't submit if mention dropdown is open
+    if (mentionPosition !== null) {
+      if (e.key === "Enter" || e.key === "Escape") {
+        return; // Let MentionAutocomplete handle these
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  // Handle mention detection
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    const cursorPosition = e.target.selectionStart;
+    setMessage(value);
+
+    // Check for @mention (match word characters, stop at whitespace)
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      // Calculate position for dropdown
+      if (textareaRef.current && inputContainerRef.current) {
+        const rect = textareaRef.current.getBoundingClientRect();
+        const containerRect = inputContainerRef.current.getBoundingClientRect();
+        setMentionPosition({
+          left: 0,
+          top: rect.top - containerRect.top,
+        });
+      }
+    } else {
+      setMentionQuery("");
+      setMentionPosition(null);
+    }
+  };
+
+  // Handle mention selection
+  const handleMentionSelect = (user) => {
+    if (!textareaRef.current || mentionPosition === null) return;
+
+    const textBeforeCursor = message.substring(0, mentionPosition);
+    const textAfterCursor = message.substring(
+      mentionPosition + mentionQuery.length + 1
+    );
+    const newMessage = `${textBeforeCursor}@${user.name} ${textAfterCursor}`;
+
+    setMessage(newMessage);
+    setMentionQuery("");
+    setMentionPosition(null);
+
+    // Focus back on textarea and set cursor position
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const newCursorPos = textBeforeCursor.length + `@${user.name} `.length;
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
   };
 
   const handleEmojiSelect = (emoji) => {
@@ -141,11 +206,11 @@ const MessageInput = ({
       )}
 
       <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-        <div className="flex-1 relative">
+        <div ref={inputContainerRef} className="flex-1 relative">
           <textarea
             ref={textareaRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={placeholder}
@@ -174,6 +239,17 @@ const MessageInput = ({
               <Paperclip className="w-5 h-5" />
             </motion.button>
           </div>
+          {/* Mention Autocomplete */}
+          <MentionAutocomplete
+            query={mentionQuery}
+            position={mentionPosition}
+            onSelect={handleMentionSelect}
+            onClose={() => {
+              setMentionQuery("");
+              setMentionPosition(null);
+            }}
+            channelMembers={channelMembers}
+          />
         </div>
         <motion.button
           type="submit"
