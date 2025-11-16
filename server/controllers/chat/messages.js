@@ -111,15 +111,44 @@ export const sendMessage = async (req, res) => {
       });
     }
 
+    // Handle attachments if provided
+    let attachmentIds = [];
+    if (req.body.attachments && Array.isArray(req.body.attachments)) {
+      // If attachments are provided as objects with URLs (from Cloudinary), create Attachment records
+      const Attachment = (await import("../../models/attachment.js")).default;
+      for (const attData of req.body.attachments) {
+        if (attData.url) {
+          const attachment = new Attachment({
+            filename: attData.filename || attData.publicId || "attachment",
+            originalName: attData.filename || "attachment",
+            mimeType: attData.mimeType || "application/octet-stream",
+            size: attData.size || 0,
+            url: attData.url,
+            thumbnailUrl: attData.thumbnailUrl || attData.url,
+            attachedTo: {
+              model: "ChatMessage",
+              id: null, // Will update after message save
+            },
+            workspace: channel.workspace,
+            uploadedBy: userId,
+          });
+          await attachment.save();
+          attachmentIds.push(attachment._id);
+        }
+      }
+    }
+
     // Create message
     const message = new ChatMessage({
       channel: channelId,
       sender: userId,
-      content,
+      content: content || "",
       contentFormat: contentFormat || "plain",
       parentMessage: parentMessageId || null,
       taskMentions: taskMentions || [],
       mentions: mentions || [],
+      attachments: attachmentIds,
+      type: attachmentIds.length > 0 ? "file" : "text",
       messageLink: generateMessageLink(
         channel.workspace.toString(),
         channelId,
@@ -128,6 +157,15 @@ export const sendMessage = async (req, res) => {
     });
 
     await message.save();
+
+    // Update attachment references with message ID
+    if (attachmentIds.length > 0) {
+      const Attachment = (await import("../../models/attachment.js")).default;
+      await Attachment.updateMany(
+        { _id: { $in: attachmentIds } },
+        { $set: { "attachedTo.id": message._id } }
+      );
+    }
 
     // Update message link with actual message ID
     message.messageLink = generateMessageLink(

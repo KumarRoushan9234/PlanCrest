@@ -3,15 +3,15 @@ import { motion } from "framer-motion";
 
 /**
  * Channel Sidebar Component
- * Left sidebar container for channel list
+ * Left sidebar for channel list
  */
 const ChannelSidebar = ({ children, className = "" }) => {
   return (
     <motion.div
-      className={`w-64 border-r border-gray-800 bg-gray-900 flex flex-col ${className}`}
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      className={`w-80 border-r border-gray-800/50 bg-[#1a1b1d] flex flex-col ${className}`}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
     >
       {children}
     </motion.div>
@@ -19,4 +19,3 @@ const ChannelSidebar = ({ children, className = "" }) => {
 };
 
 export default ChannelSidebar;
-

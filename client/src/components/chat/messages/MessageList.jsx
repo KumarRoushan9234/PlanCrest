@@ -22,17 +22,27 @@ const MessageList = ({
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (messages.length > prevMessagesLength.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     }
     prevMessagesLength.current = messages.length;
   }, [messages.length]);
 
   if (loading && messages.length === 0) {
-    return <LoadingState type="skeleton" count={5} />;
+    return (
+      <div className="flex-1 overflow-y-auto p-4">
+        <LoadingState type="skeleton" count={5} />
+      </div>
+    );
   }
 
   if (messages.length === 0) {
-    return <EmptyState title="No messages yet" description="Start the conversation below" />;
+    return (
+      <div className="flex-1 overflow-y-auto">
+        <EmptyState title="No messages yet" description="Start the conversation below" />
+      </div>
+    );
   }
 
   return (
@@ -47,7 +57,7 @@ const MessageList = ({
             !prevMessage ||
             !prevMessage.sender ||
             !message.sender ||
-            prevMessage.sender._id !== message.sender._id ||
+            prevMessage.sender._id?.toString() !== message.sender._id?.toString() ||
             new Date(message.createdAt) - new Date(prevMessage.createdAt) >
               300000; // 5 minutes
 
@@ -59,7 +69,7 @@ const MessageList = ({
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
-                  <span className="text-xs text-gray-500 bg-gray-900 px-3 py-1 rounded-full">
+                  <span className="text-xs text-gray-500 bg-gray-900/50 px-3 py-1 rounded-full border border-gray-800/50">
                     {formatDateSeparator(message.createdAt)}
                   </span>
                 </motion.div>
@@ -82,4 +92,3 @@ const MessageList = ({
 };
 
 export default MessageList;
-

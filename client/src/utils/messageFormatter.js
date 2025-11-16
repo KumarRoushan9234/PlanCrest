@@ -21,12 +21,14 @@ export const formatMessage = (content, format = "plain") => {
       return content;
     case "plain":
     default:
-      // Escape HTML and preserve line breaks
+      // Escape HTML and preserve line breaks with proper spacing
       return content
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
-        .replace(/\n/g, "<br>");
+        .replace(/\n\n/g, "<br><br>") // Double line breaks for paragraphs
+        .replace(/\n/g, "<br>") // Single line breaks
+        .replace(/  /g, "&nbsp;&nbsp;"); // Preserve double spaces
   }
 };
 

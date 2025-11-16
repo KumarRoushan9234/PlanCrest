@@ -31,11 +31,11 @@ const LoadingState = ({ type = "spinner", count = 3, className = "" }) => {
           animate={{ opacity: 1 }}
           transition={{ delay: index * 0.1 }}
         >
-          <div className="w-8 h-8 rounded-full bg-gray-800 animate-pulse" />
+          <div className="w-8 h-8 rounded-full bg-gray-900/50 animate-pulse" />
           <div className="flex-1 space-y-2">
-            <div className="h-4 w-24 bg-gray-800 rounded animate-pulse" />
-            <div className="h-4 w-full bg-gray-800 rounded animate-pulse" />
-            <div className="h-4 w-3/4 bg-gray-800 rounded animate-pulse" />
+            <div className="h-4 w-24 bg-gray-900/50 rounded animate-pulse" />
+            <div className="h-4 w-full bg-gray-900/50 rounded animate-pulse" />
+            <div className="h-4 w-3/4 bg-gray-900/50 rounded animate-pulse" />
           </div>
         </motion.div>
       ))}

@@ -53,13 +53,13 @@ const Avatar = ({
         <motion.img
           src={avatarUrl}
           alt={userName}
-          className={`${sizes[size]} rounded-full object-cover border-2 border-gray-800`}
+          className={`${sizes[size]} rounded-full object-cover border-2 border-gray-800/50`}
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         />
       ) : (
         <motion.div
-          className={`${sizes[size]} rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold border-2 border-gray-800`}
+          className={`${sizes[size]} rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold border-2 border-gray-800/50`}
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >

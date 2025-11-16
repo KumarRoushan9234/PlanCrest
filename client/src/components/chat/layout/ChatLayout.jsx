@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 const ChatLayout = ({ children, className = "" }) => {
   return (
     <motion.div
-      className={`flex h-[calc(100vh-8rem)] bg-gray-950 ${className}`}
+      className={`flex h-full bg-[#171819] ${className}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
@@ -19,4 +19,3 @@ const ChatLayout = ({ children, className = "" }) => {
 };
 
 export default ChatLayout;
-

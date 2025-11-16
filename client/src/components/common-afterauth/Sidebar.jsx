@@ -74,7 +74,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
   useEffect(() => {
     const handleResize = () => {
       // On desktop, always ensure sidebar is open
-      if (window.innerWidth >= 768) {
+      if (window.innerWidth >= 768 && setIsMobileSidebarOpen) {
         setIsMobileSidebarOpen(true);
       }
     };
@@ -84,7 +84,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
     handleResize();
 
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [setIsMobileSidebarOpen]);
 
   const mainNavigationItems = [
     {

@@ -246,7 +246,10 @@ const ChatChannelsPage = () => {
           <Navbar />
         </div>
         <div className="flex pt-14">
-          <Sidebar />
+          <Sidebar 
+            isMobileSidebarOpen={true}
+            setIsMobileSidebarOpen={() => {}}
+          />
           <div className="flex-1 ml-64 flex items-center justify-center h-[calc(100vh-56px)]">
             <LoadingState type="spinner" />
           </div>
@@ -264,7 +267,10 @@ const ChatChannelsPage = () => {
 
       <div className="flex pt-14">
         {/* Sidebar - Fixed */}
-        <Sidebar />
+        <Sidebar 
+          isMobileSidebarOpen={true}
+          setIsMobileSidebarOpen={() => {}}
+        />
 
         {/* Main Content - Full space */}
         <main className="flex-1 ml-64" style={{ minHeight: "calc(100vh - 56px)" }}>

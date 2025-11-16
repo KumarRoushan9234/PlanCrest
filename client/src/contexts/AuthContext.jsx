@@ -1,28 +1,28 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable no-unused-vars */
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  signInWithEmailAndPassword, 
+import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
-  onAuthStateChanged
-} from 'firebase/auth';
-import { auth, googleProvider } from '../config/firebase';
-import axios from 'axios';
-import toast from 'react-hot-toast';
+  onAuthStateChanged,
+} from "firebase/auth";
+import { auth, googleProvider } from "../config/firebase";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = "http://localhost:8000/api";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -60,10 +60,28 @@ export const AuthProvider = ({ children }) => {
       if (response.data) {
         setUser(response.data);
         setIsAuthenticated(true);
+
+        // If we have a user but no token in localStorage, try to get it from cookies
+        // This helps with SSE connections (though httpOnly cookies won't be accessible)
+        if (!localStorage.getItem("token")) {
+          const cookies = document.cookie.split(";");
+          for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split("=");
+            if (name === "token" && value) {
+              try {
+                localStorage.setItem("token", decodeURIComponent(value));
+              } catch (e) {
+                // Cookie might be httpOnly, which is fine - we'll use polling
+              }
+              break;
+            }
+          }
+        }
       }
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);
+      localStorage.removeItem("token");
     } finally {
       setLoading(false);
     }
@@ -75,15 +93,21 @@ export const AuthProvider = ({ children }) => {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         name: firebaseUser.displayName,
-        picture: firebaseUser.photoURL
+        picture: firebaseUser.photoURL,
       });
-      
+
       setUser(response.data);
       setIsAuthenticated(true);
+
+      // Store token in localStorage for SSE and other uses
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+
       // Don't show success toast on page refresh - only show on actual login
     } catch (error) {
-      console.error('Firebase auth error:', error);
-      toast.error('Authentication failed');
+      console.error("Firebase auth error:", error);
+      toast.error("Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -93,10 +117,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await axios.post(`${API_BASE_URL}/register`, userData);
-      toast.success('Registration successful! Please check your email for verification.');
+      toast.success(
+        "Registration successful! Please check your email for verification."
+      );
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.response?.data || 'Registration failed';
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data ||
+        "Registration failed";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -107,13 +136,23 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
+      const response = await axios.post(`${API_BASE_URL}/login`, {
+        email,
+        password,
+      });
       setUser(response.data);
       setIsAuthenticated(true);
-      toast.success('Successfully logged in!');
+
+      // Store token in localStorage for SSE and other uses
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+
+      toast.success("Successfully logged in!");
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.response?.data || 'Login failed';
+      const errorMessage =
+        error.response?.data?.error || error.response?.data || "Login failed";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -126,10 +165,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
       // Firebase auth state change will handle the rest
-      toast.success('Successfully signed in with Google!');
+      toast.success("Successfully signed in with Google!");
     } catch (error) {
-      console.error('Google login error:', error);
-      toast.error('Google login failed');
+      console.error("Google login error:", error);
+      toast.error("Google login failed");
       setLoading(false);
     }
   };
@@ -137,11 +176,17 @@ export const AuthProvider = ({ children }) => {
   const verifyEmail = async (email, code) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/verify-email`, { email, code });
-      toast.success('Email verified successfully!');
+      const response = await axios.post(`${API_BASE_URL}/verify-email`, {
+        email,
+        code,
+      });
+      toast.success("Email verified successfully!");
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.response?.data || 'Email verification failed';
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data ||
+        "Email verification failed";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -152,11 +197,16 @@ export const AuthProvider = ({ children }) => {
   const forgotPassword = async (email) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/forgot-password`, { email });
-      toast.success('Password reset code sent to your email!');
+      const response = await axios.post(`${API_BASE_URL}/forgot-password`, {
+        email,
+      });
+      toast.success("Password reset code sent to your email!");
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.response?.data || 'Failed to send reset code';
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data ||
+        "Failed to send reset code";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -167,15 +217,18 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email, code, newPassword) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/reset-password`, { 
-        email, 
-        code, 
-        newPassword 
+      const response = await axios.post(`${API_BASE_URL}/reset-password`, {
+        email,
+        code,
+        newPassword,
       });
-      toast.success('Password reset successfully!');
+      toast.success("Password reset successfully!");
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.response?.data || 'Password reset failed';
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data ||
+        "Password reset failed";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -186,12 +239,18 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       setLoading(true);
-      const response = await axios.put(`${API_BASE_URL}/update-profile`, profileData);
+      const response = await axios.put(
+        `${API_BASE_URL}/update-profile`,
+        profileData
+      );
       setUser(response.data.user);
-      toast.success('Profile updated successfully!');
+      toast.success("Profile updated successfully!");
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.response?.data || 'Profile update failed';
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data ||
+        "Profile update failed";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -202,13 +261,19 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (passwordData) => {
     try {
       setLoading(true);
-      console.log('Sending password data:', passwordData);
-      const response = await axios.put(`${API_BASE_URL}/change-password`, passwordData);
-      toast.success('Password changed successfully!');
+      console.log("Sending password data:", passwordData);
+      const response = await axios.put(
+        `${API_BASE_URL}/change-password`,
+        passwordData
+      );
+      toast.success("Password changed successfully!");
       return response.data;
     } catch (error) {
-      console.error('Password change error details:', error.response?.data);
-      const errorMessage = error.response?.data?.error || error.response?.data || 'Password change failed';
+      console.error("Password change error details:", error.response?.data);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data ||
+        "Password change failed";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -217,15 +282,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    // Clear token from localStorage
+    localStorage.removeItem("token");
     try {
       setLoading(true);
       await axios.get(`${API_BASE_URL}/logout`);
       await firebaseSignOut(auth);
       setUser(null);
       setIsAuthenticated(false);
-      toast.success('Successfully logged out!');
+      toast.success("Successfully logged out!");
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       // Still clear local state even if backend logout fails
       setUser(null);
       setIsAuthenticated(false);
@@ -246,12 +313,8 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     updateProfile,
     changePassword,
-    logout
+    logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

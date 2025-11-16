@@ -3,7 +3,11 @@ import jwt from "jsonwebtoken";
 
 export const requireSignin = expressjwt({
   getToken: (req, res) => {
-    // First try to get token from cookie
+    // First try to get token from query parameter (for SSE)
+    if (req.query.token) {
+      return req.query.token;
+    }
+    // Then try to get token from cookie
     if (req.cookies.token) {
       return req.cookies.token;
     }

@@ -14,6 +14,9 @@ const ChannelList = ({
   onSelectChannel,
   unreadCounts = {},
   searchQuery = "",
+  onDeleteChannel,
+  showChannelMenu,
+  setShowChannelMenu,
 }) => {
   // Filter channels by search query
   const filteredChannels = useMemo(() => {
@@ -52,7 +55,11 @@ const ChannelList = ({
       <EmptyState
         icon={Hash}
         title="No channels found"
-        description={searchQuery ? "Try a different search term" : "Create a channel to get started"}
+        description={
+          searchQuery
+            ? "Try a different search term"
+            : "Create a channel to get started"
+        }
       />
     );
   }
@@ -81,8 +88,14 @@ const ChannelList = ({
                   <ChannelItem
                     channel={channel}
                     isSelected={selectedChannel?._id === channel._id}
-                    onClick={() => onSelectChannel(channel)}
+                    onClick={() => {
+                      setShowChannelMenu(null);
+                      onSelectChannel(channel);
+                    }}
                     unreadCount={unreadCounts[channel._id] || 0}
+                    onDelete={onDeleteChannel}
+                    showMenu={showChannelMenu === channel._id}
+                    onMenuClick={setShowChannelMenu}
                   />
                 </motion.div>
               ))}
@@ -95,4 +108,3 @@ const ChannelList = ({
 };
 
 export default ChannelList;
-

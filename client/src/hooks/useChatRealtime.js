@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useWorkspace } from "../contexts/WorkspaceContext";
+import { useAuth } from "../contexts/AuthContext";
 
 /**
  * Hook for real-time chat updates using Server-Sent Events
@@ -7,6 +8,7 @@ import { useWorkspace } from "../contexts/WorkspaceContext";
  */
 export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
   const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
   const eventSourceRef = useRef(null);
   const pollingIntervalRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -17,36 +19,42 @@ export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
 
   // Get token from cookie or localStorage
   const getToken = useCallback(() => {
-    // Try localStorage first
+    // Try localStorage first (most accessible)
     const localToken = localStorage.getItem("token");
     if (localToken) return localToken;
     
-    // Try to get from cookies
+    // Try to get from cookies (may not work if httpOnly)
     const cookies = document.cookie.split(';');
     for (let cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
       if (name === 'token') {
-        return value;
+        const tokenValue = decodeURIComponent(value);
+        if (tokenValue) return tokenValue;
       }
     }
+    
+    // If user is authenticated but no token found, cookies are likely httpOnly
+    // In this case, we can't send token via EventSource, so we'll use polling
     return null;
   }, []);
 
   // Connect to SSE
   const connectSSE = useCallback(() => {
-    if (!currentWorkspace?._id) return;
+    if (!currentWorkspace?._id || !user) return;
 
     try {
       const token = getToken();
       if (!token) {
-        console.warn("No token found for SSE connection, using polling fallback");
+        // No token available - fall back to polling
         startPolling();
         return;
       }
       
-      const eventSource = new EventSource(
-        `${API_URL}/chat/workspaces/${currentWorkspace._id}/events?token=${encodeURIComponent(token)}`
-      );
+      // Build URL with token in query parameter
+      // EventSource doesn't support custom headers or withCredentials
+      const url = `${API_URL}/chat/workspaces/${currentWorkspace._id}/events?token=${encodeURIComponent(token)}`;
+      
+      const eventSource = new EventSource(url);
 
       eventSource.onopen = () => {
         setIsConnected(true);

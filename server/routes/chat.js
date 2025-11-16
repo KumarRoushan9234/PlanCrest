@@ -28,29 +28,13 @@ import {
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
 import sseManager from "../utils/sseManager.js";
-import jwt from "jsonwebtoken";
 
 // SSE endpoint for real-time updates
 // Note: SSE requires special auth handling since it's a long-lived connection
+// requireSignin now checks query parameters, so we can use it directly
 router.get(
   "/workspaces/:workspaceId/events",
-  async (req, res, next) => {
-    // Handle auth for SSE - check token from query, header, or cookie
-    // EventSource can't send cookies, so we check query param first
-    const token = req.query.token || req.headers.authorization?.split(' ')[1] || req.cookies?.token;
-    
-    if (!token) {
-      return res.status(401).json({ error: 'No authorization token' });
-    }
-
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.auth = { _id: decoded._id };
-      next();
-    } catch (error) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-  },
+  requireSignin,
   (req, res) => {
     const { workspaceId } = req.params;
     const userId = req.auth._id.toString();
@@ -95,8 +79,7 @@ router.get(
       sseManager.removeListener("user_status", eventHandler);
       sseManager.removeConnection(userId, res);
     });
-  },
-  handleAuthError
+  }
 );
 
 // Channel routes

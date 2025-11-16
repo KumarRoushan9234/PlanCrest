@@ -20,7 +20,7 @@ const EmptyState = ({
       transition={{ duration: 0.3 }}
     >
       <motion.div
-        className="mb-4 p-4 bg-gray-800 rounded-full"
+        className="mb-4 p-4 bg-gray-900/50 rounded-full"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
@@ -48,4 +48,3 @@ const EmptyState = ({
 };
 
 export default EmptyState;
-

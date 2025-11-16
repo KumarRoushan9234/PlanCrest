@@ -54,7 +54,8 @@ export const formatMessageForResponse = async (message) => {
       .populate("mentions", "name email avatar")
       .populate("taskMentions", "title taskKey")
       .populate("linkedTask", "title taskKey")
-      .populate("reactions.users", "name avatar");
+      .populate("reactions.users", "name avatar")
+      .populate("attachments", "filename originalName mimeType size url thumbnailUrl");
 
     return populatedMessage;
   } catch (error) {

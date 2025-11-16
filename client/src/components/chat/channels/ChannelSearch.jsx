@@ -15,7 +15,7 @@ const ChannelSearch = ({ value, onChange, onClear, className = "" }) => {
         placeholder="Search channels..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full pl-8 pr-8 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+        className="w-full pl-8 pr-8 py-2 bg-gray-900/50 border border-gray-800/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-colors"
       />
       {value && (
         <motion.button
@@ -32,4 +32,3 @@ const ChannelSearch = ({ value, onChange, onClear, className = "" }) => {
 };
 
 export default ChannelSearch;
-
