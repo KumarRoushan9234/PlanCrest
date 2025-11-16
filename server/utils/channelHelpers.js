@@ -1,5 +1,7 @@
 import ChatChannel from "../models/chatChannel.js";
 import Project from "../models/project.js";
+import ProjectMember from "../models/projectMember.js";
+import WorkspaceMember from "../models/workspaceMember.js";
 
 /**
  * Channel Helper Functions
@@ -7,7 +9,55 @@ import Project from "../models/project.js";
  */
 
 /**
- * Create default channels for a project
+ * Create default channel for a workspace
+ * @param {string} workspaceId - Workspace ID
+ * @param {string} createdBy - User ID who created the workspace
+ */
+export const createDefaultWorkspaceChannel = async (workspaceId, createdBy) => {
+  try {
+    // Check if default channel already exists
+    const existing = await ChatChannel.findOne({
+      workspace: workspaceId,
+      category: "workspace",
+      isDefault: true,
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    // Get all workspace members
+    const workspaceMembers = await WorkspaceMember.find({
+      workspace: workspaceId,
+      status: "active",
+    }).select("user");
+
+    const memberIds = workspaceMembers.map((wm) => wm.user);
+
+    // Create default workspace channel
+    const channel = new ChatChannel({
+      name: "#general",
+      prefix: "general",
+      category: "workspace",
+      type: "public",
+      isDefault: true,
+      description: "General workspace discussion",
+      workspace: workspaceId,
+      members: memberIds.length > 0 ? memberIds : [createdBy],
+      createdBy,
+    });
+
+    await channel.save();
+    console.log(`Created default workspace channel: #general`);
+    return channel;
+  } catch (error) {
+    console.error("Error creating default workspace channel:", error);
+    throw error;
+  }
+};
+
+/**
+ * Create default channel for a project
  * @param {string} projectId - Project ID
  * @param {string} workspaceId - Workspace ID
  * @param {string} createdBy - User ID who created the project
@@ -20,53 +70,42 @@ export const createDefaultChannels = async (projectId, workspaceId, createdBy) =
       return;
     }
 
-    const channels = [
-      {
-        name: `#general-${project.key}`,
-        prefix: "general",
-        category: "project",
-        type: "public",
-        isDefault: true,
-        description: `General discussion for ${project.name}`,
-      },
-      {
-        name: `#tasks-${project.key}`,
-        prefix: "tasks",
-        category: "project",
-        type: "public",
-        isDefault: true,
-        description: `Task-related discussions for ${project.name}`,
-      },
-      {
-        name: `#client-${project.key}`,
-        prefix: "client",
-        category: "project",
-        type: "private",
-        isDefault: true,
-        description: `Client-facing channel for ${project.name}`,
-      },
-    ];
+    // Check if default channel already exists
+    const existing = await ChatChannel.findOne({
+      project: projectId,
+      category: "project",
+      isDefault: true,
+    });
 
-    for (const channelData of channels) {
-      // Check if channel already exists
-      const existing = await ChatChannel.findOne({
-        project: projectId,
-        prefix: channelData.prefix,
-      });
-
-      if (!existing) {
-        const channel = new ChatChannel({
-          ...channelData,
-          project: projectId,
-          workspace: workspaceId,
-          members: [createdBy],
-          createdBy,
-        });
-
-        await channel.save();
-        console.log(`Created channel: ${channelData.name}`);
-      }
+    if (existing) {
+      return existing;
     }
+
+    // Get all project members
+    const projectMembers = await ProjectMember.find({
+      project: projectId,
+      status: "active",
+    }).select("user");
+
+    const memberIds = projectMembers.map((pm) => pm.user);
+
+    // Create single default project channel
+    const channel = new ChatChannel({
+      name: `#general-${project.key}`,
+      prefix: "general",
+      category: "project",
+      type: "public",
+      isDefault: true,
+      description: `General discussion for ${project.name}`,
+      project: projectId,
+      workspace: workspaceId,
+      members: memberIds.length > 0 ? memberIds : [createdBy],
+      createdBy,
+    });
+
+    await channel.save();
+    console.log(`Created default project channel: #general-${project.key}`);
+    return channel;
   } catch (error) {
     console.error("Error creating default channels:", error);
   }

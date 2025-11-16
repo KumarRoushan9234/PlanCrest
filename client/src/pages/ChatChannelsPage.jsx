@@ -16,9 +16,26 @@ import ChannelSearch from "../components/chat/channels/ChannelSearch";
 import MessageList from "../components/chat/messages/MessageList";
 import MessageInput from "../components/chat/input/MessageInput";
 import TypingIndicator from "../components/chat/indicators/TypingIndicator";
-import { EmptyState, LoadingState, ErrorState } from "../components/chat/shared/index";
-import { CreateChannelModal, SearchModal } from "../components/chat/modals";
-import { Hash, Plus, MessageSquare, Search, Trash2, MoreVertical, FolderKanban, Users } from "lucide-react";
+import {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+} from "../components/chat/shared/index";
+import {
+  CreateChannelModal,
+  SearchModal,
+  DirectMessageModal,
+} from "../components/chat/modals";
+import {
+  Hash,
+  Plus,
+  MessageSquare,
+  Search,
+  Trash2,
+  MoreVertical,
+  FolderKanban,
+  Users,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import Navbar from "../components/common-afterauth/Navbar";
 import Sidebar from "../components/common-afterauth/Sidebar";
@@ -35,6 +52,7 @@ const ChatChannelsPage = () => {
   const [sending, setSending] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showDirectMessageModal, setShowDirectMessageModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -49,16 +67,18 @@ const ChatChannelsPage = () => {
     selectChannel,
   } = useChannelList(channels);
 
-  const { unreadCounts, markAsRead, incrementUnread } = useChannelUnread(channels);
+  const { unreadCounts, markAsRead, incrementUnread } =
+    useChannelUnread(channels);
   const { editMessage, deleteMessage } = useMessageActions();
 
   // Real-time updates
   const handleNewMessage = (data) => {
     if (data.type === "new_message" && data.message) {
-      const channelId = data.channelId || data.message.channel?._id || data.message.channel;
+      const channelId =
+        data.channelId || data.message.channel?._id || data.message.channel;
       const selectedChannelId = selectedChannel?._id?.toString();
       const incomingChannelId = channelId?.toString();
-      
+
       if (incomingChannelId === selectedChannelId) {
         setMessages((prev) => [...prev, data.message]);
         chatService.markAsRead(channelId).catch(console.error);
@@ -76,7 +96,9 @@ const ChatChannelsPage = () => {
     if (!currentWorkspace?._id) return;
     try {
       const { projectService } = await import("../services/projectService");
-      const response = await projectService.getWorkspaceProjects(currentWorkspace._id);
+      const response = await projectService.getWorkspaceProjects(
+        currentWorkspace._id
+      );
       setProjects(response.data || []);
     } catch (err) {
       console.error("Error fetching projects:", err);
@@ -90,21 +112,41 @@ const ChatChannelsPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await chatService.getWorkspaceChannels(currentWorkspace._id);
+      const response = await chatService.getWorkspaceChannels(
+        currentWorkspace._id
+      );
       const channelsData = response.data?.data || response.data || [];
-      
+
       // Filter by project if selected
       let filtered = channelsData;
       if (selectedProject) {
         filtered = channelsData.filter(
-          (ch) => ch.project?._id?.toString() === selectedProject._id?.toString()
+          (ch) =>
+            ch.project?._id?.toString() === selectedProject._id?.toString()
         );
       }
-      
+
+      // Filter by top search query (searches channels, projects, members)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter((ch) => {
+          const nameMatch = ch.name?.toLowerCase().includes(query);
+          const descMatch = ch.description?.toLowerCase().includes(query);
+          const projectMatch = ch.project?.name?.toLowerCase().includes(query);
+          const memberMatch = ch.members?.some(
+            (m) =>
+              m.name?.toLowerCase().includes(query) ||
+              m.email?.toLowerCase().includes(query)
+          );
+          return nameMatch || descMatch || projectMatch || memberMatch;
+        });
+      }
+
       setChannels(filtered);
     } catch (err) {
       console.error("Error fetching channels:", err);
-      const errorMessage = err.response?.data?.message || err.message || "Failed to load channels";
+      const errorMessage =
+        err.response?.data?.message || err.message || "Failed to load channels";
       setError(errorMessage);
       if (err.response?.status !== 404) {
         toast.error(errorMessage);
@@ -132,7 +174,8 @@ const ChatChannelsPage = () => {
 
   // Send message
   const handleSendMessage = async (content, attachments = []) => {
-    if (!selectedChannel || (!content.trim() && attachments.length === 0)) return;
+    if (!selectedChannel || (!content.trim() && attachments.length === 0))
+      return;
 
     try {
       setSending(true);
@@ -151,14 +194,26 @@ const ChatChannelsPage = () => {
   };
 
   // Handle channel selection
-  const handleSelectChannel = (channel) => {
+  const handleSelectChannel = async (channel) => {
     selectChannel(channel);
     fetchMessages(channel._id);
+
+    // Update last selected channel
+    try {
+      await chatService.updateLastSelectedChannel(channel._id);
+    } catch (err) {
+      console.error("Error updating last selected channel:", err);
+      // Don't show error to user, this is a background operation
+    }
   };
 
   // Delete channel
   const handleDeleteChannel = async (channelId) => {
-    if (!confirm("Are you sure you want to delete this channel? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this channel? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
@@ -182,7 +237,9 @@ const ChatChannelsPage = () => {
       await editMessage(messageId, newContent);
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === messageId ? { ...msg, content: newContent, isEdited: true } : msg
+          msg._id === messageId
+            ? { ...msg, content: newContent, isEdited: true }
+            : msg
         )
       );
     } catch (err) {
@@ -211,7 +268,9 @@ const ChatChannelsPage = () => {
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg._id === messageId) {
-            const existingReaction = msg.reactions?.find((r) => r.emoji === emoji);
+            const existingReaction = msg.reactions?.find(
+              (r) => r.emoji === emoji
+            );
             if (existingReaction) {
               existingReaction.count += 1;
             } else {
@@ -229,7 +288,50 @@ const ChatChannelsPage = () => {
   useEffect(() => {
     fetchChannels();
     fetchProjects();
-  }, [currentWorkspace?._id, selectedProject?._id]);
+  }, [currentWorkspace?._id, selectedProject?._id, searchQuery]);
+
+  // Restore last selected channel on load
+  useEffect(() => {
+    const restoreLastSelectedChannel = async () => {
+      if (
+        !currentWorkspace?._id ||
+        !user?._id ||
+        channels.length === 0 ||
+        selectedChannel
+      )
+        return;
+
+      try {
+        // Get user's last selected channel from user data
+        const lastSelectedChannelId = user?.lastSelected?.channel?.id;
+        if (lastSelectedChannelId && lastSelectedChannelId.toString()) {
+          // Check if the last selected channel is in the current workspace
+          const lastSelectedWorkspaceId =
+            user?.lastSelected?.channel?.workspaceId;
+          if (
+            lastSelectedWorkspaceId?.toString() ===
+            currentWorkspace._id.toString()
+          ) {
+            // Find the channel in the loaded channels
+            const lastChannel = channels.find(
+              (ch) => ch._id?.toString() === lastSelectedChannelId.toString()
+            );
+
+            if (lastChannel) {
+              // Only restore if no channel is currently selected
+              selectChannel(lastChannel);
+              fetchMessages(lastChannel._id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error restoring last selected channel:", err);
+        // Continue with normal flow if restoration fails
+      }
+    };
+
+    restoreLastSelectedChannel();
+  }, [currentWorkspace?._id, user?._id, channels.length]);
 
   useEffect(() => {
     if (selectedChannel) {
@@ -245,12 +347,15 @@ const ChatChannelsPage = () => {
         <div className="fixed top-0 left-0 right-0 z-50">
           <Navbar />
         </div>
-        <div className="flex pt-14">
-          <Sidebar 
+        <div className="flex pt-14" style={{ height: "calc(100vh - 56px)" }}>
+          <Sidebar
             isMobileSidebarOpen={true}
             setIsMobileSidebarOpen={() => {}}
           />
-          <div className="flex-1 ml-64 flex items-center justify-center h-[calc(100vh-56px)]">
+          <div
+            className="flex-1 flex items-center justify-center"
+            style={{ marginLeft: 0 }}
+          >
             <LoadingState type="spinner" />
           </div>
         </div>
@@ -265,15 +370,98 @@ const ChatChannelsPage = () => {
         <Navbar />
       </div>
 
-      <div className="flex pt-14">
+      <div className="flex pt-14" style={{ height: "calc(100vh - 56px)" }}>
         {/* Sidebar - Fixed */}
-        <Sidebar 
-          isMobileSidebarOpen={true}
-          setIsMobileSidebarOpen={() => {}}
-        />
+        <Sidebar isMobileSidebarOpen={true} setIsMobileSidebarOpen={() => {}} />
 
-        {/* Main Content - Full space */}
-        <main className="flex-1 ml-64" style={{ minHeight: "calc(100vh - 56px)" }}>
+        {/* Main Content - Full space, starts immediately after sidebar */}
+        <main
+          className="flex-1 flex flex-col"
+          style={{ minHeight: "calc(100vh - 56px)", marginLeft: 55 }}
+        >
+          {/* Top Bar - Search and Menu */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-[#1a1b1d]">
+            {/* Search Bar - Left Side */}
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search channels, members, projects..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-800/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* 3-Dot Menu - Right Side */}
+            <div className="relative">
+              <motion.button
+                onClick={() =>
+                  setShowChannelMenu(
+                    showChannelMenu === "main-menu" ? null : "main-menu"
+                  )
+                }
+                className="p-2 rounded-lg hover:bg-gray-800/50 text-gray-400 hover:text-white transition-colors"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                title="More Options"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </motion.button>
+
+              {showChannelMenu === "main-menu" && (
+                <motion.div
+                  className="absolute top-full right-0 mt-2 bg-gray-900 border border-gray-800/50 rounded-lg shadow-xl z-50 min-w-[200px]"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <button
+                    onClick={() => {
+                      setShowSearchModal(true);
+                      setShowChannelMenu(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800/50 transition-colors flex items-center gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    View All Channels
+                  </button>
+                  <button
+                    onClick={() => {
+                      // TODO: Open settings
+                      setShowChannelMenu(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800/50 transition-colors flex items-center gap-2"
+                  >
+                    <Hash className="w-4 h-4" />
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(true);
+                      setShowChannelMenu(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800/50 transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Channel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDirectMessageModal(true);
+                      setShowChannelMenu(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800/50 transition-colors flex items-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    Direct Messages
+                  </button>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
           <ChatLayout>
             {/* Channel Sidebar */}
             <ChannelSidebar>
@@ -288,11 +476,15 @@ const ChatChannelsPage = () => {
                   >
                     <div className="flex items-center gap-2">
                       <FolderKanban className="w-4 h-4" />
-                      <span>{selectedProject ? selectedProject.name : "All Projects"}</span>
+                      <span>
+                        {selectedProject
+                          ? selectedProject.name
+                          : "All Projects"}
+                      </span>
                     </div>
                     <Hash className="w-4 h-4" />
                   </motion.button>
-                  
+
                   {showProjectDropdown && (
                     <motion.div
                       className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-800/50 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"
@@ -368,11 +560,19 @@ const ChatChannelsPage = () => {
                             {selectedChannel.name}
                           </h3>
                           {selectedChannel.description && (
-                            <p className="text-sm text-gray-400">{selectedChannel.description}</p>
+                            <p className="text-sm text-gray-400">
+                              {selectedChannel.description}
+                            </p>
                           )}
                         </div>
                         <motion.button
-                          onClick={() => setShowChannelMenu(showChannelMenu === selectedChannel._id ? null : selectedChannel._id)}
+                          onClick={() =>
+                            setShowChannelMenu(
+                              showChannelMenu === selectedChannel._id
+                                ? null
+                                : selectedChannel._id
+                            )
+                          }
                           className="p-1.5 rounded-lg hover:bg-gray-800/50 text-gray-400 hover:text-white transition-colors"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
@@ -462,6 +662,17 @@ const ChatChannelsPage = () => {
       <SearchModal
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
+      />
+      <DirectMessageModal
+        isOpen={showDirectMessageModal}
+        onClose={() => setShowDirectMessageModal(false)}
+        onSuccess={(channel) => {
+          setChannels((prev) => {
+            const exists = prev.find((ch) => ch._id === channel._id);
+            return exists ? prev : [...prev, channel];
+          });
+          selectChannel(channel);
+        }}
       />
     </div>
   );

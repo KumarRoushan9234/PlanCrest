@@ -13,6 +13,7 @@ export {
   deleteChannel,
   addMember,
   removeMember,
+  updateLastSelectedChannelForUser,
 } from "./channels.js";
 
 // Message controllers

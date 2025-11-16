@@ -163,6 +163,38 @@ export const updateLastSelectedColumn = async (userId, columnData) => {
 };
 
 /**
+ * Update user's last selected channel
+ * @param {string} userId - User ID
+ * @param {Object} channelData - Channel data
+ * @returns {Promise<Object>} Updated user
+ */
+export const updateLastSelectedChannel = async (userId, channelData) => {
+  try {
+    const { id, name, workspaceId } = channelData;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          "lastSelected.channel": {
+            id,
+            name,
+            workspaceId,
+            selectedAt: new Date(),
+          },
+        },
+      },
+      { new: true }
+    );
+
+    return user;
+  } catch (error) {
+    console.error("Error updating last selected channel:", error);
+    throw error;
+  }
+};
+
+/**
  * Get user's last selected items
  * @param {string} userId - User ID
  * @returns {Promise<Object>} User's last selected items
@@ -195,6 +227,7 @@ export const clearLastSelected = async (userId, type = "all") => {
           "lastSelected.task": "",
           "lastSelected.board": "",
           "lastSelected.column": "",
+          "lastSelected.channel": "",
         },
       };
     } else {
@@ -226,6 +259,7 @@ export const validateLastSelectedItems = async (userId) => {
       { path: "lastSelected.task.id", select: "_id title project" },
       { path: "lastSelected.board.id", select: "_id name project" },
       { path: "lastSelected.column.id", select: "_id name board project" },
+      { path: "lastSelected.channel.id", select: "_id name workspace" },
     ]);
 
     if (!user) return null;
@@ -260,6 +294,12 @@ export const validateLastSelectedItems = async (userId) => {
     // Check column
     if (user.lastSelected.column?.id && !user.lastSelected.column.id._id) {
       updates["lastSelected.column"] = "";
+      hasUpdates = true;
+    }
+
+    // Check channel
+    if (user.lastSelected.channel?.id && !user.lastSelected.channel.id._id) {
+      updates["lastSelected.channel"] = "";
       hasUpdates = true;
     }
 

@@ -24,6 +24,7 @@ import {
   getTaskThread,
   sendThreadMessage,
   getThreadMessages,
+  updateLastSelectedChannelForUser,
 } from "../controllers/chat/index.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -101,6 +102,13 @@ router.get(
   "/channels/:channelId",
   requireSignin,
   getChannel,
+  handleAuthError
+);
+
+router.put(
+  "/channels/:channelId/last-selected",
+  requireSignin,
+  updateLastSelectedChannelForUser,
   handleAuthError
 );
 

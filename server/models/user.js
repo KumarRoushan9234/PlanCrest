@@ -303,6 +303,12 @@ const userSchema = new Schema(
         projectId: { type: Schema.Types.ObjectId, ref: "Project" },
         selectedAt: { type: Date, default: Date.now },
       },
+      channel: {
+        id: { type: Schema.Types.ObjectId, ref: "ChatChannel" },
+        name: { type: String },
+        workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace" },
+        selectedAt: { type: Date, default: Date.now },
+      },
     },
   },
   { timestamps: true }

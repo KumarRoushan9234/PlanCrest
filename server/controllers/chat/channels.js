@@ -2,6 +2,7 @@ import ChatChannel from "../../models/chatChannel.js";
 import User from "../../models/user.js";
 import { validateChannelAccess, formatChannelResponse } from "../../utils/chatHelpers.js";
 import { getChannelMembers } from "../../utils/channelHelpers.js";
+import { updateLastSelectedChannel } from "../../utils/lastSelected.js";
 
 /**
  * Get all channels for a workspace
@@ -140,12 +141,57 @@ export const createChannel = async (req, res) => {
     const userId = req.auth._id;
 
     // Validate category
-    const validCategories = ["feature", "team", "workspace"];
+    const validCategories = ["feature", "project", "workspace"];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid category for manual channel creation",
+        message: "Invalid category. Must be 'feature', 'project', or 'workspace'",
       });
+    }
+
+    let channelMembers = [userId]; // Always include creator
+
+    // Handle different categories
+    if (category === "project") {
+      // Project channel - include all project members
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          message: "Project ID is required for project channels",
+        });
+      }
+
+      const ProjectMember = (await import("../../models/projectMember.js")).default;
+      const projectMembers = await ProjectMember.find({
+        project: projectId,
+        status: "active",
+      }).select("user");
+
+      channelMembers = [
+        ...new Set([
+          userId,
+          ...projectMembers.map((pm) => pm.user.toString()),
+        ]),
+      ];
+    } else if (category === "workspace") {
+      // Workspace channel - include all workspace members
+      const WorkspaceMember = (await import("../../models/workspaceMember.js")).default;
+      const workspaceMembers = await WorkspaceMember.find({
+        workspace: workspaceId,
+        status: "active",
+      }).select("user");
+
+      channelMembers = [
+        ...new Set([
+          userId,
+          ...workspaceMembers.map((wm) => wm.user.toString()),
+        ]),
+      ];
+    } else if (category === "feature") {
+      // Feature/Personal channel - use selected members
+      if (members && Array.isArray(members) && members.length > 0) {
+        channelMembers = [...new Set([userId, ...members.map((m) => m.toString())])];
+      }
     }
 
     const channel = new ChatChannel({
@@ -154,14 +200,17 @@ export const createChannel = async (req, res) => {
       category,
       type: type || "public",
       workspace: workspaceId,
-      project: projectId || null,
-      members: members ? [...members, userId] : [userId],
+      project: category === "project" ? projectId : null,
+      members: channelMembers,
       createdBy: userId,
     });
 
     await channel.save();
     await channel.populate("members", "name email avatar");
     await channel.populate("createdBy", "name avatar");
+    if (projectId) {
+      await channel.populate("project", "name key");
+    }
 
     const formattedChannel = formatChannelResponse(channel, userId);
 
@@ -424,6 +473,52 @@ export const removeMember = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to remove member",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Update last selected channel for user
+ */
+export const updateLastSelectedChannelForUser = async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const userId = req.auth._id;
+
+    const channel = await ChatChannel.findById(channelId);
+    if (!channel) {
+      return res.status(404).json({
+        success: false,
+        message: "Channel not found",
+      });
+    }
+
+    // Check if user has access to channel
+    const hasAccess = await validateChannelAccess(channel, userId);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied to this channel",
+      });
+    }
+
+    // Update last selected channel
+    await updateLastSelectedChannel(userId, {
+      id: channelId,
+      name: channel.name,
+      workspaceId: channel.workspace.toString(),
+    });
+
+    res.json({
+      success: true,
+      message: "Last selected channel updated",
+    });
+  } catch (error) {
+    console.error("Error updating last selected channel:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update last selected channel",
       error: error.message,
     });
   }

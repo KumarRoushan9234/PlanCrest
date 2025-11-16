@@ -8,6 +8,7 @@ import { nanoid } from "nanoid";
 import { sendSimpleEmail } from "../utils/mailService.js";
 import { sendInvitationAcceptedEmail } from "../utils/emailTemplates.js";
 import { updateLastSelectedWorkspace, getLastSelectedItems } from "../utils/lastSelected.js";
+import { createDefaultWorkspaceChannel } from "../utils/channelHelpers.js";
 
 /**
  * Create a new workspace
@@ -35,6 +36,24 @@ export const createWorkspace = async (req, res) => {
     });
 
     await workspace.save();
+
+    // Add creator as workspace member
+    const workspaceMember = new WorkspaceMember({
+      workspace: workspace._id,
+      user: userId,
+      role: "owner",
+      status: "active",
+      joinedAt: new Date(),
+    });
+    await workspaceMember.save();
+
+    // Create default workspace channel
+    try {
+      await createDefaultWorkspaceChannel(workspace._id, userId);
+    } catch (channelError) {
+      console.error("Error creating default workspace channel:", channelError);
+      // Don't fail workspace creation if channel fails
+    }
 
     // Update user's last selected workspace
     await updateLastSelectedWorkspace(userId, {

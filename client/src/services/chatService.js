@@ -98,6 +98,18 @@ export const chatService = {
   },
 
   /**
+   * Update last selected channel
+   */
+  updateLastSelectedChannel: async (channelId) => {
+    const response = await axios.put(
+      `${API_URL}/chat/channels/${channelId}/last-selected`,
+      {},
+      getAuthHeaders()
+    );
+    return response.data;
+  },
+
+  /**
    * Add member to channel
    */
   addMember: async (channelId, userId) => {
@@ -129,6 +141,18 @@ export const chatService = {
    * Get or create direct message channel
    */
   getOrCreateDM: async (workspaceId, userId) => {
+    const response = await axios.post(
+      `${API_URL}/chat/workspaces/${workspaceId}/direct-messages`,
+      { userId },
+      getAuthHeaders()
+    );
+    return response.data;
+  },
+
+  /**
+   * Get or create direct message channel (alias)
+   */
+  getOrCreateDirectMessage: async (workspaceId, userId) => {
     const response = await axios.post(
       `${API_URL}/chat/workspaces/${workspaceId}/direct-messages`,
       { userId },
