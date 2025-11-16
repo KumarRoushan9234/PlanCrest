@@ -5,6 +5,7 @@ import axios from "axios";
 import EmojiPicker from "./EmojiPicker";
 import MentionAutocomplete from "./MentionAutocomplete";
 import { useWorkspace } from "../../../contexts/WorkspaceContext";
+import chatService from "../../../services/chatService";
 
 /**
  * Message Input Component
@@ -24,6 +25,8 @@ const MessageInput = ({
   const [mentionPosition, setMentionPosition] = useState(null);
   const textareaRef = useRef(null);
   const inputContainerRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const lastTypingSentRef = useRef(0);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -36,12 +39,26 @@ const MessageInput = ({
     }
   }, [message]);
 
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if ((message.trim() || attachments.length > 0) && !disabled) {
       onSend(message.trim(), attachments);
       setMessage("");
       setAttachments([]);
+      // Clear typing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
@@ -62,11 +79,35 @@ const MessageInput = ({
     }
   };
 
+  // Send typing indicator (throttled to once per 2 seconds)
+  const sendTypingIndicator = () => {
+    if (!channelId) return;
+
+    const now = Date.now();
+    // Only send if at least 2 seconds have passed since last typing indicator
+    if (now - lastTypingSentRef.current < 2000) {
+      return;
+    }
+
+    lastTypingSentRef.current = now;
+    chatService.sendTypingIndicator(channelId).catch(console.error);
+  };
+
   // Handle mention detection
   const handleInputChange = (e) => {
     const value = e.target.value;
     const cursorPosition = e.target.selectionStart;
     setMessage(value);
+
+    // Send typing indicator when user types
+    if (value.trim() && channelId) {
+      sendTypingIndicator();
+
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
 
     // Check for @mention (match word characters, stop at whitespace)
     const textBeforeCursor = value.substring(0, cursorPosition);
@@ -217,11 +258,11 @@ const MessageInput = ({
             disabled={disabled}
             rows={1}
             className="w-full px-4 py-3 bg-gray-900/50 border border-gray-800/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-colors resize-none max-h-[120px] whitespace-pre-wrap break-words"
-            style={{ 
+            style={{
               minHeight: "44px",
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              overflowY: 'auto'
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              overflowY: "auto",
             }}
           />
           <style>{`

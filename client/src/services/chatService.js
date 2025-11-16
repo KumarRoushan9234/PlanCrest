@@ -343,6 +343,20 @@ export const chatService = {
     );
     return response.data;
   },
+
+  // ==================== Typing Indicators ====================
+
+  /**
+   * Send typing indicator
+   */
+  sendTypingIndicator: async (channelId) => {
+    const response = await axios.post(
+      `${API_URL}/chat/channels/${channelId}/typing`,
+      {},
+      getAuthHeaders()
+    );
+    return response.data;
+  },
 };
 
 export default chatService;

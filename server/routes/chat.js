@@ -25,6 +25,7 @@ import {
   sendThreadMessage,
   getThreadMessages,
   updateLastSelectedChannelForUser,
+  sendTypingIndicator,
 } from "../controllers/chat/index.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
@@ -55,9 +56,16 @@ router.get(
     // Listen for events
     const eventHandler = (data) => {
       // Only send events relevant to this user and workspace
+      // Convert both to strings for comparison
+      const dataWorkspaceId = data.workspaceId?.toString();
+      const reqWorkspaceId = workspaceId?.toString();
+      
+      // Convert channelMembers to strings for comparison
+      const memberIds = data.channelMembers?.map(m => m?.toString()) || [];
+      
       if (
-        data.workspaceId === workspaceId &&
-        (data.userId === userId || data.channelMembers?.includes(userId))
+        dataWorkspaceId === reqWorkspaceId &&
+        (data.userId?.toString() === userId || memberIds.includes(userId))
       ) {
         try {
           res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -109,6 +117,14 @@ router.put(
   "/channels/:channelId/last-selected",
   requireSignin,
   updateLastSelectedChannelForUser,
+  handleAuthError
+);
+
+// Typing indicator
+router.post(
+  "/channels/:channelId/typing",
+  requireSignin,
+  sendTypingIndicator,
   handleAuthError
 );
 

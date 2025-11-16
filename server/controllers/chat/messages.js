@@ -223,13 +223,17 @@ export const sendMessage = async (req, res) => {
     // Emit SSE event
     const populatedMessage = await formatMessageForResponse(message);
     const messageData = populatedMessage.toObject ? populatedMessage.toObject() : populatedMessage;
+    
+    // Convert channelMembers to strings for SSE
+    const memberIds = channelMembers.map(m => m?.toString() || m);
+    
     sseManager.emitMessageEvent({
       type: "new_message",
       workspaceId: channel.workspace.toString(),
-      channelId: channelId,
+      channelId: channelId.toString(),
       message: messageData,
       userId: userId.toString(),
-      channelMembers: channelMembers,
+      channelMembers: memberIds,
     });
 
     res.status(201).json({

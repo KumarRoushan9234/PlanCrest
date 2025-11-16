@@ -3,6 +3,7 @@ import User from "../../models/user.js";
 import { validateChannelAccess, formatChannelResponse } from "../../utils/chatHelpers.js";
 import { getChannelMembers } from "../../utils/channelHelpers.js";
 import { updateLastSelectedChannel } from "../../utils/lastSelected.js";
+import sseManager from "../../utils/sseManager.js";
 
 /**
  * Get all channels for a workspace
@@ -519,6 +520,61 @@ export const updateLastSelectedChannelForUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update last selected channel",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Send typing indicator
+ */
+export const sendTypingIndicator = async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const userId = req.auth._id.toString();
+
+    // Verify channel access
+    const channel = await ChatChannel.findById(channelId);
+    if (!channel) {
+      return res.status(404).json({
+        success: false,
+        message: "Channel not found",
+      });
+    }
+
+    const hasAccess = await validateChannelAccess(userId, channel);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to send typing indicator in this channel",
+      });
+    }
+
+    // Get channel members and user info
+    const channelMembers = await getChannelMembers(channelId);
+    const User = (await import("../../models/user.js")).default;
+    const user = await User.findById(userId).select("name");
+
+    // Emit typing event
+    const memberIds = channelMembers.map(m => m?.toString() || m);
+    sseManager.emitTypingEvent({
+      type: "typing",
+      workspaceId: channel.workspace.toString(),
+      channelId: channelId.toString(),
+      userId: userId,
+      userName: user?.name || "Someone",
+      channelMembers: memberIds,
+    });
+
+    res.json({
+      success: true,
+      message: "Typing indicator sent",
+    });
+  } catch (error) {
+    console.error("Error sending typing indicator:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send typing indicator",
       error: error.message,
     });
   }

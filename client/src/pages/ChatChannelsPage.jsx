@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useWorkspace } from "../contexts/WorkspaceContext";
@@ -91,6 +91,9 @@ const ChatChannelsPage = () => {
     setTotalUnread(totalUnread);
   }, [totalUnread, setTotalUnread]);
 
+  // Typing indicator state
+  const [typingUsers, setTypingUsers] = useState([]);
+
   // Real-time updates
   const handleNewMessage = (data) => {
     if (data.type === "new_message" && data.message) {
@@ -116,7 +119,33 @@ const ChatChannelsPage = () => {
     }
   };
 
-  useChatRealtime(handleNewMessage, null, null);
+  // Handle typing indicators
+  const handleTyping = (data) => {
+    if (data.type === "typing" && data.channelId) {
+      const selectedChannelId = selectedChannel?._id?.toString();
+      const incomingChannelId = data.channelId?.toString();
+      
+      if (incomingChannelId === selectedChannelId && data.userId) {
+        const userId = data.userId?.toString();
+        const userName = data.userName || "Someone";
+        
+        // Add typing user
+        setTypingUsers((prev) => {
+          if (!prev.find((u) => u.id === userId)) {
+            return [...prev, { id: userId, name: userName }];
+          }
+          return prev;
+        });
+
+        // Remove typing user after 3 seconds
+        setTimeout(() => {
+          setTypingUsers((prev) => prev.filter((u) => u.id !== userId));
+        }, 3000);
+      }
+    }
+  };
+
+  useChatRealtime(handleNewMessage, handleTyping, null);
 
   // Fetch projects
   const fetchProjects = async () => {
@@ -746,7 +775,7 @@ const ChatChannelsPage = () => {
                   </div>
 
                   {/* Typing Indicator */}
-                  <TypingIndicator users={[]} />
+                  <TypingIndicator users={typingUsers.map(u => u.name)} />
 
                   {/* Input - Fixed at bottom */}
                   <div className="border-t border-gray-800/50 bg-gray-900/30 backdrop-blur-sm flex-shrink-0">

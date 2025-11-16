@@ -14,6 +14,7 @@ export {
   addMember,
   removeMember,
   updateLastSelectedChannelForUser,
+  sendTypingIndicator,
 } from "./channels.js";
 
 // Message controllers
