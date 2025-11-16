@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import { useProject } from "../contexts/ProjectContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useChat } from "../contexts/ChatContext";
 import chatService from "../services/chatService";
 import { useChatRealtime } from "../hooks/useChatRealtime";
 import { useChannelList } from "../hooks/useChannelList";
@@ -68,9 +69,24 @@ const ChatChannelsPage = () => {
     selectChannel,
   } = useChannelList(channels);
 
-  const { unreadCounts, markAsRead, incrementUnread } =
+  const { unreadCounts, markAsRead, incrementUnread, totalUnread } =
     useChannelUnread(channels);
-  const { editMessage, deleteMessage } = useMessageActions();
+  const { setTotalUnread } = useChat();
+  const {
+    editMessage,
+    deleteMessage,
+    pinMessage,
+    editingMessage,
+    editContent,
+    setEditContent,
+    startEditing,
+    cancelEditing,
+  } = useMessageActions();
+
+  // Sync total unread count to ChatContext
+  useEffect(() => {
+    setTotalUnread(totalUnread);
+  }, [totalUnread, setTotalUnread]);
 
   // Real-time updates
   const handleNewMessage = (data) => {
@@ -79,9 +95,16 @@ const ChatChannelsPage = () => {
         data.channelId || data.message.channel?._id || data.message.channel;
       const selectedChannelId = selectedChannel?._id?.toString();
       const incomingChannelId = channelId?.toString();
+      const messageId = data.message._id?.toString();
 
+      // Deduplicate messages by ID
       if (incomingChannelId === selectedChannelId) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => {
+          // Check if message already exists
+          const exists = prev.some((m) => m._id?.toString() === messageId);
+          if (exists) return prev;
+          return [...prev, data.message];
+        });
         chatService.markAsRead(channelId).catch(console.error);
       } else if (channelId) {
         incrementUnread(channelId);
@@ -246,19 +269,32 @@ const ChatChannelsPage = () => {
   };
 
   // Handle message actions
-  const handleEditMessage = async (messageId, newContent) => {
+  const handleStartEdit = (message) => {
+    startEditing(message);
+  };
+
+  const handleSaveEdit = async (messageId, newContent) => {
     try {
       await editMessage(messageId, newContent);
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId
-            ? { ...msg, content: newContent, isEdited: true }
+            ? {
+                ...msg,
+                content: newContent,
+                isEdited: true,
+                editedAt: new Date(),
+              }
             : msg
         )
       );
     } catch (err) {
       // Error handled in hook
     }
+  };
+
+  const handleCancelEdit = () => {
+    cancelEditing();
   };
 
   const handleDeleteMessage = async (messageId) => {
@@ -390,11 +426,11 @@ const ChatChannelsPage = () => {
 
         {/* Main Content - Full space, starts immediately after sidebar */}
         <main
-          className="flex-1 flex flex-col"
+          className="flex-1 flex flex-col overflow-hidden"
           style={{ minHeight: "calc(100vh - 56px)", marginLeft: 55 }}
         >
-          {/* Top Bar - Search and Menu */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-[#0f1011]">
+          {/* Top Bar - Search and Menu - Fixed */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-[#0f1011] flex-shrink-0">
             {/* Search Bar - Left Side */}
             <div className="flex-1 max-w-md">
               <div className="relative">
@@ -565,8 +601,8 @@ const ChatChannelsPage = () => {
             <ChatArea>
               {selectedChannel ? (
                 <>
-                  {/* Header */}
-                  <div className="p-4 border-b border-gray-800/50 bg-[#0f1011]">
+                  {/* Header - Fixed */}
+                  <div className="p-4 border-b border-gray-800/50 bg-[#0f1011] flex-shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {/* Show DM user avatar in header if it's a DM */}
@@ -652,15 +688,29 @@ const ChatChannelsPage = () => {
                     </div>
                   </div>
 
-                  {/* Messages */}
-                  <div className="flex-1 overflow-y-auto">
+                  {/* Messages - Scrollable */}
+                  <div
+                    className="flex-1 overflow-y-auto"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                  >
+                    <style>{`
+                      div::-webkit-scrollbar {
+                        display: none;
+                      }
+                    `}</style>
                     <MessageList
                       messages={messages}
                       currentUserId={user?._id}
                       loading={messagesLoading}
-                      onEdit={handleEditMessage}
+                      onEdit={handleStartEdit}
                       onDelete={handleDeleteMessage}
                       onReact={handleReact}
+                      onPin={handlePin}
+                      editingMessageId={editingMessage}
+                      editContent={editContent}
+                      setEditContent={setEditContent}
+                      onSaveEdit={handleSaveEdit}
+                      onCancelEdit={handleCancelEdit}
                     />
                   </div>
 
@@ -668,7 +718,7 @@ const ChatChannelsPage = () => {
                   <TypingIndicator users={[]} />
 
                   {/* Input - Fixed at bottom */}
-                  <div className="border-t border-gray-800/50 bg-gray-900/30 backdrop-blur-sm">
+                  <div className="border-t border-gray-800/50 bg-gray-900/30 backdrop-blur-sm flex-shrink-0">
                     <MessageInput
                       onSend={handleSendMessage}
                       placeholder={`Message ${selectedChannel.name}...`}

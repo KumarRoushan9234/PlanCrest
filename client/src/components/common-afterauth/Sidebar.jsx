@@ -36,6 +36,7 @@ import { SiJfrogpipelines } from "react-icons/si";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { useChat } from "../../contexts/ChatContext";
 // Page sidebars removed - now using top navigation
 import InviteMemberModal from "../modals/InviteMemberModal";
 
@@ -49,6 +50,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
   const [tappedButton, setTappedButton] = useState(null);
   const { currentUser } = useAuth();
   const { currentWorkspace } = useWorkspace();
+  const { totalUnreadCount } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -275,7 +277,7 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                         handleButtonClick(item);
                         handleMobileTap(item.name);
                       }}
-                      className={`flex items-center justify-center text-sm font-medium rounded-xl transition-colors ${
+                      className={`relative flex items-center justify-center text-sm font-medium rounded-xl transition-colors ${
                         isSelected
                           ? "bg-gray-900 text-white shadow-lg border border-gray-700"
                           : "text-gray-500 hover:bg-gray-700 hover:text-white"
@@ -294,6 +296,15 @@ const Sidebar = ({ isMobileSidebarOpen, setIsMobileSidebarOpen }) => {
                       >
                         <Icon className="w-5 h-5 flex-shrink-0" />
                       </motion.div>
+                      {/* Unread indicator for Chat */}
+                      {item.name === "Chat Channel" && totalUnreadCount > 0 && (
+                        <motion.div
+                          className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-900"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      )}
                     </motion.button>
 
                     {/* Tooltip */}

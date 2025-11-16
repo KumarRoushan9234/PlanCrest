@@ -65,7 +65,15 @@ const ChannelList = ({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-2">
+    <div
+      className="flex-1 overflow-y-auto p-2"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+    >
+      <style>{`
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       <AnimatePresence>
         {Object.entries(groupedChannels).map(([category, categoryChannels]) => {
           if (categoryChannels.length === 0) return null;

@@ -9,6 +9,7 @@ import { Toaster } from "react-hot-toast";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { WorkspaceProvider } from "./contexts/WorkspaceContext";
 import { ProjectProvider } from "./contexts/ProjectContext";
+import { ChatProvider } from "./contexts/ChatContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthLoader } from "./components/loaders";
 import Navbar from "./components/Navbar";
@@ -70,280 +71,285 @@ function App() {
     <AuthProvider>
       <WorkspaceProvider>
         <ProjectProvider>
-          <Router>
-            <div className="App">
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: "#1f2937",
-                    color: "#fff",
-                    border: "1px solid #374151",
-                  },
-                  success: {
+          <ChatProvider>
+            <Router>
+              <div className="App">
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
                     style: {
-                      background: "#059669",
+                      background: "#1f2937",
+                      color: "#fff",
+                      border: "1px solid #374151",
                     },
-                  },
-                  error: {
-                    style: {
-                      background: "#dc2626",
+                    success: {
+                      style: {
+                        background: "#059669",
+                      },
                     },
-                  },
-                }}
-              />
-
-              <Routes>
-                {/* Home Route - redirects authenticated users to dashboard */}
-                <Route
-                  path="/"
-                  element={
-                    <PublicRoute>
-                      <HomePage />
-                    </PublicRoute>
-                  }
+                    error: {
+                      style: {
+                        background: "#dc2626",
+                      },
+                    },
+                  }}
                 />
 
-                <Route
-                  path="/login"
-                  element={
-                    <PublicRoute>
-                      <LoginPage />
-                    </PublicRoute>
-                  }
-                />
+                <Routes>
+                  {/* Home Route - redirects authenticated users to dashboard */}
+                  <Route
+                    path="/"
+                    element={
+                      <PublicRoute>
+                        <HomePage />
+                      </PublicRoute>
+                    }
+                  />
 
-                <Route
-                  path="/register"
-                  element={
-                    <PublicRoute>
-                      <RegisterPage />
-                    </PublicRoute>
-                  }
-                />
+                  <Route
+                    path="/login"
+                    element={
+                      <PublicRoute>
+                        <LoginPage />
+                      </PublicRoute>
+                    }
+                  />
 
-                <Route
-                  path="/verify-email"
-                  element={
-                    <PublicRoute>
-                      <VerifyEmailPage />
-                    </PublicRoute>
-                  }
-                />
+                  <Route
+                    path="/register"
+                    element={
+                      <PublicRoute>
+                        <RegisterPage />
+                      </PublicRoute>
+                    }
+                  />
 
-                <Route
-                  path="/forgot-password"
-                  element={
-                    <PublicRoute>
-                      <ForgotPasswordPage />
-                    </PublicRoute>
-                  }
-                />
+                  <Route
+                    path="/verify-email"
+                    element={
+                      <PublicRoute>
+                        <VerifyEmailPage />
+                      </PublicRoute>
+                    }
+                  />
 
-                <Route
-                  path="/reset-password"
-                  element={
-                    <PublicRoute>
-                      <ResetPasswordPage />
-                    </PublicRoute>
-                  }
-                />
+                  <Route
+                    path="/forgot-password"
+                    element={
+                      <PublicRoute>
+                        <ForgotPasswordPage />
+                      </PublicRoute>
+                    }
+                  />
 
-                {/* Protected Routes */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <OverviewPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/reset-password"
+                    element={
+                      <PublicRoute>
+                        <ResetPasswordPage />
+                      </PublicRoute>
+                    }
+                  />
 
-                <Route
-                  path="/dashboard/tasks"
-                  element={
-                    <ProtectedRoute>
-                      <TaskBoardPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Protected Routes */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <OverviewPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/dashboard/analytics"
-                  element={
-                    <ProtectedRoute>
-                      <AnalyticsPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/dashboard/tasks"
+                    element={
+                      <ProtectedRoute>
+                        <TaskBoardPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/dashboard/team"
-                  element={
-                    <ProtectedRoute>
-                      <TeamPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/dashboard/analytics"
+                    element={
+                      <ProtectedRoute>
+                        <AnalyticsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/dashboard/calendar"
-                  element={
-                    <ProtectedRoute>
-                      <CalendarPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/dashboard/team"
+                    element={
+                      <ProtectedRoute>
+                        <TeamPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/dashboard/activity"
-                  element={
-                    <ProtectedRoute>
-                      <ActivityPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/dashboard/calendar"
+                    element={
+                      <ProtectedRoute>
+                        <CalendarPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/projects"
-                  element={
-                    <ProtectedRoute>
-                      <Projects />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/dashboard/activity"
+                    element={
+                      <ProtectedRoute>
+                        <ActivityPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/project/:maskedId"
-                  element={
-                    <ProtectedRoute>
-                      <ProjectDetail />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/projects"
+                    element={
+                      <ProtectedRoute>
+                        <Projects />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/project/:maskedProjectId/task/:maskedTaskId"
-                  element={
-                    <ProtectedRoute>
-                      <TaskDetailPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/project/:maskedId"
+                    element={
+                      <ProtectedRoute>
+                        <ProjectDetail />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Legacy route for backward compatibility */}
-                <Route
-                  path="/task/:maskedTaskId"
-                  element={
-                    <ProtectedRoute>
-                      <TaskDetailPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/project/:maskedProjectId/task/:maskedTaskId"
+                    element={
+                      <ProtectedRoute>
+                        <TaskDetailPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/profile-settings"
-                  element={
-                    <ProtectedRoute>
-                      <ProfileSettingsPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Legacy route for backward compatibility */}
+                  <Route
+                    path="/task/:maskedTaskId"
+                    element={
+                      <ProtectedRoute>
+                        <TaskDetailPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/ai-mode"
-                  element={
-                    <ProtectedRoute>
-                      <AIModePage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/profile-settings"
+                    element={
+                      <ProtectedRoute>
+                        <ProfileSettingsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/calendar"
-                  element={
-                    <ProtectedRoute>
-                      <CalendarPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/ai-mode"
+                    element={
+                      <ProtectedRoute>
+                        <AIModePage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/chat"
-                  element={
-                    <ProtectedRoute>
-                      <ChatChannelsPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/calendar"
+                    element={
+                      <ProtectedRoute>
+                        <CalendarPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Integration Routes */}
-                <Route
-                  path="/connectors"
-                  element={
-                    <ProtectedRoute>
-                      <IntegrationLandingPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/connectors/google-calendar"
-                  element={
-                    <ProtectedRoute>
-                      <GoogleCalendarPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/connectors/google-calendar/documentation"
-                  element={
-                    <ProtectedRoute>
-                      <GoogleCalendarDocumentationPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/connectors/google-drive"
-                  element={
-                    <ProtectedRoute>
-                      <GoogleDrivePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/connectors/github"
-                  element={
-                    <ProtectedRoute>
-                      <GitHubPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/connectors/google-meet"
-                  element={
-                    <ProtectedRoute>
-                      <GoogleMeetPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/connectors/gmail"
-                  element={
-                    <ProtectedRoute>
-                      <GmailPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/chat"
+                    element={
+                      <ProtectedRoute>
+                        <ChatChannelsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Invitation Route */}
-                <Route path="/invite/:token" element={<InvitationHandler />} />
+                  {/* Integration Routes */}
+                  <Route
+                    path="/connectors"
+                    element={
+                      <ProtectedRoute>
+                        <IntegrationLandingPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/connectors/google-calendar"
+                    element={
+                      <ProtectedRoute>
+                        <GoogleCalendarPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/connectors/google-calendar/documentation"
+                    element={
+                      <ProtectedRoute>
+                        <GoogleCalendarDocumentationPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/connectors/google-drive"
+                    element={
+                      <ProtectedRoute>
+                        <GoogleDrivePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/connectors/github"
+                    element={
+                      <ProtectedRoute>
+                        <GitHubPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/connectors/google-meet"
+                    element={
+                      <ProtectedRoute>
+                        <GoogleMeetPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/connectors/gmail"
+                    element={
+                      <ProtectedRoute>
+                        <GmailPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Catch all route */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </div>
-          </Router>
+                  {/* Invitation Route */}
+                  <Route
+                    path="/invite/:token"
+                    element={<InvitationHandler />}
+                  />
+
+                  {/* Catch all route */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </div>
+            </Router>
+          </ChatProvider>
         </ProjectProvider>
       </WorkspaceProvider>
     </AuthProvider>

@@ -15,6 +15,12 @@ const MessageList = ({
   onEdit,
   onDelete,
   onReact,
+  onPin,
+  editingMessageId,
+  editContent,
+  setEditContent,
+  onSaveEdit,
+  onCancelEdit,
 }) => {
   const messagesEndRef = useRef(null);
   const prevMessagesLength = useRef(0);
@@ -40,13 +46,24 @@ const MessageList = ({
   if (messages.length === 0) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <EmptyState title="No messages yet" description="Start the conversation below" />
+        <EmptyState
+          title="No messages yet"
+          description="Start the conversation below"
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-1">
+    <div
+      className="p-4 space-y-1"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+    >
+      <style>{`
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       <AnimatePresence>
         {messages.map((message, index) => {
           const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -57,7 +74,8 @@ const MessageList = ({
             !prevMessage ||
             !prevMessage.sender ||
             !message.sender ||
-            prevMessage.sender._id?.toString() !== message.sender._id?.toString() ||
+            prevMessage.sender._id?.toString() !==
+              message.sender._id?.toString() ||
             new Date(message.createdAt) - new Date(prevMessage.createdAt) >
               300000; // 5 minutes
 
@@ -76,11 +94,19 @@ const MessageList = ({
               )}
               <MessageItem
                 message={message}
-                isOwn={message.sender?._id?.toString() === currentUserId?.toString()}
+                isOwn={
+                  message.sender?._id?.toString() === currentUserId?.toString()
+                }
                 showAvatar={showAvatar}
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onReact={onReact}
+                onPin={onPin}
+                editingMessageId={editingMessageId}
+                editContent={editContent}
+                setEditContent={setEditContent}
+                onSaveEdit={onSaveEdit}
+                onCancelEdit={onCancelEdit}
               />
             </React.Fragment>
           );

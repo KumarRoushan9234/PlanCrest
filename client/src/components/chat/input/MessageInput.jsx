@@ -216,9 +216,19 @@ const MessageInput = ({
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
-            className="w-full px-4 py-3 bg-gray-900/50 border border-gray-800/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-colors resize-none max-h-[120px] overflow-y-auto whitespace-pre-wrap break-words"
-            style={{ minHeight: "44px" }}
+            className="w-full px-4 py-3 bg-gray-900/50 border border-gray-800/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-colors resize-none max-h-[120px] whitespace-pre-wrap break-words"
+            style={{ 
+              minHeight: "44px",
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              overflowY: 'auto'
+            }}
           />
+          <style>{`
+            textarea::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
           <div className="absolute right-2 bottom-2 flex gap-1">
             <EmojiPicker onSelect={handleEmojiSelect} position="top" />
             <motion.button
