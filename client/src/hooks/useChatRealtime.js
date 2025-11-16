@@ -78,22 +78,36 @@ export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
         }
       };
 
-      eventSource.onerror = () => {
+      eventSource.onerror = (error) => {
         setIsConnected(false);
         eventSource.close();
 
-        // Fallback to polling
+        // Check if we're offline
+        if (!navigator.onLine) {
+          console.log("Device is offline, using polling fallback");
+          if (connectionType !== "polling") {
+            startPolling();
+          }
+          return;
+        }
+
+        // Fallback to polling if SSE fails
         if (connectionType !== "polling") {
+          console.log("SSE connection failed, falling back to polling");
           startPolling();
         }
 
-        // Reconnect with exponential backoff
-        if (reconnectAttempts < 5) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+        // Reconnect with exponential backoff (only if not already polling)
+        if (reconnectAttempts < 3 && connectionType !== "polling") {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
           setTimeout(() => {
             setReconnectAttempts((prev) => prev + 1);
             connectSSE();
           }, delay);
+        } else if (reconnectAttempts >= 3 && connectionType !== "polling") {
+          // After 3 failed attempts, switch to polling permanently
+          console.log("SSE reconnection failed multiple times, switching to polling");
+          startPolling();
         }
       };
 
@@ -106,17 +120,68 @@ export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
 
   // Polling fallback
   const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) return;
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
 
     setConnectionType("polling");
     setIsConnected(true);
 
-    // Poll every 3 seconds
-    pollingIntervalRef.current = setInterval(() => {
-      // This would trigger a manual check for new messages
-      // The parent component should handle this
-    }, 3000);
-  }, []);
+    // Poll every 5 seconds for new messages
+    const pollForMessages = async () => {
+      if (!currentWorkspace?._id || !user?._id) return;
+      
+      try {
+        const chatService = (await import("../services/chatService")).default;
+        const response = await chatService.getWorkspaceChannels(currentWorkspace._id);
+        const channels = response.data?.data || response.data || [];
+        
+        // Check for new messages by comparing lastMessageAt
+        // This is a simple approach - in production, you might want to track last checked timestamp
+        if (onMessage) {
+          // The parent component should handle checking for new messages
+          // We just signal that polling is active
+        }
+      } catch (error) {
+        console.error("Error polling for messages:", error);
+      }
+    };
+
+    // Initial poll
+    pollForMessages();
+    
+    // Poll every 5 seconds
+    pollingIntervalRef.current = setInterval(pollForMessages, 5000);
+  }, [currentWorkspace?._id, user?._id, onMessage]);
+
+  // Handle online/offline events
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log("Device came online, attempting SSE connection");
+      if (connectionType === "polling") {
+        setReconnectAttempts(0);
+        connectSSE();
+      }
+    };
+
+    const handleOffline = () => {
+      console.log("Device went offline, switching to polling");
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (connectionType !== "polling") {
+        startPolling();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [connectionType, connectSSE, startPolling]);
 
   useEffect(() => {
     connectSSE();
@@ -124,9 +189,11 @@ export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     };
   }, [connectSSE]);

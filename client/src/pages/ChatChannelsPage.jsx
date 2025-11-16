@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import { useProject } from "../contexts/ProjectContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -46,6 +47,8 @@ const ChatChannelsPage = () => {
   const { currentWorkspace } = useWorkspace();
   const { currentProject } = useProject();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [channels, setChannels] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -315,23 +318,26 @@ const ChatChannelsPage = () => {
   const handleReact = async (messageId, emoji) => {
     try {
       await chatService.addReaction(messageId, emoji);
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg._id === messageId) {
-            const existingReaction = msg.reactions?.find(
-              (r) => r.emoji === emoji
-            );
-            if (existingReaction) {
-              existingReaction.count += 1;
-            } else {
-              msg.reactions = [...(msg.reactions || []), { emoji, count: 1 }];
-            }
-          }
-          return msg;
-        })
-      );
+      // Refetch messages to get updated reactions (handles toggle)
+      if (selectedChannel) {
+        fetchMessages(selectedChannel._id);
+      }
     } catch (err) {
+      console.error("Error adding reaction:", err);
       toast.error("Failed to add reaction");
+    }
+  };
+
+  const handlePin = async (messageId) => {
+    try {
+      await pinMessage(messageId);
+      // Refetch messages to get updated pin status
+      if (selectedChannel) {
+        fetchMessages(selectedChannel._id);
+      }
+    } catch (err) {
+      console.error("Error pinning message:", err);
+      toast.error("Failed to pin message");
     }
   };
 
@@ -339,6 +345,22 @@ const ChatChannelsPage = () => {
     fetchChannels();
     fetchProjects();
   }, [currentWorkspace?._id, selectedProject?._id, searchQuery]);
+
+  // Handle URL parameters for notification links
+  useEffect(() => {
+    const channelParam = searchParams.get("channel");
+    if (channelParam && channels.length > 0 && !selectedChannel) {
+      const channel = channels.find(
+        (ch) => ch._id?.toString() === channelParam
+      );
+      if (channel) {
+        selectChannel(channel);
+        fetchMessages(channel._id);
+        // Clear URL parameter after navigation
+        navigate("/chat", { replace: true });
+      }
+    }
+  }, [searchParams, channels, selectedChannel, navigate]);
 
   // Restore last selected channel on load
   useEffect(() => {
@@ -350,6 +372,9 @@ const ChatChannelsPage = () => {
         selectedChannel
       )
         return;
+
+      // Skip if URL parameter is present (handled above)
+      if (searchParams.get("channel")) return;
 
       try {
         // Get user's last selected channel from user data
@@ -381,7 +406,13 @@ const ChatChannelsPage = () => {
     };
 
     restoreLastSelectedChannel();
-  }, [currentWorkspace?._id, user?._id, channels.length]);
+  }, [
+    currentWorkspace?._id,
+    user?._id,
+    channels.length,
+    searchParams,
+    selectedChannel,
+  ]);
 
   useEffect(() => {
     if (selectedChannel) {

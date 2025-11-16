@@ -18,18 +18,18 @@ export const validateChannelAccess = async (userId, channel) => {
   // Public channels are accessible to all workspace members
   if (channel.type === "public") return true;
 
-  // Check if user is a member
-  const isMember = channel.members.some(
-    (member) => member.toString() === userId.toString()
-  );
+  // Check if user is a member (handle undefined members array)
+  const isMember = channel.members?.some(
+    (member) => member?.toString() === userId.toString()
+  ) || false;
 
   // Check if user is a participant (for DMs)
   const isParticipant = channel.participants?.some(
-    (participant) => participant.toString() === userId.toString()
-  );
+    (participant) => participant?.toString() === userId.toString()
+  ) || false;
 
   // Check if user created the channel
-  const isCreator = channel.createdBy.toString() === userId.toString();
+  const isCreator = channel.createdBy?.toString() === userId.toString();
 
   return isMember || isParticipant || isCreator;
 };

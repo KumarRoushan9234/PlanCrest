@@ -184,6 +184,42 @@ export const sendMessage = async (req, res) => {
     // Get channel members for SSE
     const channelMembers = await getChannelMembers(channelId);
 
+    // Create notifications for channel members (except sender)
+    try {
+      const { createNotification } = await import("../../utils/notificationHelpers.js");
+      const User = (await import("../../models/user.js")).default;
+      const sender = await User.findById(userId).select("name");
+      
+      const notificationPromises = channelMembers
+        .filter((memberId) => memberId.toString() !== userId.toString())
+        .map((memberId) =>
+          createNotification({
+            recipient: memberId,
+            recipientModel: "User",
+            sender: userId,
+            senderModel: "User",
+            type: "chat_message",
+            title: `New message in ${channel.name}`,
+            message: `${sender?.name || "Someone"}: ${content.substring(0, 100)}${content.length > 100 ? "..." : ""}`,
+            link: `/chat?channel=${channelId}&message=${message._id}`,
+            relatedTo: {
+              model: "ChatMessage",
+              id: message._id,
+            },
+            workspace: channel.workspace,
+            project: channel.project || null,
+          })
+        );
+      
+      // Don't await - let it run in background
+      Promise.all(notificationPromises).catch((err) => {
+        console.error("Error creating chat notifications:", err);
+      });
+    } catch (notifError) {
+      console.error("Error setting up notifications:", notifError);
+      // Don't fail message send if notifications fail
+    }
+
     // Emit SSE event
     const populatedMessage = await formatMessageForResponse(message);
     const messageData = populatedMessage.toObject ? populatedMessage.toObject() : populatedMessage;

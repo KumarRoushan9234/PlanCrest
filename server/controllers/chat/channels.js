@@ -495,7 +495,7 @@ export const updateLastSelectedChannelForUser = async (req, res) => {
     }
 
     // Check if user has access to channel
-    const hasAccess = await validateChannelAccess(channel, userId);
+    const hasAccess = await validateChannelAccess(userId, channel);
     if (!hasAccess) {
       return res.status(403).json({
         success: false,

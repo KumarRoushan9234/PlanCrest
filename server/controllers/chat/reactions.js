@@ -26,15 +26,35 @@ export const addReaction = async (req, res) => {
       });
     }
 
+    // Initialize reactions array if it doesn't exist
+    if (!message.reactions) {
+      message.reactions = [];
+    }
+
     let reaction = message.reactions.find((r) => r.emoji === emoji);
 
     if (reaction) {
-      // Add user if not already in list
-      const userAlreadyReacted = reaction.users.some(
+      // Check if user already reacted
+      const userReacted = reaction.users?.some(
         (u) => u.toString() === userId.toString()
       );
 
-      if (!userAlreadyReacted) {
+      if (userReacted) {
+        // Remove reaction (toggle off)
+        reaction.users = reaction.users.filter(
+          (u) => u.toString() !== userId.toString()
+        );
+        reaction.count = Math.max(0, reaction.count - 1);
+
+        // Remove reaction if count is 0
+        if (reaction.count === 0) {
+          message.reactions = message.reactions.filter((r) => r.emoji !== emoji);
+        }
+      } else {
+        // Add reaction (toggle on)
+        if (!reaction.users) {
+          reaction.users = [];
+        }
         reaction.users.push(userId);
         reaction.count += 1;
       }

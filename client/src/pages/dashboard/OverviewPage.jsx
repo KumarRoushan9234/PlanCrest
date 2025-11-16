@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { Layout } from "../../components/common-afterauth";
@@ -35,6 +36,7 @@ import { FaGithub } from "react-icons/fa";
 const OverviewPage = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("primary"); // primary, other, cleared
   const [selectedTask, setSelectedTask] = useState(null);
@@ -741,6 +743,13 @@ const OverviewPage = () => {
                         };
                         setSelectedTask(taskWithProject);
                         setIsTaskSidebarOpen(true);
+                      } else if (item.type === "notification" && item.link) {
+                        // Navigate to notification link (e.g., chat channel)
+                        navigate(item.link);
+                        // Mark notification as read
+                        if (item.raw && !item.raw.isRead) {
+                          handleMarkNotificationAsRead(item);
+                        }
                       }
                     }}
                   >
