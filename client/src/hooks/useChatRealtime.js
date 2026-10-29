@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../config/api";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -15,7 +16,7 @@ export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [connectionType, setConnectionType] = useState("none"); // "sse" | "polling" | "none"
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const API_URL = API_BASE_URL;
 
   // Get token from cookie or localStorage
   const getToken = useCallback(() => {
@@ -78,7 +79,7 @@ export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
         }
       };
 
-      eventSource.onerror = (error) => {
+      eventSource.onerror = (_error) => {
         setIsConnected(false);
         eventSource.close();
 
@@ -132,9 +133,6 @@ export const useChatRealtime = (onMessage, onTyping, onUserStatus) => {
       if (!currentWorkspace?._id || !user?._id) return;
       
       try {
-        const chatService = (await import("../services/chatService")).default;
-        const response = await chatService.getWorkspaceChannels(currentWorkspace._id);
-        const channels = response.data?.data || response.data || [];
         
         // Check for new messages by comparing lastMessageAt
         // This is a simple approach - in production, you might want to track last checked timestamp

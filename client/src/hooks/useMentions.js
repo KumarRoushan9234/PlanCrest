@@ -1,8 +1,8 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+import { API_BASE_URL as API_URL } from "../config/api";
 
 /**
  * Hook for managing mention autocomplete

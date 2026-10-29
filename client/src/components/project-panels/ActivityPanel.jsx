@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
 import {
   Activity,
   CheckCircle2,
@@ -58,22 +58,6 @@ const ActivityPanel = ({ project }) => {
     }
   };
 
-  const getActivityColor = (action) => {
-    switch (action) {
-      case "created":
-        return "bg-green-500";
-      case "updated":
-        return "bg-blue-500";
-      case "deleted":
-        return "bg-red-500";
-      case "completed":
-        return "bg-green-500";
-      case "assigned":
-        return "bg-purple-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
 
   const formatTimeAgo = (date) => {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);

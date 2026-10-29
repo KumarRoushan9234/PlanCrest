@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { encryptedString } from "../utils/crypto.js";
 const { Schema } = mongoose;
 
 const userSchema = new Schema(
@@ -21,8 +22,14 @@ const userSchema = new Schema(
       maxlength: 64,
     },
     avatar: {
-      type: String,
-      default: null,
+      url: { type: String, default: null },
+      publicId: { type: String },
+      format: { type: String },
+      bytes: { type: Number },
+      width: { type: Number },
+      height: { type: Number },
+      folder: { type: String },
+      version: { type: Number },
     },
     role: {
       type: String,
@@ -60,7 +67,7 @@ const userSchema = new Schema(
         default: "gmail"
       },
       user: { type: String, trim: true }, // Email address
-      password: { type: String }, // App password or OAuth token
+      password: encryptedString, // App password or OAuth token, encrypted at rest
       host: { type: String, trim: true }, // For custom SMTP
       port: { type: Number }, // For custom SMTP
       secure: { type: Boolean, default: true }, // Use TLS
@@ -224,9 +231,13 @@ const userSchema = new Schema(
       default: Date.now,
     },
     // Security & Authentication
+    // Stored as SHA-256 hashes
     passwordResetCode: {
       type: String,
       default: "",
+    },
+    passwordResetCodeExpires: {
+      type: Date,
     },
     isVerified: {
       type: Boolean,
@@ -235,6 +246,9 @@ const userSchema = new Schema(
     verificationCode: {
       type: String,
       default: "",
+    },
+    verificationCodeExpires: {
+      type: Date,
     },
     isFirebaseUser: {
       type: Boolean,
@@ -311,7 +325,22 @@ const userSchema = new Schema(
       },
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      getters: true,
+      transform: (doc, ret) => {
+        delete ret.password;
+        delete ret.verificationCode;
+        delete ret.verificationCodeExpires;
+        delete ret.passwordResetCode;
+        delete ret.passwordResetCodeExpires;
+        delete ret.twoFactorSecret;
+        if (ret.emailConfig) delete ret.emailConfig.password;
+        return ret;
+      },
+    },
+  }
 );
 
 // Indexes for better query performance

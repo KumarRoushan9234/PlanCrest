@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useWorkspace } from "../contexts/WorkspaceContext";
-import { useProject } from "../contexts/ProjectContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import chatService from "../services/chatService";
@@ -40,12 +39,11 @@ import {
   Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import Navbar from "../components/common-afterauth/Navbar";
-import Sidebar from "../components/common-afterauth/Sidebar";
+import Layout from "../components/common-afterauth/Layout";
+import ChannelSettingsModal from "../components/chat/modals/ChannelSettingsModal";
 
 const ChatChannelsPage = () => {
   const { currentWorkspace } = useWorkspace();
-  const { currentProject } = useProject();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -53,7 +51,7 @@ const ChatChannelsPage = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -63,6 +61,7 @@ const ChatChannelsPage = () => {
   const [projects, setProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showChannelMenu, setShowChannelMenu] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const {
     selectedChannel,
@@ -248,12 +247,11 @@ const ChatChannelsPage = () => {
 
     try {
       setSending(true);
-      const response = await chatService.sendMessage(selectedChannel._id, {
+      await chatService.sendMessage(selectedChannel._id, {
         content,
         contentFormat: "markdown",
         attachments,
       });
-      setMessages((prev) => [...prev, response.data]);
     } catch (err) {
       console.error("Error sending message:", err);
       toast.error("Failed to send message");
@@ -320,7 +318,7 @@ const ChatChannelsPage = () => {
             : msg
         )
       );
-    } catch (err) {
+    } catch {
       // Error handled in hook
     }
   };
@@ -339,7 +337,7 @@ const ChatChannelsPage = () => {
             : msg
         )
       );
-    } catch (err) {
+    } catch {
       // Error handled in hook
     }
   };
@@ -453,44 +451,19 @@ const ChatChannelsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: "#171819" }}>
-        <div className="fixed top-0 left-0 right-0 z-50">
-          <Navbar />
+      <Layout fill>
+        <div className="flex h-full items-center justify-center">
+          <LoadingState type="spinner" />
         </div>
-        <div className="flex pt-14" style={{ height: "calc(100vh - 56px)" }}>
-          <Sidebar
-            isMobileSidebarOpen={true}
-            setIsMobileSidebarOpen={() => {}}
-          />
-          <div
-            className="flex-1 flex items-center justify-center"
-            style={{ marginLeft: 0 }}
-          >
-            <LoadingState type="spinner" />
-          </div>
-        </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#171819" }}>
-      {/* Navbar - Fixed at top */}
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <Navbar />
-      </div>
-
-      <div className="flex pt-14" style={{ height: "calc(100vh - 56px)" }}>
-        {/* Sidebar - Fixed */}
-        <Sidebar isMobileSidebarOpen={true} setIsMobileSidebarOpen={() => {}} />
-
-        {/* Main Content - Full space, starts immediately after sidebar */}
-        <main
-          className="flex-1 flex flex-col overflow-hidden"
-          style={{ minHeight: "calc(100vh - 56px)", marginLeft: 55 }}
-        >
+    <Layout fill>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
           {/* Top Bar - Search and Menu - Fixed */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-[#0f1011] flex-shrink-0">
+          <div className="flex items-center justify-between p-4 border-b border-gray-800/50 bg-gray-950 flex-shrink-0">
             {/* Search Bar - Left Side */}
             <div className="flex-1 max-w-md">
               <div className="relative">
@@ -539,7 +512,8 @@ const ChatChannelsPage = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // TODO: Open settings
+                      if (selectedChannel) setShowSettings(true);
+                      else toast("Select a channel first");
                       setShowChannelMenu(null);
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800/50 transition-colors flex items-center gap-2"
@@ -662,7 +636,7 @@ const ChatChannelsPage = () => {
               {selectedChannel ? (
                 <>
                   {/* Header - Fixed */}
-                  <div className="p-4 border-b border-gray-800/50 bg-[#0f1011] flex-shrink-0">
+                  <div className="p-4 border-b border-gray-800/50 bg-gray-950 flex-shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {/* Show DM user avatar in header if it's a DM */}
@@ -799,7 +773,6 @@ const ChatChannelsPage = () => {
               )}
             </ChatArea>
           </ChatLayout>
-        </main>
       </div>
 
       {/* Modals */}
@@ -827,7 +800,21 @@ const ChatChannelsPage = () => {
           selectChannel(channel);
         }}
       />
-    </div>
+      <ChannelSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        channel={selectedChannel}
+        currentUserId={user?._id}
+        onUpdated={(updated) => {
+          setChannels((prev) => prev.map((c) => (c._id === updated._id ? { ...c, ...updated } : c)));
+          selectChannel({ ...selectedChannel, ...updated });
+        }}
+        onDeleted={(id) => {
+          setChannels((prev) => prev.filter((c) => c._id !== id));
+          selectChannel(null);
+        }}
+      />
+    </Layout>
   );
 };
 

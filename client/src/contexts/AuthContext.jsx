@@ -1,14 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-/* eslint-disable no-unused-vars */
-import React, { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from "firebase/auth";
-import { auth, googleProvider } from "../config/firebase";
+import { auth, googleProvider, isFirebaseConfigured } from "../config/firebase";
 import axios from "axios";
 import toast from "react-hot-toast";
 
@@ -22,7 +19,7 @@ export const useAuth = () => {
   return context;
 };
 
-const API_BASE_URL = "http://localhost:8000/api";
+import { API_BASE_URL } from "../config/api";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -33,15 +30,16 @@ export const AuthProvider = ({ children }) => {
   axios.defaults.withCredentials = true;
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in with Firebase
-        handleFirebaseAuth(firebaseUser);
-      } else {
-        // Check if user is authenticated via backend
-        checkAuthStatus();
-      }
-    });
+    // Without Firebase configured, sessions come only from the backend
+    const unsubscribe = auth
+      ? onAuthStateChanged(auth, (firebaseUser) => {
+          if (firebaseUser) {
+            handleFirebaseAuth(firebaseUser);
+          } else {
+            checkAuthStatus();
+          }
+        })
+      : (checkAuthStatus(), () => {});
 
     // Set a timeout to ensure loading doesn't stay true forever
     const timeout = setTimeout(() => {
@@ -60,25 +58,8 @@ export const AuthProvider = ({ children }) => {
       if (response.data) {
         setUser(response.data);
         setIsAuthenticated(true);
-
-        // If we have a user but no token in localStorage, try to get it from cookies
-        // This helps with SSE connections (though httpOnly cookies won't be accessible)
-        if (!localStorage.getItem("token")) {
-          const cookies = document.cookie.split(";");
-          for (let cookie of cookies) {
-            const [name, value] = cookie.trim().split("=");
-            if (name === "token" && value) {
-              try {
-                localStorage.setItem("token", decodeURIComponent(value));
-              } catch (e) {
-                // Cookie might be httpOnly, which is fine - we'll use polling
-              }
-              break;
-            }
-          }
-        }
       }
-    } catch (error) {
+    } catch {
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem("token");
@@ -89,12 +70,9 @@ export const AuthProvider = ({ children }) => {
 
   const handleFirebaseAuth = async (firebaseUser) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/firebase-auth`, {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        name: firebaseUser.displayName,
-        picture: firebaseUser.photoURL,
-      });
+      // The server verifies this token; it never trusts profile fields from the client
+      const idToken = await firebaseUser.getIdToken();
+      const response = await axios.post(`${API_BASE_URL}/firebase-auth`, { idToken });
 
       setUser(response.data);
       setIsAuthenticated(true);
@@ -114,131 +92,85 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    try {
-      setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/register`, userData);
-      toast.success(
-        "Registration successful! Please check your email for verification."
-      );
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data ||
-        "Registration failed";
-      toast.error(errorMessage);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+    const response = await axios.post(`${API_BASE_URL}/register`, userData);
+    toast.success(
+      "Registration successful! Please check your email for verification."
+    );
+    return response.data;
   };
 
   const login = async (email, password) => {
-    try {
-      setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/login`, {
-        email,
-        password,
-      });
-      setUser(response.data);
-      setIsAuthenticated(true);
+    const response = await axios.post(`${API_BASE_URL}/login`, {
+      email,
+      password,
+    });
+    setUser(response.data);
+    setIsAuthenticated(true);
 
-      // Store token in localStorage for SSE and other uses
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-      }
-
-      toast.success("Successfully logged in!");
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.error || error.response?.data || "Login failed";
-      toast.error(errorMessage);
-      throw error;
-    } finally {
-      setLoading(false);
+    // Store token in localStorage for SSE and other uses
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
     }
+
+    toast.success("Successfully logged in!");
+    return response.data;
   };
 
   const loginWithGoogle = async () => {
     try {
-      setLoading(true);
-      const result = await signInWithPopup(auth, googleProvider);
+      if (!isFirebaseConfigured) {
+        toast.error("Google sign-in is not configured");
+        return;
+      }
+      await signInWithPopup(auth, googleProvider);
       // Firebase auth state change will handle the rest
       toast.success("Successfully signed in with Google!");
     } catch (error) {
       console.error("Google login error:", error);
       toast.error("Google login failed");
-      setLoading(false);
     }
   };
 
   const verifyEmail = async (email, code) => {
+    const response = await axios.post(`${API_BASE_URL}/verify-email`, {
+      email,
+      code,
+    });
+    toast.success("Email verified successfully!");
+    return response.data;
+  };
+
+  const resendVerification = async (email) => {
     try {
-      setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/verify-email`, {
-        email,
-        code,
-      });
-      toast.success("Email verified successfully!");
+      const response = await axios.post(`${API_BASE_URL}/resend-verification`, { email });
+      toast.success(response.data?.message || "A new code is on its way.");
       return response.data;
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data ||
-        "Email verification failed";
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.error || "Couldn't resend the code");
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
   const forgotPassword = async (email) => {
-    try {
-      setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/forgot-password`, {
-        email,
-      });
-      toast.success("Password reset code sent to your email!");
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data ||
-        "Failed to send reset code";
-      toast.error(errorMessage);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+    const response = await axios.post(`${API_BASE_URL}/forgot-password`, {
+      email,
+    });
+    toast.success("Password reset code sent to your email!");
+    return response.data;
   };
 
   const resetPassword = async (email, code, newPassword) => {
-    try {
-      setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/reset-password`, {
-        email,
-        code,
-        newPassword,
-      });
-      toast.success("Password reset successfully!");
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data ||
-        "Password reset failed";
-      toast.error(errorMessage);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+    const response = await axios.post(`${API_BASE_URL}/reset-password`, {
+      email,
+      code,
+      newPassword,
+    });
+    toast.success("Password reset successfully!");
+    return response.data;
   };
 
   const updateProfile = async (profileData) => {
     try {
-      setLoading(true);
       const response = await axios.put(
         `${API_BASE_URL}/update-profile`,
         profileData
@@ -253,15 +185,11 @@ export const AuthProvider = ({ children }) => {
         "Profile update failed";
       toast.error(errorMessage);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
   const changePassword = async (passwordData) => {
     try {
-      setLoading(true);
-      console.log("Sending password data:", passwordData);
       const response = await axios.put(
         `${API_BASE_URL}/change-password`,
         passwordData
@@ -276,8 +204,6 @@ export const AuthProvider = ({ children }) => {
         "Password change failed";
       toast.error(errorMessage);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -285,9 +211,8 @@ export const AuthProvider = ({ children }) => {
     // Clear token from localStorage
     localStorage.removeItem("token");
     try {
-      setLoading(true);
-      await axios.get(`${API_BASE_URL}/logout`);
-      await firebaseSignOut(auth);
+      await axios.post(`${API_BASE_URL}/logout`);
+      if (auth) await firebaseSignOut(auth);
       setUser(null);
       setIsAuthenticated(false);
       toast.success("Successfully logged out!");
@@ -296,8 +221,13 @@ export const AuthProvider = ({ children }) => {
       // Still clear local state even if backend logout fails
       setUser(null);
       setIsAuthenticated(false);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const setUserData = (updatedUser) => {
+    if (updatedUser) {
+      setUser(updatedUser);
+      setIsAuthenticated(true);
     }
   };
 
@@ -305,10 +235,13 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     isAuthenticated,
+    setUserData,
     register,
     login,
     loginWithGoogle,
+    isGoogleSignInEnabled: isFirebaseConfigured,
     verifyEmail,
+    resendVerification,
     forgotPassword,
     resetPassword,
     updateProfile,

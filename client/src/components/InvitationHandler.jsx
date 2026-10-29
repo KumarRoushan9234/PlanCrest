@@ -1,155 +1,95 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { MailX, Users } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useWorkspace } from "../contexts/WorkspaceContext";
-import { InvitationAcceptModal } from "./modals";
-import { AuthLoader } from "./loaders";
+import { rememberNext } from "../utils/redirect";
+import AuthShell from "./brand/AuthShell";
+import { Avatar, Button, Badge, Spinner } from "./ui";
 
-const InvitationHandler = () => {
+/** Landing page for /invite/:token: shows who invited you and lets you join. */
+export default function InvitationHandler() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
-  const { getInvitationDetails } = useWorkspace();
-  const [invitationData, setInvitationData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [hasFetched, setHasFetched] = useState(false);
+  const { getInvitationDetails, acceptInvitation } = useWorkspace();
+  const [invitation, setInvitation] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const fetchInvitationDetails = async () => {
-      if (!token || hasFetched) {
-        if (!token) {
-          setError("No invitation token provided");
-          setLoading(false);
-        }
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setHasFetched(true);
-        const response = await getInvitationDetails(token);
-        setInvitationData(response.data.invitation);
-        setShowModal(true);
-      } catch (error) {
-        console.error("Error fetching invitation details:", error);
-        setError(error.error || "Failed to load invitation");
-      } finally {
-        setLoading(false);
-      }
+    let live = true;
+    getInvitationDetails(token)
+      .then((res) => live && setInvitation(res.data.invitation))
+      .catch((err) => live && setError(err?.error || "This invitation can't be loaded."));
+    return () => {
+      live = false;
     };
+  }, [token, getInvitationDetails]);
 
-    fetchInvitationDetails();
-  }, [token, hasFetched]); // Removed getInvitationDetails to prevent infinite loop
-
-  const handleModalClose = () => {
-    setShowModal(false);
-    // Redirect to dashboard or login page
-    if (isAuthenticated) {
-      navigate("/dashboard");
-    } else {
-      navigate("/login");
+  const accept = async () => {
+    setBusy(true);
+    try {
+      await acceptInvitation(token);
+      navigate("/dashboard", { replace: true });
+    } catch {
+      setBusy(false);
     }
   };
 
-  if (loading) {
-    return (
-      <AuthLoader fullScreen text="Loading invitation details..." />
-    );
-  }
+  const remember = () => rememberNext(`/invite/${token}`);
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">
-            Invalid Invitation
-          </h2>
-          <p className="text-gray-300 mb-6">{error}</p>
-          <button
-            onClick={() => navigate("/")}
-            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Go to Home
-          </button>
-        </div>
-      </div>
+      <AuthShell title="Invitation unavailable" subtitle={error} back={{ to: "/", label: "Back to home" }}>
+        <div className="pc-banner warn"><MailX size={16} /> Ask the person who invited you to send a new link.</div>
+        <Link className="pc-btn primary" to={isAuthenticated ? "/dashboard" : "/login"} style={{ justifyContent: "center" }}>
+          {isAuthenticated ? "Go to your dashboard" : "Sign in"}
+        </Link>
+      </AuthShell>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!invitation) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">
-            Authentication Required
-          </h2>
-          <p className="text-gray-300 mb-6">
-            Please log in to accept this invitation to join{" "}
-            {invitationData?.workspace?.name}
-          </p>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => navigate("/login")}
-              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Log In
-            </button>
-            <button
-              onClick={() => navigate("/register")}
-              className="px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Sign Up
-            </button>
-          </div>
-        </div>
-      </div>
+      <AuthShell title="Loading invitation…">
+        <div style={{ display: "flex", justifyContent: "center", padding: 24 }}><Spinner /></div>
+      </AuthShell>
     );
   }
+
+  const wrongAccount = isAuthenticated && user?.email && invitation.email && user.email.toLowerCase() !== invitation.email.toLowerCase();
 
   return (
-    <>
-      <InvitationAcceptModal
-        isOpen={showModal}
-        onClose={handleModalClose}
-        invitationToken={token}
-        workspaceInfo={invitationData?.workspace}
-        role={invitationData?.role}
-        invitedBy={invitationData?.invitedBy}
-      />
-    </>
-  );
-};
+    <AuthShell
+      title={`Join ${invitation.workspace?.name}`}
+      subtitle={`${invitation.invitedBy?.name || "A teammate"} invited you as ${invitation.role}.`}
+    >
+      <div className="pc-card" style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Avatar user={invitation.invitedBy} size="lg" />
+          <div style={{ minWidth: 0 }}>
+            <b style={{ display: "block" }}>{invitation.workspace?.name}</b>
+            <span className="pc-dim" style={{ fontSize: 12 }}>{invitation.workspace?.description || "Workspace"}</span>
+          </div>
+          <Badge tone="blue"><Users size={11} /> {invitation.role}</Badge>
+        </div>
+        {invitation.message && <p className="pc-muted" style={{ margin: 0, fontSize: 13 }}>“{invitation.message}”</p>}
+      </div>
 
-export default InvitationHandler;
+      {isAuthenticated ? (
+        <>
+          {wrongAccount && <div className="pc-banner warn">This invite was sent to {invitation.email}, but you're signed in as {user.email}.</div>}
+          <Button variant="primary" loading={busy} onClick={accept}>Accept and join</Button>
+          <Button variant="ghost" onClick={() => navigate("/dashboard")}>Not now</Button>
+        </>
+      ) : (
+        <>
+          <p className="pc-muted" style={{ margin: 0, fontSize: 13 }}>Sign in or create an account with <b>{invitation.email}</b> to accept.</p>
+          <Link className="pc-btn primary" to="/login" onClick={remember} style={{ justifyContent: "center" }}>Sign in</Link>
+          <Link className="pc-btn" to="/register" onClick={remember} style={{ justifyContent: "center" }}>Create an account</Link>
+        </>
+      )}
+    </AuthShell>
+  );
+}

@@ -12,7 +12,7 @@ import { ProjectProvider } from "./contexts/ProjectContext";
 import { ChatProvider } from "./contexts/ChatContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthLoader } from "./components/loaders";
-import Navbar from "./components/Navbar";
+import NotFoundPage from "./pages/NotFoundPage";
 import HomePage from "./components/HomePage";
 
 // Pages
@@ -25,7 +25,6 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import Dashboard from "./pages/Dashboard";
 import OverviewPage from "./pages/dashboard/OverviewPage";
 import TaskBoardPage from "./pages/dashboard/TaskBoardPage";
-import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
 import TeamPage from "./pages/dashboard/TeamPage";
 import ActivityPage from "./pages/dashboard/ActivityPage";
 import Projects from "./pages/Projects";
@@ -33,18 +32,18 @@ import ProjectDetail from "./pages/ProjectDetail";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import ProfileSettingsPage from "./pages/ProfileSettingsPage";
 import AIModePage from "./pages/AIModePage";
+import { PrivacyPage, TermsPage } from "./pages/LegalPages";
+import GoalsPage from "./pages/GoalsPage";
+import WorkloadPage from "./pages/WorkloadPage";
+import TimesheetPage from "./pages/TimesheetPage";
 import CalendarPage from "./pages/CalendarPage";
+import DocumentsPage from "./pages/DocumentsPage";
 import ChatChannelsPage from "./pages/ChatChannelsPage";
 import InvitationHandler from "./components/InvitationHandler";
 
 // Integration Pages
 import IntegrationLandingPage from "./pages/integrations/IntegrationLandingPage";
-import GoogleCalendarPage from "./pages/integrations/GoogleCalendarPage";
-import GoogleCalendarDocumentationPage from "./pages/integrations/GoogleCalendarDocumentationPage";
-import GoogleDrivePage from "./pages/integrations/GoogleDrivePage";
-import GitHubPage from "./pages/integrations/GitHubPage";
-import GoogleMeetPage from "./pages/integrations/GoogleMeetPage";
-import GmailPage from "./pages/integrations/GmailPage";
+import IntegrationPage from "./pages/integrations/IntegrationPage";
 
 // Public Route Component (redirects to dashboard if already authenticated)
 const PublicRoute = ({ children }) => {
@@ -58,12 +57,7 @@ const PublicRoute = ({ children }) => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return (
-    <>
-      <Navbar />
-      {children}
-    </>
-  );
+  return children;
 };
 
 function App() {
@@ -79,19 +73,18 @@ function App() {
                   toastOptions={{
                     duration: 4000,
                     style: {
-                      background: "#1f2937",
-                      color: "#fff",
-                      border: "1px solid #374151",
+                      background: "#181a21",
+                      color: "#ececef",
+                      border: "1px solid #2a2e39",
+                      borderRadius: "10px",
+                      fontSize: "13px",
+                      boxShadow: "0 16px 40px rgba(0,0,0,.45)",
                     },
                     success: {
-                      style: {
-                        background: "#059669",
-                      },
+                      iconTheme: { primary: "#3fb97f", secondary: "#08090c" },
                     },
                     error: {
-                      style: {
-                        background: "#dc2626",
-                      },
+                      iconTheme: { primary: "#e5675f", secondary: "#08090c" },
                     },
                   }}
                 />
@@ -171,14 +164,7 @@ function App() {
                     }
                   />
 
-                  <Route
-                    path="/dashboard/analytics"
-                    element={
-                      <ProtectedRoute>
-                        <AnalyticsPage />
-                      </ProtectedRoute>
-                    }
-                  />
+                  <Route path="/dashboard/analytics" element={<Navigate to="/dashboard" replace />} />
 
                   <Route
                     path="/dashboard/team"
@@ -194,6 +180,15 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <CalendarPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/documents"
+                    element={
+                      <ProtectedRoute>
+                        <DocumentsPage />
                       </ProtectedRoute>
                     }
                   />
@@ -253,6 +248,10 @@ function App() {
                     }
                   />
 
+                  <Route path="/goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+                  <Route path="/workload" element={<ProtectedRoute><WorkloadPage /></ProtectedRoute>} />
+                  <Route path="/timesheet" element={<ProtectedRoute><TimesheetPage /></ProtectedRoute>} />
+
                   <Route
                     path="/ai-mode"
                     element={
@@ -282,7 +281,7 @@ function App() {
 
                   {/* Integration Routes */}
                   <Route
-                    path="/connectors"
+                    path="/integrations"
                     element={
                       <ProtectedRoute>
                         <IntegrationLandingPage />
@@ -290,53 +289,19 @@ function App() {
                     }
                   />
                   <Route
-                    path="/connectors/google-calendar"
+                    path="/integrations/:provider"
                     element={
                       <ProtectedRoute>
-                        <GoogleCalendarPage />
+                        <IntegrationPage />
                       </ProtectedRoute>
                     }
                   />
-                  <Route
-                    path="/connectors/google-calendar/documentation"
-                    element={
-                      <ProtectedRoute>
-                        <GoogleCalendarDocumentationPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/connectors/google-drive"
-                    element={
-                      <ProtectedRoute>
-                        <GoogleDrivePage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/connectors/github"
-                    element={
-                      <ProtectedRoute>
-                        <GitHubPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/connectors/google-meet"
-                    element={
-                      <ProtectedRoute>
-                        <GoogleMeetPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/connectors/gmail"
-                    element={
-                      <ProtectedRoute>
-                        <GmailPage />
-                      </ProtectedRoute>
-                    }
-                  />
+                  <Route path="/privacy" element={<PrivacyPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+
+                  {/* Old URLs */}
+                  <Route path="/connectors" element={<Navigate to="/integrations" replace />} />
+                  <Route path="/connectors/*" element={<Navigate to="/integrations" replace />} />
 
                   {/* Invitation Route */}
                   <Route
@@ -345,7 +310,7 @@ function App() {
                   />
 
                   {/* Catch all route */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </div>
             </Router>

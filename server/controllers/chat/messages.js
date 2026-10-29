@@ -111,44 +111,32 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Handle attachments if provided
-    let attachmentIds = [];
-    if (req.body.attachments && Array.isArray(req.body.attachments)) {
-      // If attachments are provided as objects with URLs (from Cloudinary), create Attachment records
-      const Attachment = (await import("../../models/attachment.js")).default;
-      for (const attData of req.body.attachments) {
-        if (attData.url) {
-          const attachment = new Attachment({
-            filename: attData.filename || attData.publicId || "attachment",
-            originalName: attData.filename || "attachment",
-            mimeType: attData.mimeType || "application/octet-stream",
-            size: attData.size || 0,
-            url: attData.url,
-            thumbnailUrl: attData.thumbnailUrl || attData.url,
-            attachedTo: {
-              model: "ChatMessage",
-              id: null, // Will update after message save
-            },
-            workspace: channel.workspace,
-            uploadedBy: userId,
-          });
-          await attachment.save();
-          attachmentIds.push(attachment._id);
-        }
-      }
+    const incomingAttachments = Array.isArray(req.body.attachments)
+      ? req.body.attachments.filter((att) => att?.url)
+      : [];
+
+    let sanitizedContent = (content || "").trim();
+    if (!sanitizedContent && incomingAttachments.length > 0) {
+      sanitizedContent = "[Attachment]";
+    }
+    if (!sanitizedContent) {
+      return res.status(400).json({
+        success: false,
+        message: "Message content is required if no attachments are provided",
+      });
     }
 
     // Create message
     const message = new ChatMessage({
       channel: channelId,
       sender: userId,
-      content: content || "",
-      contentFormat: contentFormat || "plain",
+      content: sanitizedContent,
+      contentFormat: contentFormat === "markdown" ? "markdown" : "plain",
       parentMessage: parentMessageId || null,
       taskMentions: taskMentions || [],
       mentions: mentions || [],
-      attachments: attachmentIds,
-      type: attachmentIds.length > 0 ? "file" : "text",
+      attachments: [],
+      type: incomingAttachments.length > 0 ? "file" : "text",
       messageLink: generateMessageLink(
         channel.workspace.toString(),
         channelId,
@@ -158,13 +146,44 @@ export const sendMessage = async (req, res) => {
 
     await message.save();
 
-    // Update attachment references with message ID
-    if (attachmentIds.length > 0) {
+    // Persist attachments after message has an ID
+    if (incomingAttachments.length > 0) {
       const Attachment = (await import("../../models/attachment.js")).default;
-      await Attachment.updateMany(
-        { _id: { $in: attachmentIds } },
-        { $set: { "attachedTo.id": message._id } }
+      const createdAttachments = await Attachment.insertMany(
+        incomingAttachments.map((attData) => ({
+          filename:
+            attData.filename ||
+            attData.originalName ||
+            attData.publicId ||
+            "attachment",
+          originalName: attData.originalName || attData.filename || "attachment",
+          mimeType: attData.mimeType || "application/octet-stream",
+          size: attData.size || attData.bytes || 0,
+          bytes: attData.bytes || attData.size || 0,
+          url: attData.url,
+          thumbnailUrl: attData.thumbnailUrl || attData.url,
+          provider: attData.provider || "cloudinary",
+          publicId: attData.publicId,
+          resourceType:
+            attData.resourceType ||
+            (attData.mimeType?.startsWith("image/") ? "image" : "raw"),
+          format: attData.format,
+          folder: attData.folder,
+          width: attData.width,
+          height: attData.height,
+          version: attData.version,
+          attachedTo: {
+            model: "ChatMessage",
+            id: message._id,
+          },
+          project: channel.project || null,
+          workspace: channel.workspace,
+          uploadedBy: userId,
+        }))
       );
+
+      message.attachments = createdAttachments.map((attachment) => attachment._id);
+      message.type = "file";
     }
 
     // Update message link with actual message ID

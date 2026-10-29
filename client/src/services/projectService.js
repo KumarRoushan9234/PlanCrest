@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+import { API_BASE_URL } from "../config/api";
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
@@ -421,15 +421,6 @@ export const projectService = {
   getProjectActivity: async (projectId, timeRange = '7d') => {
     try {
       const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/activity?timeRange=${timeRange}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error;
-    }
-  },
-
-  getProjectStats: async (projectId) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/stats`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

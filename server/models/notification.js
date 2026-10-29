@@ -126,7 +126,13 @@ notificationSchema.index({ workspace: 1 });
 notificationSchema.index({ project: 1 });
 notificationSchema.index({ type: 1 });
 notificationSchema.index({ createdAt: -1 });
-notificationSchema.index({ externalId: 1, recipient: 1 }, { unique: true, sparse: true });
+// Dedupe only notifications that carry an externalId (e.g. webhook deliveries).
+// A plain sparse index still indexes recipient, so a second notification without
+// an externalId collided with the first one for the same user.
+notificationSchema.index(
+  { externalId: 1, recipient: 1 },
+  { unique: true, partialFilterExpression: { externalId: { $type: "string" } } }
+);
 
 export default mongoose.model("Notification", notificationSchema);
 

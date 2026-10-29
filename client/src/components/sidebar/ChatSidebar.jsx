@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { projectService } from "../../services/projectService";
 
-const ChatSidebar = ({ isOpen, onClose, task, project }) => {
+const ChatSidebar = ({ isOpen, onClose, task }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -143,7 +143,7 @@ const ChatSidebar = ({ isOpen, onClose, task, project }) => {
 
           {/* Sidebar */}
           <motion.div
-            className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-[400px] bg-[#0a0a0b] border-l border-gray-800 shadow-2xl z-[101] flex flex-col rounded-l-2xl overflow-hidden"
+            className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-[400px] bg-gray-950 border-l border-gray-800 shadow-2xl z-[101] flex flex-col rounded-l-2xl overflow-hidden"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}

@@ -9,15 +9,12 @@ import {
   removeEventAttendee,
   updateAttendeeResponse,
   updateEventResponse,
-  getCalendarIntegrations,
-  connectGoogleCalendar,
-  connectOutlookCalendar,
-  syncExternalCalendar,
   checkUserAvailability,
   findMeetingTime,
   exportCalendar,
 } from "../controllers/calendar.js";
 import { requireAuth, requireWorkspaceAccess } from "../middlewares/index.js";
+import { requireEventAccess } from "../middlewares/resourceAccess.js";
 
 const router = express.Router();
 
@@ -60,21 +57,21 @@ router.get("/workspaces/:workspaceId/calendar/export", requireWorkspaceAccess, e
  * @desc    Update calendar event
  * @access  Private
  */
-router.put("/calendar/events/:eventId", updateCalendarEvent);
+router.put("/calendar/events/:eventId", requireEventAccess, updateCalendarEvent);
 
 /**
  * @route   DELETE /api/calendar/events/:eventId
  * @desc    Delete calendar event
  * @access  Private
  */
-router.delete("/calendar/events/:eventId", deleteCalendarEvent);
+router.delete("/calendar/events/:eventId", requireEventAccess, deleteCalendarEvent);
 
 /**
  * @route   PUT /api/calendar/events/:eventId/response
  * @desc    Update attendee response (accept/decline/tentative)
  * @access  Private
  */
-router.put("/calendar/events/:eventId/response", updateAttendeeResponse);
+router.put("/calendar/events/:eventId/response", requireEventAccess, updateAttendeeResponse);
 
 /**
  * @route   PATCH /api/workspaces/:workspaceId/calendar/events/:eventId/response
@@ -92,53 +89,46 @@ router.patch("/workspaces/:workspaceId/calendar/events/:eventId/response", requi
  * @desc    Get event attendees
  * @access  Private
  */
-router.get("/calendar/events/:eventId/attendees", getEventAttendees);
+router.get("/calendar/events/:eventId/attendees", requireEventAccess, getEventAttendees);
 
 /**
  * @route   POST /api/calendar/events/:eventId/attendees
  * @desc    Add attendee to event
  * @access  Private
  */
-router.post("/calendar/events/:eventId/attendees", addEventAttendee);
+router.post("/calendar/events/:eventId/attendees", requireEventAccess, addEventAttendee);
 
 /**
  * @route   DELETE /api/calendar/events/:eventId/attendees/:userId
  * @desc    Remove attendee from event
  * @access  Private
  */
-router.delete("/calendar/events/:eventId/attendees/:userId", removeEventAttendee);
+router.delete("/calendar/events/:eventId/attendees/:userId", requireEventAccess, removeEventAttendee);
 
-/**
- * Calendar Integration Routes
- */
 
 /**
  * @route   GET /api/calendar/integrations
  * @desc    Get user's calendar integrations
  * @access  Private
  */
-router.get("/calendar/integrations", getCalendarIntegrations);
 
 /**
  * @route   POST /api/calendar/integrations/google
  * @desc    Connect Google Calendar
  * @access  Private
  */
-router.post("/calendar/integrations/google", connectGoogleCalendar);
 
 /**
  * @route   POST /api/calendar/integrations/outlook
  * @desc    Connect Outlook Calendar
  * @access  Private
  */
-router.post("/calendar/integrations/outlook", connectOutlookCalendar);
 
 /**
  * @route   POST /api/calendar/sync
  * @desc    Sync external calendar (Google/Outlook)
  * @access  Private
  */
-router.post("/calendar/sync", syncExternalCalendar);
 
 /**
  * Availability & Scheduling Routes

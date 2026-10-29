@@ -1,291 +1,221 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, 
-  CheckCircle, 
-  Users, 
-  BarChart3, 
-  Zap, 
-  Shield, 
-  Star
-} from 'lucide-react';
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  CalendarBlank,
+  ChatCircle,
+  Check,
+  EnvelopeSimple,
+  FileText,
+  GithubLogo,
+  Kanban,
+  PlugsConnected,
+  ShieldCheck,
+  Sparkle,
+  Timer,
+  UsersThree,
+  VideoCamera,
+} from "@phosphor-icons/react";
+import { Contours } from "../components/ui";
+import { BrandFooter, BrandNav } from "../components/brand/BrandNav";
+import { Reveal, TaglineReveal } from "../components/brand/Reveal";
+import { REPO_URL } from "../config/site";
 
-const LandingPage = () => {
+const FEATURES = [
+  { icon: Kanban, tone: "", title: "Projects and boards", text: "Boards you drag between columns, with subtasks, labels, priorities and due dates. Every project gets its own chat channel." },
+  { icon: ChatCircle, tone: "lav", title: "Team chat attached to the work", text: "Channels, threads, reactions, mentions and file sharing, with a discussion attached to every task." },
+  { icon: CalendarBlank, tone: "mint", title: "Calendar and scheduling", text: "Plan events, check availability and sync with Google Calendar so deadlines and meetings live together." },
+  { icon: FileText, tone: "pink", title: "Documents", text: "Upload, preview, rename and share files inside the workspace, with access that follows your projects." },
+  { icon: Timer, tone: "", title: "Time, goals and automations", text: "Track time from any task, set goals with measurable targets, and let rules assign, tag or notify when work changes status." },
+  { icon: ShieldCheck, tone: "lav", title: "Roles and permissions", text: "Owners, admins, members and clients. Project access is enforced on the server, not just hidden in the UI." },
+];
 
-  const features = [
-    {
-      icon: <Users className="w-8 h-8 text-blue-500" />,
-      title: "Team Collaboration",
-      description: "Work together seamlessly with your team on projects and tasks."
-    },
-    {
-      icon: <BarChart3 className="w-8 h-8 text-green-500" />,
-      title: "Analytics & Reports",
-      description: "Get detailed insights and analytics to track your progress."
-    },
-    {
-      icon: <Zap className="w-8 h-8 text-yellow-500" />,
-      title: "Lightning Fast",
-      description: "Built for speed and efficiency to boost your productivity."
-    },
-    {
-      icon: <Shield className="w-8 h-8 text-purple-500" />,
-      title: "Secure & Reliable",
-      description: "Enterprise-grade security to keep your data safe."
-    }
+const STEPS = [
+  { title: "Create a workspace", text: "Name it, invite your team, and pick a template or start from a blank board." },
+  { title: "Plan the work", text: "Break projects into tasks, assign owners, set dates and watch progress roll up." },
+  { title: "Collaborate and ship", text: "Talk in context, review in one place, and let the AI assistant handle the busywork." },
+];
+
+const FAQ = [
+  ["Is PlanCrest really free?", "Yes. PlanCrest is open source under the MIT license. Run it yourself with your own MongoDB database and email account."],
+  ["Do I need the AI features?", "No. AI Mode is optional. It turns on when you add an OpenRouter key and a model name to the server settings. Everything else works without it."],
+  ["What can the AI assistant do?", "It can look up your projects and tasks, plan your day from your open work, break a task into subtasks, and create tasks when you ask. It only sees what you can already access."],
+  ["Which integrations are supported?", "Google Calendar, Drive, Meet and Gmail, GitHub and GitHub Actions, Slack, Microsoft Teams, Jira and Trello. You connect each one from inside the app."],
+  ["Can I self host it?", "Yes. The repository includes a Docker Compose setup and environment templates, so you can have it running in a few minutes."],
+  ["Where is my data stored?", "In the MongoDB database you point the server at. Files go to Cloudinary if you configure it. Nothing is sent to PlanCrest, because there is no central PlanCrest service."],
+  ["Which AI model does it use?", "Whichever model you name in the server settings. AI Mode runs through OpenRouter, so you can switch models by changing one line and restarting."],
+  ["How do roles and permissions work?", "Workspace owners and admins manage everything. Members see the projects they belong to. Clients get read only access unless you allow more. Access is checked on the server for every request."],
+  ["Can I track time and set goals?", "Yes. Start a timer on any task, log time by hand, review a timesheet, and set goals whose progress comes from tasks and numbers you choose."],
+];
+
+function Preview() {
+  const cols = [
+    ["To do", ["Design pricing page", "Set up analytics events"], "2"],
+    ["In progress", ["Finalize homepage copy", "Push notifications"], "2"],
+    ["Done", ["Brand guidelines v2", "Choose CMS"], "2"],
   ];
-
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "Project Manager",
-      company: "TechCorp",
-      content: "This platform has revolutionized how we manage our projects. The interface is intuitive and the features are exactly what we needed.",
-      rating: 5
-    },
-    {
-      name: "Mike Chen",
-      role: "CEO",
-      company: "StartupXYZ",
-      content: "The best project management tool we've used. It's helped us scale our operations efficiently.",
-      rating: 5
-    },
-    {
-      name: "Emily Davis",
-      role: "Team Lead",
-      company: "DesignStudio",
-      content: "Our team productivity has increased by 40% since we started using this platform. Highly recommended!",
-      rating: 5
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Hero Section */}
-      <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-              Manage Your Clients
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-                Like a Pro
-              </span>
-            </h1>
-            <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              The ultimate client management platform that helps you organize, track, and grow your business relationships with powerful tools and insights.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/register"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-colors inline-flex items-center justify-center"
-              >
-                Start Free Trial
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-              <Link
-                to="/login"
-                className="border border-gray-600 hover:border-gray-500 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-colors"
-              >
-                Sign In
-              </Link>
-            </div>
-          </div>
+    <div className="br-shot" role="img" aria-label="Preview of the PlanCrest board view">
+      <div className="br-shot-bar">
+        <i /><i /><i />
+        <span>app.plancrest.dev / Website Relaunch</span>
+      </div>
+      <div className="br-shot-body">
+        <div className="br-shot-side">
+          {["Overview", "My work", "Projects", "Calendar", "Chat", "AI Mode"].map((l, i) => (
+            <div key={l} className={i === 2 ? "on" : ""}>{l}</div>
+          ))}
         </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Everything You Need to Succeed
-            </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Powerful features designed to streamline your client management workflow
-            </p>
+        <div className="br-shot-main">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <b style={{ fontSize: 15 }}>Website Relaunch</b>
+            <span className="pc-badge blue">WEB · 8 tasks</span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="bg-gray-900 p-6 rounded-xl border border-gray-700 hover:border-gray-600 transition-colors">
-                <div className="mb-4">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-300">
-                  {feature.description}
-                </p>
+          <div className="br-shot-cols">
+            {cols.map(([name, items, n]) => (
+              <div key={name} className="br-shot-col">
+                <h4><span>{name}</span><span className="pc-dim">{n}</span></h4>
+                {items.map((t, i) => (
+                  <div key={t} className="br-shot-card">
+                    {t}
+                    <small>
+                      <span style={{ color: i ? "#9ea2ae" : "#e8a93a" }}>{i ? "Medium" : "High"}</span>
+                      <span className="pc-avatar sm" style={{ width: 18, height: 18, fontSize: 8 }}>{i ? "JL" : "PS"}</span>
+                    </small>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              What Our Users Say
-            </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Join thousands of satisfied customers who trust ClientFlow
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                <div className="flex items-center mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-300 mb-4 italic">
-                  "{testimonial.content}"
-                </p>
-                <div>
-                  <p className="text-white font-semibold">{testimonial.name}</p>
-                  <p className="text-gray-400 text-sm">{testimonial.role} at {testimonial.company}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Simple, Transparent Pricing
-            </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Choose the plan that fits your needs
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Free Plan */}
-            <div className="bg-gray-900 p-8 rounded-xl border border-gray-700">
-              <h3 className="text-2xl font-bold text-white mb-2">Free</h3>
-              <p className="text-gray-300 mb-6">Perfect for getting started</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$0</span>
-                <span className="text-gray-300">/month</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                  Up to 5 clients
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                  Basic project management
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                  Email support
-                </li>
-              </ul>
-              <Link
-                to="/register"
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors text-center block"
-              >
-                Get Started
-              </Link>
-            </div>
-
-            {/* Pro Plan */}
-            <div className="bg-gray-900 p-8 rounded-xl border-2 border-blue-500 relative">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                  Most Popular
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Pro</h3>
-              <p className="text-gray-300 mb-6">For growing businesses</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$29</span>
-                <span className="text-gray-300">/month</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                  Unlimited clients
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                  Advanced analytics
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                  Priority support
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                  Custom integrations
-                </li>
-              </ul>
-              <Link
-                to="/register"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors text-center block"
-              >
-                Start Free Trial
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to Transform Your Client Management?
-          </h2>
-          <p className="text-xl text-gray-300 mb-8">
-            Join thousands of businesses already using ClientFlow to manage their clients more effectively.
-          </p>
-          <Link
-            to="/register"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-colors inline-flex items-center"
-          >
-            Get Started Today
-            <ArrowRight className="ml-2 w-5 h-5" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 border-t border-gray-800 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h3 className="text-2xl font-bold text-white mb-4">ClientFlow</h3>
-            <p className="text-gray-400 mb-6">
-              The ultimate client management platform for modern businesses.
-            </p>
-            <div className="flex justify-center space-x-6">
-              <Link to="/login" className="text-gray-400 hover:text-white transition-colors">
-                Sign In
-              </Link>
-              <Link to="/register" className="text-gray-400 hover:text-white transition-colors">
-                Register
-              </Link>
-            </div>
-            <div className="mt-8 pt-8 border-t border-gray-800">
-              <p className="text-gray-500 text-sm">
-                © 2024 ClientFlow. All rights reserved.
-              </p>
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   );
-};
+}
 
-export default LandingPage;
+export default function LandingPage() {
+  return (
+    <div className="br">
+      <BrandNav />
+
+      <main id="main">
+      <section className="br-hero">
+        <Contours />
+        <div className="br-wrap">
+          <a href="#ai" className="br-pill">
+            <i><Sparkle size={12} /></i>
+            New: an AI assistant that works inside your workspace
+          </a>
+          <h1>
+            Plan the work.<br />
+            Ship the thing.
+          </h1>
+          <p className="lead">
+            PlanCrest brings projects, tasks, calendars, chat and documents into one open source workspace, with an AI assistant that reads and updates your work for you.
+          </p>
+          <div className="cta">
+            <Link to="/register" className="br-btn primary">
+              Start free <ArrowRight size={16} />
+            </Link>
+            <a href={REPO_URL} target="_blank" rel="noreferrer" className="br-btn soft">
+              <GithubLogo size={16} /> Star on GitHub
+            </a>
+          </div>
+          <p className="fine">Open source under MIT. Runs on your own MongoDB. No credit card, no trial clock.</p>
+          <Preview />
+        </div>
+      </section>
+
+      <div className="br-wrap">
+        <Reveal as="section" className="br-section" id="features">
+          <span className="br-eyebrow">Everything in one place</span>
+          <h2>Your team's tools, finally in sync</h2>
+          <p className="sub">Tasks, conversations, files and dates link to each other, so you stop hunting for the last version of anything.</p>
+          <div className="br-features">
+            {FEATURES.map(({ icon: Icon, tone, title, text }) => (
+              <article key={title} className="br-feature">
+                <div className={`i ${tone}`}><Icon size={19} /></div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </article>
+            ))}
+          </div>
+        </Reveal>
+
+        <TaglineReveal text="Every task, conversation and deadline in one calm place, so your team spends the week shipping instead of searching." />
+
+        <section className="br-band" id="ai">
+          <div>
+            <span className="br-eyebrow">AI Mode</span>
+            <h2 style={{ fontSize: "clamp(28px,3.4vw,38px)", fontWeight: 800, lineHeight: 1.1, maxWidth: 520 }}>An assistant that already knows your workspace</h2>
+            <p className="sub" style={{ marginTop: 0, fontSize: 15.5 }}>Runs on the model you choose through OpenRouter. It uses your real projects and tasks, respects your permissions, and tells you what it did.</p>
+            <ul>
+              {["Ask what's overdue or what to focus on today", "Plan your day from your open, assigned work", "Break any task into clear subtasks in one click", "Create tasks from a sentence, with a link to each one"].map((t) => (
+                <li key={t}><Check size={16} />{t}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="br-chat" aria-hidden="true">
+            <div className="br-bubble u">What should I focus on today?</div>
+            <div className="br-bubble a">
+              You have 2 tasks due soon. Start with <b>WEB-1 Finalize homepage copy</b> (due tomorrow, in review), then <b>MKT-3 Webinar slides</b> on Friday.
+            </div>
+            <div className="br-bubble u">Create a task to book the venue, due Friday</div>
+            <div className="br-bubble a">Created <b>MKT-6 Book the venue</b> in Marketing Q4, due Friday.</div>
+          </div>
+        </section>
+
+        <Reveal as="section" className="br-section" id="how">
+          <span className="br-eyebrow">How it works</span>
+          <h2>From idea to shipped in three steps</h2>
+          <div className="br-steps">
+            {STEPS.map((s) => (
+              <div key={s.title} className="br-step">
+                <h3>{s.title}</h3>
+                <p>{s.text}</p>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal as="section" className="br-section">
+          <span className="br-eyebrow">Integrations</span>
+          <h2>Connects to the tools you already use</h2>
+          <div className="br-integrations">
+            {[[CalendarBlank, "Google Calendar"], [FileText, "Google Drive"], [VideoCamera, "Google Meet"], [EnvelopeSimple, "Gmail"], [GithubLogo, "GitHub Actions"], [ChatCircle, "Slack"], [UsersThree, "Microsoft Teams"], [Kanban, "Jira"], [PlugsConnected, "Trello"]].map(([Icon, name]) => (
+              <span key={name} className="br-int"><Icon size={16} />{name}</span>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal as="section" className="br-section" id="faq">
+          <span className="br-eyebrow">FAQ</span>
+          <h2>Questions people ask</h2>
+          <div className="br-faq">
+            {FAQ.map(([q, a]) => (
+              <details key={q}>
+                <summary>{q}</summary>
+                <p>{a}</p>
+              </details>
+            ))}
+          </div>
+        </Reveal>
+
+        <section className="br-cta">
+          <Contours opacity={0.7} />
+          <div style={{ position: "relative" }}>
+            <h2>Run your next project here</h2>
+            <p>Create a workspace in about a minute, or clone the repo and host it yourself. If it is not a fit, export nothing and delete nothing: your data stays in your own database.</p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <Link to="/register" className="br-btn primary">Start free <ArrowRight size={16} /></Link>
+              <a href={REPO_URL} target="_blank" rel="noreferrer" className="br-btn soft"><GithubLogo size={16} /> View source</a>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      </main>
+
+      <BrandFooter />
+    </div>
+  );
+}

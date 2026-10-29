@@ -117,6 +117,22 @@ const taskSchema = new Schema(
         status: String,
       },
     ],
+    // Items in other tools this task was imported from or exported to (Jira, Trello, GitHub issues)
+    externalLinks: [
+      {
+        provider: { type: String },
+        externalId: { type: String },
+        key: { type: String },
+        url: { type: String },
+        title: { type: String },
+      },
+    ],
+    // Tasks that must finish before this one can (ClickUp-style "waiting on")
+    blockedBy: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+    recurrence: {
+      frequency: { type: String, enum: ["none", "daily", "weekly", "monthly"], default: "none" },
+      interval: { type: Number, default: 1, min: 1, max: 365 },
+    },
     customFields: {
       type: Map,
       of: Schema.Types.Mixed,

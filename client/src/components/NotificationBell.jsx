@@ -6,7 +6,7 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const dropdownRef = useRef(null);
 
   // Fetch notifications and unread count (disabled for now)
@@ -49,19 +49,6 @@ const NotificationBell = () => {
     // }
   };
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      const response = await notificationService.getNotifications({
-        limit: 10,
-      });
-      setNotifications(response.data?.notifications || []);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleMarkAsRead = async (notificationId) => {
     try {
@@ -156,7 +143,7 @@ const NotificationBell = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             className="absolute right-0 mt-2 w-96 rounded-lg shadow-lg border z-50"
-            style={{ backgroundColor: "#0a0a0a", borderColor: "#374151" }}
+            style={{ backgroundColor: "var(--bg)", borderColor: "#374151" }}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-600">

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+import { API_BASE_URL } from "../config/api";
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
@@ -52,6 +52,16 @@ export const taskService = {
     }
   },
 
+  // Activity timeline for a task
+  getTaskActivity: async (taskId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/activity`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Update task
   updateTask: async (taskId, taskData) => {
     try {
@@ -72,10 +82,20 @@ export const taskService = {
     }
   },
 
-  // Move task to different column
-  moveTask: async (taskId, columnId) => {
+  // Change a task's status (also moves it to the matching board column)
+  updateTaskStatus: async (taskId, status, columnId) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}/move`, { columnId });
+      const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}/status`, { status, columnId });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Move task to a different column and/or position
+  moveTask: async (taskId, columnId, position) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}/position`, { columnId, position });
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

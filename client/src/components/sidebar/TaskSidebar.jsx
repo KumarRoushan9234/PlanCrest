@@ -48,7 +48,7 @@ const TaskSidebar = ({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [taskData, setTaskData] = useState(task || {});
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Details tab state
@@ -488,18 +488,6 @@ const TaskSidebar = ({
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "completed":
-        return "text-green-400 bg-green-500/10 border-green-500/20";
-      case "in_progress":
-        return "text-blue-400 bg-blue-500/10 border-blue-500/20";
-      case "todo":
-        return "text-gray-400 bg-gray-500/10 border-gray-500/20";
-      default:
-        return "text-gray-400 bg-gray-500/10 border-gray-500/20";
-    }
-  };
 
   const formatDate = (date) => {
     if (!date) return "Not set";

@@ -1,5 +1,5 @@
-import React from "react";
 import { motion } from "framer-motion";
+import React from "react";
 import { Hash, Users, MoreVertical, Trash2 } from "lucide-react";
 import { Avatar } from "../shared";
 import { useAuth } from "../../../contexts/AuthContext";

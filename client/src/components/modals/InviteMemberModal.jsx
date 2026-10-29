@@ -2,11 +2,9 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Shield, ChevronDown, UserRound } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
-import { useAuth } from "../../contexts/AuthContext";
 
 const InviteMemberModal = ({ isOpen, onClose }) => {
   const { currentWorkspace, inviteToWorkspace, loading } = useWorkspace();
-  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     role: "employee",

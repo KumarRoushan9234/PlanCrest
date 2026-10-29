@@ -113,7 +113,7 @@ export const sendThreadMessage = async (req, res) => {
       thread: thread._id,
       sender: userId,
       content,
-      contentFormat: contentFormat || "plain",
+      contentFormat: contentFormat === "markdown" ? "markdown" : "plain",
       parentMessage: parentMessageId || null,
     });
 

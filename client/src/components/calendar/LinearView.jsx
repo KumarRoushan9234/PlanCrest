@@ -1,5 +1,5 @@
-import React from "react";
 import { motion } from "framer-motion";
+import React from "react";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -12,6 +12,9 @@ import {
   Video,
   MapPin,
 } from "lucide-react";
+
+const getAvatarUrl = (avatar) =>
+  typeof avatar === "string" ? avatar : avatar?.url || null;
 
 const LinearView = ({
   currentDate,
@@ -55,7 +58,7 @@ const LinearView = ({
           taskDate.getMonth() === dateMonth &&
           taskDate.getDate() === dateDay
         );
-      } catch (e) {
+      } catch {
         return false;
       }
     });
@@ -72,7 +75,7 @@ const LinearView = ({
           eventDate.getMonth() === dateMonth &&
           eventDate.getDate() === dateDay
         );
-      } catch (e) {
+      } catch {
         return false;
       }
     });
@@ -383,9 +386,9 @@ const LinearView = ({
                               )}
                               {task.assignee && (
                                 <div className="flex items-center gap-1">
-                                  {task.assignee.avatar ? (
+                                  {getAvatarUrl(task.assignee.avatar) ? (
                                     <img
-                                      src={task.assignee.avatar}
+                                      src={getAvatarUrl(task.assignee.avatar)}
                                       alt={task.assignee.name}
                                       className="w-3 h-3 rounded-full border border-gray-700"
                                     />

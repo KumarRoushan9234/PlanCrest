@@ -107,6 +107,15 @@ const projectSchema = new Schema(
         completedAt: Date,
       },
     ],
+    // Field definitions for per-task custom values
+    customFieldDefs: [
+      {
+        key: { type: String, required: true },
+        name: { type: String, required: true, trim: true, maxlength: 60 },
+        type: { type: String, enum: ["text", "number", "date", "select", "checkbox", "url"], default: "text" },
+        options: [String],
+      },
+    ],
     // Project deadline
     deadline: {
       type: Date,

@@ -1,5 +1,5 @@
-import React from "react";
 import { motion } from "framer-motion";
+import React from "react";
 
 /**
  * AuthLoader - A beautiful animated loader for authenticated pages
@@ -181,7 +181,7 @@ const AuthLoader = ({
     return (
       <div
         className="fixed inset-0 flex items-center justify-center z-50"
-        style={{ backgroundColor: "#000000" }}
+        style={{ backgroundColor: "var(--bg)" }}
       >
         <LoaderContent />
       </div>

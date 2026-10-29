@@ -1,5 +1,5 @@
-import React from "react";
 import { motion } from "framer-motion";
+import React from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,7 +13,6 @@ const MonthView = ({
   onDateSelect,
   tasks = [],
   events = [],
-  onNavigate,
   onEventClick,
 }) => {
   const getDaysInMonth = (date) => {
@@ -47,7 +46,7 @@ const MonthView = ({
           taskDate.getMonth() === dateMonth &&
           taskDate.getDate() === dateDay
         );
-      } catch (e) {
+      } catch {
         return false;
       }
     });
@@ -64,7 +63,7 @@ const MonthView = ({
           eventDate.getMonth() === dateMonth &&
           eventDate.getDate() === dateDay
         );
-      } catch (e) {
+      } catch {
         return false;
       }
     });
@@ -97,20 +96,6 @@ const MonthView = ({
   }
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
 
   return (
     <div className="h-full flex flex-col px-2 py-1">
@@ -137,9 +122,6 @@ const MonthView = ({
             const { tasks: dayTasks, events: dayEvents } =
               getItemsForDate(date);
             const totalItems = dayTasks.length + dayEvents.length;
-            const completedTasks = dayTasks.filter(
-              (t) => t.status === "completed"
-            ).length;
             const today = isToday(date);
             const selected = isSelected(date);
 

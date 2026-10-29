@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Search, Hash, User, Link as LinkIcon, File, Users } from "lucide-react";
+import {
+  X,
+  Search,
+  Hash,
+  User,
+  Link as LinkIcon,
+  File,
+  Users,
+} from "lucide-react";
 import { useWorkspace } from "../../../contexts/WorkspaceContext";
 import chatService from "../../../services/chatService";
 import { formatMessageTime } from "../../../utils/dateFormatter";
@@ -34,10 +42,14 @@ const SearchModal = ({ isOpen, onClose }) => {
     }
 
     try {
-      const { workspaceService } = await import("../../../services/workspaceService");
-      const response = await workspaceService.getWorkspaceMembers(currentWorkspace._id);
+      const { workspaceService } = await import(
+        "../../../services/workspaceService"
+      );
+      const response = await workspaceService.getWorkspaceMembers(
+        currentWorkspace._id
+      );
       const members = response.data || [];
-      
+
       const queryLower = query.toLowerCase();
       const filtered = members.filter(
         (member) =>
@@ -118,7 +130,7 @@ const SearchModal = ({ isOpen, onClose }) => {
 
         {/* Modal */}
         <motion.div
-          className="relative bg-[#1a1b1d] rounded-xl border border-gray-800/50 shadow-2xl w-full max-w-3xl mx-4 max-h-[80vh] flex flex-col"
+          className="relative bg-gray-800 rounded-xl border border-gray-800/50 shadow-2xl w-full max-w-3xl mx-4 max-h-[80vh] flex flex-col"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -170,7 +182,11 @@ const SearchModal = ({ isOpen, onClose }) => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={activeTab === "messages" ? "Search messages..." : "Search people..."}
+                placeholder={
+                  activeTab === "messages"
+                    ? "Search messages..."
+                    : "Search people..."
+                }
                 className="w-full pl-10 pr-4 py-3 bg-gray-900/50 border border-gray-800/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-colors"
                 autoFocus
               />
@@ -181,7 +197,9 @@ const SearchModal = ({ isOpen, onClose }) => {
               <div className="mt-4 flex flex-wrap gap-2">
                 <motion.button
                   type="button"
-                  onClick={() => setFilters({ ...filters, hasLinks: !filters.hasLinks })}
+                  onClick={() =>
+                    setFilters({ ...filters, hasLinks: !filters.hasLinks })
+                  }
                   className={`px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
                     filters.hasLinks
                       ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
@@ -195,7 +213,9 @@ const SearchModal = ({ isOpen, onClose }) => {
                 </motion.button>
                 <motion.button
                   type="button"
-                  onClick={() => setFilters({ ...filters, hasFiles: !filters.hasFiles })}
+                  onClick={() =>
+                    setFilters({ ...filters, hasFiles: !filters.hasFiles })
+                  }
                   className={`px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
                     filters.hasFiles
                       ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
@@ -263,38 +283,40 @@ const SearchModal = ({ isOpen, onClose }) => {
                   <p>Enter a search query to find messages</p>
                 </div>
               )
+            ) : peopleResults.length === 0 && query ? (
+              <div className="text-center py-8 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-700" />
+                <p>No people found</p>
+              </div>
+            ) : peopleResults.length > 0 ? (
+              <div className="space-y-2">
+                {peopleResults.map((member) => (
+                  <motion.div
+                    key={member._id}
+                    className="p-3 bg-gray-900/30 rounded-lg border border-gray-800/50 hover:border-gray-700/50 transition-colors flex items-center gap-3"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Avatar user={member.user} size="md" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-white text-sm">
+                        {member.user?.name || "Unknown"}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {member.user?.email}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-500 capitalize">
+                      {member.role}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
             ) : (
-              peopleResults.length === 0 && query ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-700" />
-                  <p>No people found</p>
-                </div>
-              ) : peopleResults.length > 0 ? (
-                <div className="space-y-2">
-                  {peopleResults.map((member) => (
-                    <motion.div
-                      key={member._id}
-                      className="p-3 bg-gray-900/30 rounded-lg border border-gray-800/50 hover:border-gray-700/50 transition-colors flex items-center gap-3"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      <Avatar user={member.user} size="md" />
-                      <div className="flex-1">
-                        <p className="font-semibold text-white text-sm">
-                          {member.user?.name || "Unknown"}
-                        </p>
-                        <p className="text-xs text-gray-500">{member.user?.email}</p>
-                      </div>
-                      <span className="text-xs text-gray-500 capitalize">{member.role}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-700" />
-                  <p>Enter a search query to find people</p>
-                </div>
-              )
+              <div className="text-center py-8 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-700" />
+                <p>Enter a search query to find people</p>
+              </div>
             )}
           </div>
         </motion.div>

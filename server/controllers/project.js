@@ -4,12 +4,14 @@ import ProjectTemplate from "../models/projectTemplate.js";
 import Board from "../models/board.js";
 import Column from "../models/column.js";
 import Task from "../models/task.js";
+import ActivityLog from "../models/activityLog.js";
 import WorkspaceMember from "../models/workspaceMember.js";
 import Workspace from "../models/workspace.js";
 import User from "../models/user.js";
 import { updateLastSelectedProject, updateLastSelectedBoard, updateLastSelectedColumn } from "../utils/lastSelected.js";
 import { sendProjectCreatedEmail } from "../utils/emailTemplates.js";
 import { createDefaultChannels } from "../utils/channelHelpers.js";
+import { getAccessibleProjects } from "../utils/projectAccess.js";
 
 /**
  * Create a new project
@@ -162,52 +164,81 @@ export const createProject = async (req, res) => {
  */
 export const getWorkspaceProjects = async (req, res) => {
   try {
-    const { workspaceId } = req.params;
     const userId = req.auth._id;
-    const isOwner = req.isWorkspaceOwner;
-    const member = req.workspaceMember; // Already fetched
+    const OPEN = ["backlog", "todo", "in_progress", "in_review", "blocked"];
 
-    let projects;
+    // Same visibility rules as requireProjectAccess: owners/admins see all,
+    // everyone else sees projects they belong to or were assigned.
+    const accessible = await getAccessibleProjects(
+      {
+        workspace: req.workspace,
+        workspaceMember: req.workspaceMember,
+        isWorkspaceOwner: req.isWorkspaceOwner,
+        userId,
+      },
+      "_id"
+    );
+    const projectIds = accessible.map((p) => p._id);
 
-    // Owner and Admin can see all projects
-    if (isOwner || (member && member.role === "admin")) {
-      projects = await Project.find({
-        workspace: workspaceId,
-        status: { $in: ["active", "on_hold"] },
-      })
+    const [projects, taskStats, memberDocs] = await Promise.all([
+      Project.find({ _id: { $in: projectIds } })
         .populate("lead", "name email avatar")
-        .select("name key description icon color privacy status progress createdAt updatedAt");
-    } else {
-      // Employees and clients see only assigned projects
-      const projectIds = member.assignedProjects?.map(ap => ap.project) || [];
-      
-      projects = await Project.find({
-        _id: { $in: projectIds },
-        status: { $in: ["active", "on_hold"] },
-      })
-        .populate("lead", "name email avatar")
-        .select("name key description icon color privacy status progress createdAt updatedAt");
+        .select("name key description icon color privacy status progress deadline createdAt updatedAt")
+        .sort({ updatedAt: -1 }),
+      Task.aggregate([
+        { $match: { project: { $in: projectIds }, isArchived: { $ne: true } } },
+        {
+          $group: {
+            _id: "$project",
+            total: { $sum: 1 },
+            done: { $sum: { $cond: [{ $eq: ["$status", "done"] }, 1, 0] } },
+            overdue: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $in: ["$status", OPEN] }, { $lt: ["$dueDate", new Date()] }, { $ne: ["$dueDate", null] }] },
+                  1,
+                  0,
+                ],
+              },
+            },
+            lastActivity: { $max: "$updatedAt" },
+          },
+        },
+      ]),
+      ProjectMember.find({ project: { $in: projectIds }, status: "active" })
+        .populate("user", "name email avatar")
+        .select("project user")
+        .lean(),
+    ]);
+
+    const stats = new Map(taskStats.map((t) => [String(t._id), t]));
+    const membersByProject = new Map();
+    for (const m of memberDocs) {
+      const key = String(m.project);
+      if (!membersByProject.has(key)) membersByProject.set(key, []);
+      if (m.user) membersByProject.get(key).push(m.user);
     }
 
-    // Get member counts for each project
-    const projectsWithMembers = await Promise.all(
-      projects.map(async (project) => {
-        const memberCount = await ProjectMember.countDocuments({
-          project: project._id,
-          status: "active",
-        });
-        
-        return {
-          ...project.toObject(),
-          members: memberCount,
-        };
-      })
-    );
+    const data = projects.map((project) => {
+      const stat = stats.get(String(project._id));
+      const people = membersByProject.get(String(project._id)) || [];
+      const total = stat?.total || 0;
+      return {
+        ...project.toObject(),
+        members: people.length,
+        memberPreview: people.slice(0, 5),
+        taskCount: total,
+        doneCount: stat?.done || 0,
+        overdueCount: stat?.overdue || 0,
+        progress: total ? Math.round(((stat?.done || 0) / total) * 100) : 0,
+        lastActivity: stat?.lastActivity || project.updatedAt,
+      };
+    });
 
     res.json({
       success: true,
       message: "Projects fetched successfully",
-      data: projectsWithMembers,
+      data,
     });
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -1083,47 +1114,26 @@ export const addProjectMembers = async (req, res) => {
 export const getProjectActivity = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { timeRange = '7d' } = req.query;
+    const { timeRange = "7d", limit = 100 } = req.query;
 
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return res.status(404).json({ error: "Project not found" });
-    }
+    const days = { "24h": 1, "7d": 7, "30d": 30 }[timeRange];
+    const since = days ? new Date(Date.now() - days * 86400000) : new Date(0);
 
-    // Calculate date range
-    let startDate = new Date();
-    switch (timeRange) {
-      case '24h':
-        startDate.setHours(startDate.getHours() - 24);
-        break;
-      case '7d':
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case '30d':
-        startDate.setDate(startDate.getDate() - 30);
-        break;
-      case 'all':
-        startDate = new Date(0);
-        break;
-      default:
-        startDate.setDate(startDate.getDate() - 7);
-    }
+    // Activity on the project itself and on any of its tasks
+    const taskIds = await Task.find({ project: projectId }).distinct("_id");
+    const activities = await ActivityLog.find({
+      createdAt: { $gte: since },
+      $or: [{ project: projectId }, { target: projectId }, { target: { $in: taskIds } }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(Math.min(Number(limit) || 100, 300))
+      .populate("actor", "name email avatar")
+      .lean();
 
-    const { getItemActivity } = await import('../utils/activityLogger.js');
-    const activities = await getItemActivity(projectId, 'project');
-
-    // Filter by date range
-    const filteredActivities = activities.filter(
-      activity => new Date(activity.createdAt) >= startDate
-    );
-
-    res.json({
-      success: true,
-      data: filteredActivities,
-    });
+    res.json({ success: true, data: activities });
   } catch (error) {
     console.error("Error fetching project activity:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Failed to fetch project activity" });
   }
 };
 
@@ -1131,63 +1141,31 @@ export const getProjectActivity = async (req, res) => {
 export const getProjectStats = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { Task } = await import('../models/index.js');
+    const OPEN = ["backlog", "todo", "in_progress", "in_review", "blocked"];
 
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return res.status(404).json({ error: "Project not found" });
-    }
-
-    // Get task statistics
-    const tasks = await Task.find({ project: projectId });
-    const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'done').length;
-    const totalTasks = tasks.length;
-
-    // Calculate progress rate
-    const progressRate = totalTasks > 0 
-      ? Math.round((completedTasks / totalTasks) * 100) 
-      : 0;
-
-    // Get project members count
-    const projectMembers = await ProjectMember.find({
-      project: projectId,
-      status: "active",
-    });
-
-    // Get active members (members who have activity in the last 7 days)
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    
-    try {
-      const { getItemActivity } = await import('../utils/activityLogger.js');
-      const recentActivities = await getItemActivity(projectId, 'project');
-      const activeUserIds = new Set(
-        recentActivities
-          .filter(a => new Date(a.createdAt) >= weekAgo)
-          .map(a => a.user?.toString())
-      );
-      
-      var activeMembers = activeUserIds.size;
-    } catch (activityError) {
-      console.log('Activity tracking not available, using 0 for active members');
-      var activeMembers = 0;
-    }
-
-    const stats = {
-      totalTasks,
-      completedTasks,
-      progressRate,
-      activeMembers,
-      totalMembers: projectMembers.length,
-    };
+    const tasks = await Task.find({ project: projectId, isArchived: { $ne: true } })
+      .select("status dueDate")
+      .lean();
+    const now = new Date();
+    const completedTasks = tasks.filter((t) => t.status === "done").length;
+    const overdueTasks = tasks.filter((t) => OPEN.includes(t.status) && t.dueDate && t.dueDate < now).length;
+    const inProgressTasks = tasks.filter((t) => t.status === "in_progress").length;
+    const totalMembers = await ProjectMember.countDocuments({ project: projectId, status: "active" });
 
     res.json({
       success: true,
-      data: stats,
+      data: {
+        totalTasks: tasks.length,
+        completedTasks,
+        overdueTasks,
+        inProgressTasks,
+        progressRate: tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0,
+        totalMembers,
+      },
     });
   } catch (error) {
     console.error("Error fetching project stats:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Failed to fetch project stats" });
   }
 };
 

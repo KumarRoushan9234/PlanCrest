@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { encryptedString } from "../utils/crypto.js";
 
 const connectorSchema = new mongoose.Schema(
   {
@@ -79,14 +80,17 @@ const connectorSchema = new mongoose.Schema(
 
     // Configuration (encrypted tokens, credentials)
     config: {
-      accessToken: String,
-      refreshToken: String,
+      accessToken: encryptedString,
+      refreshToken: encryptedString,
       expiryDate: Number,
       email: String,
       username: String,
       scopes: [String],
-      webhookUrl: String,
-      apiKey: String,
+      webhookUrl: encryptedString,
+      apiKey: encryptedString,
+      // Account identity at the provider (e.g. Jira site, Slack team id)
+      site: String,
+      externalAccountId: String,
     },
 
     // Metadata
@@ -117,6 +121,8 @@ const connectorSchema = new mongoose.Schema(
         default: "bidirectional",
       },
       notifications: { type: Boolean, default: true },
+      // Provider-specific options (default calendar, Slack channel, notify toggles, ...)
+      options: { type: mongoose.Schema.Types.Mixed, default: {} },
       // GitHub-specific notification settings
       notificationRules: [{
         id: { type: String, required: true },

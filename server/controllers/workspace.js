@@ -1,9 +1,13 @@
 import Workspace from "../models/workspace.js";
+import { getAccessibleProjects } from "../utils/projectAccess.js";
+import { withTaskExtras } from "../utils/taskQueries.js";
 import WorkspaceMember from "../models/workspaceMember.js";
 import WorkspaceInvitation from "../models/workspaceInvitation.js";
 import User from "../models/user.js";
 import Project from "../models/project.js";
 import Task from "../models/task.js";
+import ActivityLog from "../models/activityLog.js";
+import TaskAssignment from "../models/taskAssignment.js";
 import { nanoid } from "nanoid";
 import { sendSimpleEmail } from "../utils/mailService.js";
 import { sendInvitationAcceptedEmail } from "../utils/emailTemplates.js";
@@ -244,7 +248,8 @@ export const getWorkspaceMembers = async (req, res) => {
       },
       ...(
         await Promise.all(
-          members.map(async (m) => ({
+          // the owner is listed once, above, even though they also have a membership record
+          members.filter((m) => String(m.user?._id) !== String(workspace.owner)).map(async (m) => ({
             _id: m._id,
             user: m.user,
             role: m.role,
@@ -357,6 +362,17 @@ export const updateWorkspaceMember = async (req, res) => {
       return res.status(404).json({ error: "Member not found" });
     }
 
+    // Role changes can never create or remove an owner, and admins are managed by the owner
+    if (role && !["admin", "employee", "client"].includes(role)) {
+      return res.status(400).json({ error: "Role must be admin, employee or client" });
+    }
+    if (String(userId) === String(req.workspace.owner)) {
+      return res.status(403).json({ error: "The workspace owner's role can't be changed" });
+    }
+    if (!req.isWorkspaceOwner && (role === "admin" || member.role === "admin")) {
+      return res.status(403).json({ error: "Only the workspace owner can manage admins" });
+    }
+
     // Update fields
     if (role) member.role = role;
     if (customPermissions) member.customPermissions = { ...member.customPermissions, ...customPermissions };
@@ -390,6 +406,12 @@ export const removeWorkspaceMember = async (req, res) => {
     if (!member) {
       return res.status(404).json({ error: "Member not found" });
     }
+    if (String(userId) === String(req.workspace.owner)) {
+      return res.status(403).json({ error: "The workspace owner can't be removed" });
+    }
+    if (!req.isWorkspaceOwner && member.role === "admin") {
+      return res.status(403).json({ error: "Only the workspace owner can remove an admin" });
+    }
 
     // Mark as removed instead of deleting
     member.status = "removed";
@@ -402,6 +424,27 @@ export const removeWorkspaceMember = async (req, res) => {
   } catch (error) {
     console.error("Error removing workspace member:", error);
     res.status(500).json({ error: "Failed to remove workspace member" });
+  }
+};
+
+/**
+ * Cancel a pending invitation
+ * DELETE /api/workspaces/:workspaceId/invitations/:invitationId
+ */
+export const cancelInvitation = async (req, res) => {
+  try {
+    const invitation = await WorkspaceInvitation.findOneAndUpdate(
+      { _id: req.params.invitationId, workspace: req.params.workspaceId, status: "pending" },
+      { status: "cancelled" },
+      { new: true }
+    );
+    if (!invitation) {
+      return res.status(404).json({ error: "Invitation not found" });
+    }
+    res.json({ success: true, message: "Invitation cancelled" });
+  } catch (error) {
+    console.error("Error cancelling invitation:", error);
+    res.status(500).json({ error: "Failed to cancel invitation" });
   }
 };
 
@@ -992,47 +1035,38 @@ export const acceptInvitation = async (req, res) => {
  */
 export const getWorkspaceTasks = async (req, res) => {
   try {
-    const { workspaceId } = req.params;
     const userId = req.auth._id;
 
-    // Get workspace first
-    const workspace = await Workspace.findById(workspaceId);
-    if (!workspace) {
-      return res.status(404).json({ error: "Workspace not found" });
+    // Only projects this user can open (requireWorkspaceMember attached the scope)
+    const projects = await getAccessibleProjects(
+      {
+        workspace: req.workspace,
+        workspaceMember: req.workspaceMember,
+        isWorkspaceOwner: req.isWorkspaceOwner,
+        userId,
+      },
+      "_id"
+    );
+
+    const query = {
+      project: { $in: projects.map((p) => p._id) },
+      isArchived: false,
+    };
+    if (req.query.assignedToMe === "true") {
+      query._id = {
+        $in: await TaskAssignment.find({ user: userId, status: "active" }).distinct("task"),
+      };
     }
 
-    // Check if user is owner or member
-    const isOwner = workspace.owner.toString() === userId.toString();
-    const member = await WorkspaceMember.findOne({
-      workspace: workspaceId,
-      user: userId,
-      status: "active",
-    });
-
-    if (!isOwner && !member) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    // Get all projects in the workspace
-    const projects = await Project.find({ 
-      workspace: workspaceId,
-      status: { $ne: "archived" }
-    }).select("_id");
-
-    const projectIds = projects.map(p => p._id);
-
-    // Get all tasks from these projects
-    const tasks = await Task.find({ 
-      project: { $in: projectIds },
-      isArchived: false
-    })
-      .populate("project", "name")
+    const tasks = await Task.find(query)
+      .populate("project", "name key color")
       .populate("createdBy", "name email")
+      .populate("column", "name color")
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: tasks,
+      data: await withTaskExtras(tasks),
     });
   } catch (error) {
     console.error("Error fetching workspace tasks:", error);
@@ -1046,203 +1080,46 @@ export const getWorkspaceTasks = async (req, res) => {
  */
 export const getWorkspaceActivity = async (req, res) => {
   try {
-    const { workspaceId } = req.params;
-    const { limit = 50, skip = 0, type, userId } = req.query;
-    const currentUserId = req.auth._id;
+    const { limit = 30, before, type, userId: actorId, projectId } = req.query;
+    const pageSize = Math.min(Math.max(parseInt(limit, 10) || 30, 1), 100);
 
-    console.log(`\n📊 Fetching workspace activity for workspace: ${workspaceId}`);
-
-    // Get workspace first
-    const workspace = await Workspace.findById(workspaceId);
-    if (!workspace) {
-      return res.status(404).json({ error: "Workspace not found" });
-    }
-
-    // Check if user is owner or member
-    const isOwner = workspace.owner.toString() === currentUserId.toString();
-    const member = await WorkspaceMember.findOne({
-      workspace: workspaceId,
-      user: currentUserId,
-      status: "active",
-    });
-
-    if (!isOwner && !member) {
+    const projects = await getAccessibleProjects(
+      {
+        workspace: req.workspace,
+        workspaceMember: req.workspaceMember,
+        isWorkspaceOwner: req.isWorkspaceOwner,
+        userId: req.auth._id,
+      },
+      "_id"
+    );
+    const allowed = projects.map((p) => String(p._id));
+    if (projectId && !allowed.includes(String(projectId))) {
       return res.status(403).json({ error: "Access denied" });
     }
+    const scope = projectId ? [projectId] : allowed;
 
-    // Get activities from multiple sources
-    const activities = [];
+    const query = {
+      workspace: req.workspace._id,
+      $or: [{ project: { $in: scope } }, ...(projectId ? [] : [{ project: { $exists: false } }, { project: null }])],
+    };
+    if (type) query.targetType = type;
+    if (actorId) query.actor = actorId;
+    if (before) query.createdAt = { $lt: new Date(before) };
 
-    // 1. Get activity logs
-    try {
-      const ActivityLog = (await import('../models/activityLog.js')).default;
-      const activityLogs = await ActivityLog.find({ workspace: workspaceId })
-        .populate('actor', 'name email avatar')
-        .populate('target', 'title name')
-        .sort({ createdAt: -1 })
-        .limit(parseInt(limit))
-        .skip(parseInt(skip));
+    const logs = await ActivityLog.find(query)
+      .sort({ createdAt: -1 })
+      .limit(pageSize + 1)
+      .populate("actor", "name email avatar")
+      .populate("project", "name key color")
+      .lean();
 
-      activities.push(...activityLogs.map(log => ({
-        _id: log._id,
-        type: 'activity',
-        action: log.action,
-        targetType: log.targetType,
-        description: `${log.action} ${log.targetType.toLowerCase()}`,
-        user: {
-          _id: log.actor._id,
-          name: log.actor.name,
-          avatar: log.actor.avatar
-        },
-        target: log.target,
-        timestamp: log.createdAt,
-        metadata: {
-          changes: log.changes,
-          targetName: log.targetName
-        }
-      })));
-    } catch (error) {
-      console.log('Activity logs not available');
-    }
-
-    // 2. Get recent tasks
-    try {
-      const Task = (await import('../models/task.js')).default;
-      const recentTasks = await Task.find({ 
-        workspace: workspaceId,
-        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
-      })
-        .populate('createdBy', 'name email avatar')
-        .populate('project', 'name key')
-        .sort({ createdAt: -1 })
-        .limit(10);
-
-      activities.push(...recentTasks.map(task => ({
-        _id: `task-${task._id}`,
-        type: 'task',
-        action: 'created',
-        targetType: 'Task',
-        description: `Created task "${task.title}"`,
-        user: {
-          _id: task.createdBy._id,
-          name: task.createdBy.name,
-          avatar: task.createdBy.avatar
-        },
-        target: {
-          _id: task._id,
-          title: task.title,
-          project: task.project
-        },
-        timestamp: task.createdAt,
-        metadata: {
-          project: task.project,
-          status: task.status,
-          priority: task.priority
-        }
-      })));
-    } catch (error) {
-      console.log('Recent tasks not available');
-    }
-
-    // 3. Get recent projects
-    try {
-      const Project = (await import('../models/project.js')).default;
-      const recentProjects = await Project.find({ 
-        workspace: workspaceId,
-        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
-      })
-        .populate('createdBy', 'name email avatar')
-        .sort({ createdAt: -1 })
-        .limit(5);
-
-      activities.push(...recentProjects.map(project => ({
-        _id: `project-${project._id}`,
-        type: 'project',
-        action: 'created',
-        targetType: 'Project',
-        description: `Created project "${project.name}"`,
-        user: {
-          _id: project.createdBy._id,
-          name: project.createdBy.name,
-          avatar: project.createdBy.avatar
-        },
-        target: {
-          _id: project._id,
-          title: project.name,
-          key: project.key
-        },
-        timestamp: project.createdAt,
-        metadata: {
-          status: project.status,
-          visibility: project.visibility
-        }
-      })));
-    } catch (error) {
-      console.log('Recent projects not available');
-    }
-
-    // 4. Get recent comments
-    try {
-      const Comment = (await import('../models/comment.js')).default;
-      const recentComments = await Comment.find({ 
-        workspace: workspaceId,
-        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
-      })
-        .populate('author', 'name email avatar')
-        .populate('task', 'title')
-        .populate('project', 'name')
-        .sort({ createdAt: -1 })
-        .limit(10);
-
-      activities.push(...recentComments.map(comment => ({
-        _id: `comment-${comment._id}`,
-        type: 'comment',
-        action: 'commented',
-        targetType: 'Comment',
-        description: `Commented on ${comment.task ? `task "${comment.task.title}"` : `project "${comment.project.name}"`}`,
-        user: {
-          _id: comment.author._id,
-          name: comment.author.name,
-          avatar: comment.author.avatar
-        },
-        target: {
-          _id: comment._id,
-          title: comment.content.substring(0, 50) + '...',
-          task: comment.task,
-          project: comment.project
-        },
-        timestamp: comment.createdAt,
-        metadata: {
-          task: comment.task,
-          project: comment.project
-        }
-      })));
-    } catch (error) {
-      console.log('Recent comments not available');
-    }
-
-    // Sort all activities by timestamp
-    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    // Apply filters
-    let filteredActivities = activities;
-    if (type) {
-      filteredActivities = activities.filter(activity => activity.type === type);
-    }
-
-    // Limit results
-    const paginatedActivities = filteredActivities.slice(0, parseInt(limit));
-
-    console.log(`✅ Found ${paginatedActivities.length} activities`);
+    const hasMore = logs.length > pageSize;
+    const data = logs.slice(0, pageSize);
 
     res.json({
       success: true,
-      data: paginatedActivities,
-      pagination: {
-        limit: parseInt(limit),
-        skip: parseInt(skip),
-        total: filteredActivities.length
-      }
+      data,
+      nextCursor: hasMore ? data[data.length - 1].createdAt : null,
     });
   } catch (error) {
     console.error("Error fetching workspace activity:", error);

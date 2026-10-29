@@ -240,7 +240,7 @@ const ProjectSidebar = ({
 
           {/* Sidebar - SMALLER */}
           <motion.div
-            className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-[500px] bg-[#0a0a0b] border-l border-gray-800 shadow-2xl z-[101] flex flex-col rounded-l-2xl overflow-hidden"
+            className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-[500px] bg-gray-950 border-l border-gray-800 shadow-2xl z-[101] flex flex-col rounded-l-2xl overflow-hidden"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}

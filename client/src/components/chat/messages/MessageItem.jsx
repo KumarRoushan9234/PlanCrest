@@ -1,13 +1,9 @@
-import React, { useState } from "react";
 import { motion } from "framer-motion";
+import React, { useState } from "react";
 import { formatMessageTime } from "../../../utils/dateFormatter";
 import { formatFullMessage } from "../../../utils/messageFormatter";
 import { Avatar } from "../shared/index";
 import {
-  Image,
-  File,
-  Download,
-  ExternalLink,
   Smile,
   MoreVertical,
   Edit2,
@@ -16,6 +12,7 @@ import {
 } from "lucide-react";
 import ReactionPicker from "../modals/ReactionPicker";
 import { useAuth } from "../../../contexts/AuthContext";
+import FilePreviewRenderer from "../../shared/FilePreviewRenderer";
 
 /**
  * Message Item Component
@@ -50,11 +47,6 @@ const MessageItem = ({
         message.mentions || [],
         message.taskMentions || []
       );
-
-  const getFileIcon = (mimeType) => {
-    if (mimeType?.startsWith("image/")) return Image;
-    return File;
-  };
 
   const handleReactionClick = (e) => {
     e.stopPropagation();
@@ -239,48 +231,16 @@ const MessageItem = ({
 
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {message.attachments.map((attachment, idx) => {
-              const Icon = getFileIcon(attachment.mimeType);
-              const isImage = attachment.mimeType?.startsWith("image/");
-
-              return (
-                <motion.div
-                  key={idx}
-                  className={`inline-block ${isImage ? "max-w-md" : ""}`}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                >
-                  {isImage ? (
-                    <a
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block rounded-lg overflow-hidden border border-gray-800/50 hover:border-gray-700 transition-colors"
-                    >
-                      <img
-                        src={attachment.thumbnailUrl || attachment.url}
-                        alt={attachment.filename || "Attachment"}
-                        className="max-w-full h-auto cursor-pointer"
-                      />
-                    </a>
-                  ) : (
-                    <a
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800 transition-colors"
-                    >
-                      <Icon className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-300 truncate max-w-[200px]">
-                        {attachment.filename || "File"}
-                      </span>
-                      <ExternalLink className="w-3 h-3 text-gray-500" />
-                    </a>
-                  )}
-                </motion.div>
-              );
-            })}
+          <div className="mt-3 space-y-3">
+            {message.attachments.map((attachment, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <FilePreviewRenderer file={attachment} variant="chat" />
+              </motion.div>
+            ))}
           </div>
         )}
 

@@ -2,15 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="PlanCrest is an open-source workspace for projects, tasks, calendars, team chat and documents, with an AI assistant that knows your work." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="PlanCrest: projects, tasks and teams in one workspace" />
+    <meta property="og:description" content="Open source project management with boards, calendar, chat, time tracking and an AI assistant. Self host it in minutes." />
+    <meta property="og:image" content="/og-image.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- Google Fonts - Inter (primary) and Poppins (headings) -->
+    <!-- Fonts: Geist for all text, Geist Mono for code and ids -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
     
-    <title>PlanCrest - Project Management</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a flash
+      (function () {
+        try {
+          var p = localStorage.getItem("pc:theme") || "system";
+          var t = p === "system" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : p;
+          document.documentElement.dataset.theme = t;
+        } catch (e) { document.documentElement.dataset.theme = "dark"; }
+      })();
+    </script>
+    <title>PlanCrest: projects, tasks and teams in one workspace</title>
   </head>
   <body>
     <div id="root"></div>

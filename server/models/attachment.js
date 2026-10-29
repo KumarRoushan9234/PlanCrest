@@ -24,8 +24,42 @@ const attachmentSchema = new Schema(
       type: String,
       required: true,
     },
+    provider: {
+      type: String,
+      default: "local",
+    },
+    publicId: {
+      type: String,
+    },
+    resourceType: {
+      type: String,
+      enum: ["image", "raw", "video", "auto"],
+      default: "raw",
+    },
+    format: {
+      type: String,
+    },
+    folder: {
+      type: String,
+    },
+    bytes: {
+      type: Number,
+    },
+    width: {
+      type: Number,
+    },
+    height: {
+      type: Number,
+    },
+    version: {
+      type: Number,
+    },
     thumbnailUrl: {
       type: String,
+    },
+    description: {
+      type: String,
+      trim: true,
     },
     attachedTo: {
       model: {

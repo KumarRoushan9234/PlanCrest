@@ -1,5 +1,5 @@
-import React from "react";
 import { motion } from "framer-motion";
+import React from "react";
 
 /**
  * Avatar Component
@@ -43,7 +43,8 @@ const Avatar = ({
       .slice(0, 2);
   };
 
-  const avatarUrl = user?.avatar;
+  const avatarUrl =
+    typeof user?.avatar === "string" ? user?.avatar : user?.avatar?.url;
   const userName = user?.name || "User";
   const initials = getInitials(userName);
 

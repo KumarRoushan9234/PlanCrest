@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+import { API_BASE_URL as API_URL } from "../config/api";
 
 /**
  * Get auth headers - uses cookies for auth
@@ -17,21 +17,6 @@ const getAuthHeaders = () => {
 /**
  * Get token from cookie or localStorage
  */
-const getToken = () => {
-  // Try localStorage first
-  const localToken = localStorage.getItem("token");
-  if (localToken) return localToken;
-  
-  // Try to get from cookies
-  const cookies = document.cookie.split(';');
-  for (let cookie of cookies) {
-    const [name, value] = cookie.trim().split('=');
-    if (name === 'token') {
-      return value;
-    }
-  }
-  return null;
-};
 
 /**
  * Chat Service

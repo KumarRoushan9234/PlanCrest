@@ -125,7 +125,7 @@ const MentionAutocomplete = ({
     <AnimatePresence>
       <motion.div
         ref={dropdownRef}
-        className="absolute z-50 bg-[#1a1b1d] border border-gray-800/50 rounded-lg shadow-xl max-h-64 overflow-y-auto min-w-[250px]"
+        className="absolute z-50 bg-gray-800 border border-gray-800/50 rounded-lg shadow-xl max-h-64 overflow-y-auto min-w-[250px]"
         style={{
           bottom: "100%",
           left: position?.left || 0,

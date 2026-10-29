@@ -29,6 +29,9 @@ import { calendarService } from "../../services";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 import { useAuth } from "../../contexts/AuthContext";
 
+const getAvatarUrl = (avatar) =>
+  typeof avatar === "string" ? avatar : avatar?.url || null;
+
 const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], onTaskClick, onEventUpdate }) => {
   const [activeSection, setActiveSection] = useState("all"); // all, tasks, events
   const [copiedLink, setCopiedLink] = useState(null);
@@ -47,7 +50,7 @@ const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], on
       setCopiedLink(link);
       toast.success("Meet link copied!");
       setTimeout(() => setCopiedLink(null), 2000);
-    } catch (error) {
+    } catch {
       toast.error("Failed to copy link");
     }
   };
@@ -148,7 +151,7 @@ const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], on
 
           {/* Sidebar */}
           <motion.div
-            className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-[600px] bg-[#0a0a0b] border-l border-gray-800 shadow-2xl z-[101] flex flex-col rounded-l-2xl overflow-hidden"
+            className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-[600px] bg-gray-950 border-l border-gray-800 shadow-2xl z-[101] flex flex-col rounded-l-2xl overflow-hidden"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -423,9 +426,9 @@ const DaySidebar = ({ isOpen, onClose, selectedDate, tasks = [], events = [], on
 
                               {item.assignee && (
                                 <div className="flex items-center gap-1">
-                                  {item.assignee.avatar ? (
+                                  {getAvatarUrl(item.assignee.avatar) ? (
                                     <img
-                                      src={item.assignee.avatar}
+                                      src={getAvatarUrl(item.assignee.avatar)}
                                       alt={item.assignee.name}
                                       className="w-5 h-5 rounded-full border border-gray-700"
                                     />

@@ -1,4 +1,8 @@
 import Task from "../models/task.js";
+import ActivityLog from "../models/activityLog.js";
+import { isScopeAdmin } from "../middlewares/resourceAccess.js";
+import { createTaskRecord, findDefaultColumn } from "../utils/taskFactory.js";
+import { withTaskExtras } from "../utils/taskQueries.js";
 import TaskAssignment from "../models/taskAssignment.js";
 import Subtask from "../models/subtask.js";
 import Label from "../models/label.js";
@@ -13,7 +17,16 @@ import { sendSimpleEmail } from "../utils/mailService.js";
 import { sendTaskAssignedEmail, sendTaskCompletedEmail } from "../utils/emailTemplates.js";
 import { notifyTaskAssignees } from "../utils/notificationHelpers.js";
 import { updateLastSelectedTask } from "../utils/lastSelected.js";
-import { logActivity } from "../utils/activityLogger.js";
+import { logActivity, logTaskActivity } from "../utils/activityLogger.js";
+import { runAutomations, spawnRecurrence } from "../utils/automationEngine.js";
+
+const STATUS_TO_COLUMN_TYPE = {
+  backlog: "backlog",
+  todo: "todo",
+  in_progress: "in_progress",
+  in_review: "review",
+  done: "done",
+};
 
 /**
  * Create a new task
@@ -36,54 +49,29 @@ export const createTask = async (req, res) => {
     const project = req.project; // Already fetched by middleware
 
     // Validation
-    if (!title || !columnId) {
-      return res.status(400).json({ error: "Title and column are required" });
+    if (!title?.trim()) {
+      return res.status(400).json({ error: "Title is required" });
     }
 
-    // Get column to verify it exists and get board
-    const column = await Column.findById(columnId);
-    if (!column) {
+    // Use the requested column, or the project board's "To Do" column by default
+    const column = columnId ? await Column.findById(columnId) : await findDefaultColumn(projectId);
+    if (!column || column.project?.toString() !== projectId.toString()) {
       return res.status(404).json({ error: "Column not found" });
     }
 
-    // Get latest task number for this project
-    const latestTask = await Task.findOne({ project: projectId })
-      .sort({ taskNumber: -1 })
-      .limit(1);
-
-    const taskNumber = latestTask ? latestTask.taskNumber + 1 : 1;
-    const taskKey = `${project.key}-${taskNumber}`;
-
-    // Create task
-    const task = new Task({
+    const task = await createTaskRecord({
+      project,
+      column,
+      userId,
       title,
       description,
-      project: projectId,
-      board: boardId || column.board,
-      column: columnId,
-      taskNumber,
-      taskKey,
-      priority: priority || "medium",
-      status: status || "todo",
+      priority,
+      status,
       dueDate,
-      labels: labels || [],
-      createdBy: userId,
+      labels,
+      boardId,
     });
-
-    await task.save();
-
-    // Create chat thread for task
-    const chatThread = new ChatThread({
-      task: task._id,
-      project: projectId,
-      title: `Discussion: ${title}`,
-      participants: [userId],
-      createdBy: userId,
-    });
-    await chatThread.save();
-
-    task.chatThread = chatThread._id;
-    await task.save();
+    logTaskActivity({ task, actorId: userId, action: "created" });
 
     // Add assignees if provided
     if (assignees && assignees.length > 0) {
@@ -142,6 +130,7 @@ export const createTask = async (req, res) => {
       { path: "labels" },
     ]);
 
+    runAutomations(task._id, { type: "task_created" }, userId);
     res.status(201).json({
       success: true,
       message: "Task created successfully",
@@ -189,7 +178,7 @@ export const getProjectTasks = async (req, res) => {
     res.json({
       success: true,
       message: "Tasks fetched successfully",
-      data: tasks,
+      data: await withTaskExtras(tasks),
     });
   } catch (error) {
     console.error("Error fetching tasks:", error);
@@ -281,6 +270,7 @@ export const updateTask = async (req, res) => {
 
     // Store task for permission check
     req.task = task;
+    const priorBefore = { priority: task.priority, status: task.status };
 
     // Update fields
     if (title) task.title = title;
@@ -293,8 +283,15 @@ export const updateTask = async (req, res) => {
     if (estimatedTime) task.estimatedTime = estimatedTime;
     if (labels) task.labels = labels;
 
+    const priorityChanged = priority && priority !== priorBefore.priority;
+    const statusChanged = status && status !== priorBefore.status;
     task.lastEditedBy = userId;
     await task.save();
+    if (priorityChanged) runAutomations(task._id, { type: "priority_changed", value: priority }, userId);
+    if (statusChanged) {
+      runAutomations(task._id, { type: "status_changed", value: status }, userId);
+      if (status === "done") spawnRecurrence(task._id, userId);
+    }
 
     await task.populate([
       { path: "createdBy", select: "name email avatar" },
@@ -302,6 +299,7 @@ export const updateTask = async (req, res) => {
       { path: "labels" },
     ]);
 
+    logTaskActivity({ task, actorId: userId, action: "updated", changes: { fields: Object.keys(req.body || {}) } });
     res.json({
       success: true,
       message: "Task updated successfully",
@@ -358,6 +356,7 @@ export const deleteTask = async (req, res) => {
     task.archivedAt = new Date();
     await task.save();
 
+    logTaskActivity({ task, actorId: req.auth._id, action: "archived" });
     res.json({
       success: true,
       message: "Task archived successfully",
@@ -365,6 +364,24 @@ export const deleteTask = async (req, res) => {
   } catch (error) {
     console.error("Error deleting task:", error);
     res.status(500).json({ error: "Failed to delete task" });
+  }
+};
+
+/**
+ * Activity timeline for one task
+ * GET /api/tasks/:taskId/activity
+ */
+export const getTaskActivity = async (req, res) => {
+  try {
+    const items = await ActivityLog.find({ target: req.params.taskId, targetType: "Task" })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate("actor", "name email avatar")
+      .lean();
+    res.json({ success: true, data: items });
+  } catch (error) {
+    console.error("Error fetching task activity:", error);
+    res.status(500).json({ error: "Failed to fetch task activity" });
   }
 };
 
@@ -434,6 +451,8 @@ export const assignTask = async (req, res) => {
       // Don't fail the request if email fails
     }
 
+    logTaskActivity({ task, actorId: userId, action: "assigned", metadata: { assignee: assignment.user?.name } });
+    runAutomations(task._id, { type: "task_assigned" }, userId);
     res.status(201).json({
       success: true,
       message: "Task assigned successfully",
@@ -776,6 +795,7 @@ export async function createTaskComment(req, res) {
     await comment.save();
     await comment.populate("author", "name email avatar");
 
+    logTaskActivity({ task, actorId: userId, action: "commented" });
     res.status(201).json({
       success: true,
       message: "Comment created successfully",
@@ -972,8 +992,7 @@ export async function deleteTaskAttachment(req, res) {
     }
 
     // Check if user is the uploader or has permission
-    if (attachment.uploadedBy.toString() !== userId.toString()) {
-      // TODO: Add permission check for project admins
+    if (attachment.uploadedBy.toString() !== userId.toString() && !isScopeAdmin(req)) {
       return res.status(403).json({ error: "You can only delete your own attachments" });
     }
 
@@ -1063,22 +1082,22 @@ export const updateTaskStatus = async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    // Check if user has permission to update this task
+    // Access was already verified by requireTaskAccess / canEditTask
     const project = await Project.findById(task.project._id);
     if (!project) {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    // Check if user is project member
-    const ProjectMember = (await import('../models/projectMember.js')).default;
-    const member = await ProjectMember.findOne({
-      project: task.project._id,
-      user: userId,
-      status: 'active'
-    });
-
-    if (!member && member.role !== 'owner' && member.role !== 'admin') {
-      return res.status(403).json({ error: "Permission denied" });
+    // A task can't be finished while tasks it is waiting on are still open
+    if (status === 'done' && task.status !== 'done' && !req.body.force && task.blockedBy?.length) {
+      const open = await Task.find({ _id: { $in: task.blockedBy }, status: { $nin: ['done', 'cancelled'] } }).select('taskKey title').lean();
+      if (open.length) {
+        return res.status(409).json({
+          error: `Waiting on ${open.map((t) => t.taskKey).join(', ')} before this can be completed.`,
+          code: 'BLOCKED_BY_DEPENDENCY',
+          blockedBy: open,
+        });
+      }
     }
 
     // Update task status
@@ -1088,6 +1107,10 @@ export const updateTaskStatus = async (req, res) => {
     // Only update if it's a valid ObjectId
     if (columnId && columnId.length === 24 && /^[0-9a-fA-F]{24}$/.test(columnId)) {
       task.column = columnId;
+    } else if (status !== oldStatus && STATUS_TO_COLUMN_TYPE[status]) {
+      // Keep the board in sync: move the card to the matching column of its board
+      const target = await Column.findOne({ board: task.board, type: STATUS_TO_COLUMN_TYPE[status] });
+      if (target) task.column = target._id;
     }
 
     // Set completion date if status is done
@@ -1104,11 +1127,13 @@ export const updateTaskStatus = async (req, res) => {
     try {
       await logActivity({
         workspace: project.workspace,
+        project: project._id,
+        targetName: task.title,
         actor: userId,
         actorModel: 'User',
         target: taskId,
         targetType: 'Task',
-        action: 'moved',
+        action: oldStatus !== status && status === 'done' ? 'completed' : 'moved',
         changes: {
           status: { from: oldStatus, to: status }
         },
@@ -1154,6 +1179,10 @@ export const updateTaskStatus = async (req, res) => {
     }
 
     console.log(`✅ Task status updated successfully`);
+    if (oldStatus !== status) {
+      runAutomations(task._id, { type: 'status_changed', value: status }, userId);
+      if (status === 'done') spawnRecurrence(task._id, userId);
+    }
 
     res.json({
       success: true,

@@ -23,13 +23,11 @@ import {
   Megaphone,
 } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
-import { useAuth } from "../../contexts/AuthContext";
 import { useProject } from "../../contexts/ProjectContext";
 import { projectService } from "../../services/projectService";
 
 const CreateProjectModal = ({ isOpen, onClose, onSuccess }) => {
   const { currentWorkspace } = useWorkspace();
-  const { user: currentUser } = useAuth();
   const { fetchWorkspaceProjects } = useProject();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({

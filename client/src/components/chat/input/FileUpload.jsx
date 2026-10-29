@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
+import React, { useRef, useState } from "react";
 import { Paperclip, X, Image, File, Loader2 } from "lucide-react";
 import axios from "axios";
 

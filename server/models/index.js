@@ -37,5 +37,4 @@ export { default as Connector } from "./connector.js";
 
 // Calendar Models
 export { default as CalendarEvent } from "./calendarEvent.js";
-export { default as CalendarIntegration } from "./calendarIntegration.js";
 export { default as CalendarShare } from "./calendarShare.js";

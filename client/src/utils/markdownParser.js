@@ -18,7 +18,8 @@ export const parseMarkdown = (content) => {
   html = html
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
   // Code blocks (```code```)
   html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');

@@ -1,7 +1,9 @@
 import express from "express";
 const router = express.Router();
-import { firebaseAuth } from "../controllers/firebaseAuth.js";
+import { firebaseAuth, authConfig } from "../controllers/firebaseAuth.js";
+import { authLimiter } from "../middlewares/security.js";
 
-router.post("/firebase-auth", firebaseAuth);
+router.get("/auth/config", authConfig);
+router.post("/firebase-auth", authLimiter, firebaseAuth);
 
-export default router; 
+export default router;

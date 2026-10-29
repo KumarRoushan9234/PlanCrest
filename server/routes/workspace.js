@@ -20,8 +20,10 @@ import {
   getWorkspaceTasks,
   getWorkspaceActivity,
   getWorkspaceOverview,
+  cancelInvitation,
 } from "../controllers/workspace.js";
 
+import { getDashboard, getInsights } from "../controllers/dashboard.js";
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
 import {
   requireWorkspaceMember,
@@ -66,6 +68,20 @@ router.get(
   requireSignin,
   requireWorkspaceMember,
   getWorkspaceActivity,
+  handleAuthError
+);
+router.get(
+  "/workspaces/:workspaceId/dashboard",
+  requireSignin,
+  requireWorkspaceMember,
+  getDashboard,
+  handleAuthError
+);
+router.get(
+  "/workspaces/:workspaceId/insights",
+  requireSignin,
+  requireWorkspaceMember,
+  getInsights,
   handleAuthError
 );
 router.get(
@@ -117,8 +133,15 @@ router.post(
 router.get(
   "/workspaces/:workspaceId/invitations",
   requireSignin,
-  requireWorkspaceMember,
+  requireWorkspaceAdmin,
   getWorkspaceInvitations,
+  handleAuthError
+);
+router.delete(
+  "/workspaces/:workspaceId/invitations/:invitationId",
+  requireSignin,
+  requireWorkspaceAdmin,
+  cancelInvitation,
   handleAuthError
 );
 router.put(

@@ -1,18 +1,46 @@
 import CalendarEvent from "../models/calendarEvent.js";
-import CalendarIntegration from "../models/calendarIntegration.js";
 import CalendarShare from "../models/calendarShare.js";
 import {
   generateRecurringEvents,
   calculateEventConflicts,
   updateEventAttendees,
   exportCalendarData,
-  syncGoogleCalendar,
-  syncOutlookCalendar,
   getUserAvailability,
   findOptimalMeetingTime,
 } from "../utils/calendarHelpers.js";
 import { sendCalendarEventEmail } from "../utils/emailTemplates.js";
 import { createCalendarNotification } from "../utils/notificationHelpers.js";
+import { addAcceptedEventToGoogle, deleteEventFromGoogle, syncEventUpdateToGoogle, syncNewEventToGoogle } from "../integrations/calendarSync.js";
+
+const EDITABLE_EVENT_FIELDS = [
+  "title",
+  "description",
+  "startDate",
+  "endDate",
+  "allDay",
+  "timezone",
+  "location",
+  "meetingLink",
+  "recurring",
+  "status",
+  "category",
+  "priority",
+  "attendees",
+  "reminders",
+  "project",
+  "task",
+  "color",
+];
+
+/** Event creators and workspace owners/admins may modify an event. */
+const canManageEvent = (req, event) => {
+  const creatorId = (event.createdBy?._id || event.createdBy)?.toString();
+  return (
+    creatorId === req.auth._id.toString() ||
+    req.isWorkspaceOwner ||
+    req.workspaceMember?.role === "admin"
+  );
+};
 
 /**
  * Get calendar events for a workspace
@@ -90,9 +118,9 @@ export const createCalendarEvent = async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Create event
+    // Create event from an allowlist (never trust client-supplied ownership/sync fields)
     const event = new CalendarEvent({
-      ...eventData,
+      ...Object.fromEntries(EDITABLE_EVENT_FIELDS.filter((k) => eventData[k] !== undefined).map((k) => [k, eventData[k]])),
       workspace: workspaceId,
       createdBy: userId,
     });
@@ -131,139 +159,8 @@ export const createCalendarEvent = async (req, res) => {
       }
     }
 
-    // Sync to Google Calendar if connected and requested (non-blocking)
-    if (eventData.syncToGoogleCalendar) {
-      setImmediate(async () => {
-        try {
-          const { Connector } = await import("../models/index.js");
-          
-          // Try to find connector - check both workspace field and scope
-          let connector = await Connector.findOne({
-            $or: [
-              { workspace: workspaceId, type: "google_calendar", status: "active" },
-              { scope: "workspace", scopeId: workspaceId, type: "google_calendar", status: "active" },
-            ],
-          });
-
-          if (!connector) {
-            // Try to find any active connector for the user
-            connector = await Connector.findOne({
-              user: userId,
-              type: "google_calendar",
-              status: "active",
-            });
-          }
-
-          if (connector) {
-            
-            const { google } = await import("googleapis");
-            const oauth2Client = new google.auth.OAuth2(
-              process.env.GOOGLE_CLIENT_ID,
-              process.env.GOOGLE_CLIENT_SECRET,
-              process.env.GOOGLE_REDIRECT_URI
-            );
-
-            oauth2Client.setCredentials({
-              access_token: connector.config.accessToken,
-              refresh_token: connector.config.refreshToken,
-              expiry_date: connector.config.expiryDate,
-            });
-
-            // Set up automatic token refresh
-            oauth2Client.on('tokens', (tokens) => {
-              if (tokens.refresh_token) {
-                connector.config.refreshToken = tokens.refresh_token;
-              }
-              connector.config.accessToken = tokens.access_token;
-              connector.config.expiryDate = tokens.expiry_date;
-              connector.save().catch(() => {
-                // Silent fail
-              });
-            });
-
-            const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-            // Re-fetch event to ensure we have the latest data including meet link
-            const populatedEvent = await CalendarEvent.findById(event._id)
-              .populate("attendees.user", "email")
-              .lean();
-
-            if (!populatedEvent) {
-              return;
-            }
-
-            const googleEventData = {
-              summary: populatedEvent.title,
-              description: populatedEvent.description || "",
-              location: populatedEvent.location || "",
-              start: {
-                dateTime: new Date(populatedEvent.startDate).toISOString(),
-                timeZone: "UTC",
-              },
-              end: {
-                dateTime: new Date(populatedEvent.endDate).toISOString(),
-                timeZone: "UTC",
-              },
-            };
-
-            // Add attendees if available
-            if (populatedEvent.attendees && populatedEvent.attendees.length > 0) {
-              const attendeeEmails = populatedEvent.attendees
-                .map((a) => a.user?.email)
-                .filter(Boolean);
-              
-              if (attendeeEmails.length > 0) {
-                googleEventData.attendees = attendeeEmails.map((email) => ({ email }));
-              }
-            }
-
-            // Add Meet link if present - check both event and populatedEvent
-            const meetLink = populatedEvent.meetingLink || event.meetingLink;
-            if (meetLink && (meetLink.includes('meet.google.com') || meetLink.includes('hangouts.google.com'))) {
-              googleEventData.conferenceData = {
-                conferenceSolution: {
-                  key: { type: "hangoutsMeet" },
-                },
-                entryPoints: [{
-                  entryPointType: "video",
-                  uri: meetLink,
-                }],
-              };
-            }
-
-            const createdGoogleEvent = await calendar.events.insert({
-              calendarId: "primary",
-              resource: googleEventData,
-              sendUpdates: eventData.sendInvitations ? "all" : "none",
-              conferenceDataVersion: meetLink ? 1 : 0,
-            });
-
-            // Update event with Google Calendar ID
-            await CalendarEvent.findByIdAndUpdate(event._id, {
-              externalCalendarId: createdGoogleEvent.data.id,
-              externalProvider: "google",
-              syncStatus: "synced",
-              lastSyncedAt: new Date(),
-            });
-
-          } else {
-            await CalendarEvent.findByIdAndUpdate(event._id, {
-              syncStatus: "failed",
-              syncError: "No active Google Calendar connector found",
-            });
-          }
-        } catch (syncError) {
-          try {
-            await CalendarEvent.findByIdAndUpdate(event._id, {
-              syncStatus: "failed",
-              syncError: syncError.message,
-            });
-          } catch (updateError) {
-            // Silent fail
-          }
-        }
-      });
-    }
+    // Push to the user's Google Calendar when asked to (or when auto-sync is on). Never blocks the response.
+    syncNewEventToGoogle(event._id, userId, { force: Boolean(eventData.syncToGoogleCalendar), invite: Boolean(eventData.sendInvitations) });
 
     // Send event response immediately
     res.status(201).json({
@@ -406,67 +303,9 @@ export const updateEventResponse = async (req, res) => {
     event.attendees[attendeeIndex].response = response;
     event.attendees[attendeeIndex].responseAt = new Date();
     await event.save();
+    // If accepted, put a copy on the attendee's own Google calendar (when they've connected one)
+    if (response === "accepted") addAcceptedEventToGoogle(event._id, userId);
 
-
-    // If accepted, sync to user's Google Calendar if connected
-    if (response === "accepted") {
-      try {
-        const { Connector } = await import("../models/index.js");
-        const connector = await Connector.findOne({
-          user: userId,
-          type: "google_calendar",
-          status: "active",
-          $or: [
-            { scope: "personal" },
-            { scope: "workspace", workspace: workspaceId },
-          ],
-        });
-
-        if (connector) {
-          const { google } = await import("googleapis");
-          const oauth2Client = new google.auth.OAuth2(
-            process.env.GOOGLE_CLIENT_ID,
-            process.env.GOOGLE_CLIENT_SECRET,
-            process.env.GOOGLE_REDIRECT_URI
-          );
-
-          oauth2Client.setCredentials({
-            access_token: connector.config.accessToken,
-            refresh_token: connector.config.refreshToken,
-            expiry_date: connector.config.expiryDate,
-          });
-
-          const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-          const googleEventData = {
-            summary: event.title,
-            description: event.description || "",
-            location: event.location || "",
-            start: {
-              dateTime: event.startDate.toISOString(),
-              timeZone: "UTC",
-            },
-            end: {
-              dateTime: event.endDate.toISOString(),
-              timeZone: "UTC",
-            },
-          };
-
-          if (event.meetingLink) {
-            googleEventData.description += `\n\nMeeting Link: ${event.meetingLink}`;
-          }
-
-          await calendar.events.insert({
-            calendarId: "primary",
-            resource: googleEventData,
-            sendUpdates: "none",
-          });
-
-        }
-      } catch (syncError) {
-        // Silent fail
-      }
-    }
 
     // Notify event creator about response
     try {
@@ -532,15 +371,22 @@ export const updateCalendarEvent = async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    // Update fields
-    Object.keys(updates).forEach((key) => {
-      if (updates[key] !== undefined && key !== "_id" && key !== "workspace") {
+    if (!canManageEvent(req, event)) {
+      return res
+        .status(403)
+        .json({ error: "Only the event creator or an admin can edit this event" });
+    }
+
+    // Update only user-editable fields
+    EDITABLE_EVENT_FIELDS.forEach((key) => {
+      if (updates[key] !== undefined) {
         event[key] = updates[key];
       }
     });
 
     event.lastEditedBy = userId;
     await event.save();
+    syncEventUpdateToGoogle(event._id, userId);
 
 
     await event.populate("createdBy attendees.user project");
@@ -589,6 +435,12 @@ export const deleteCalendarEvent = async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
 
+    if (!canManageEvent(req, event)) {
+      return res
+        .status(403)
+        .json({ error: "Only the event creator or an admin can delete this event" });
+    }
+
     // Notify attendees of cancellation
     if (event.attendees && event.attendees.length > 0) {
       for (const attendee of event.attendees) {
@@ -606,6 +458,7 @@ export const deleteCalendarEvent = async (req, res) => {
         }
       }
     }
+    deleteEventFromGoogle(event, userId);
 
     await CalendarEvent.findByIdAndDelete(eventId);
 
@@ -661,6 +514,10 @@ export const addEventAttendee = async (req, res) => {
 
     if (!event) {
       return res.status(404).json({ error: "Event not found" });
+    }
+
+    if (!canManageEvent(req, event)) {
+      return res.status(403).json({ error: "Only the event creator or an admin can add attendees" });
     }
 
     // Check if already an attendee
@@ -732,6 +589,11 @@ export const removeEventAttendee = async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
 
+    const removingSelf = attendeeUserId === req.auth._id.toString();
+    if (!removingSelf && !canManageEvent(req, event)) {
+      return res.status(403).json({ error: "Only the event creator or an admin can remove attendees" });
+    }
+
     // Remove attendee
     event.attendees = event.attendees.filter((a) => a.user.toString() !== attendeeUserId);
 
@@ -780,120 +642,9 @@ export const updateAttendeeResponse = async (req, res) => {
     attendee.responseAt = new Date();
 
     await event.save();
+    // If accepted, put a copy on the attendee's own Google calendar (when they've connected one)
+    if (response === "accepted") addAcceptedEventToGoogle(event._id, userId);
 
-
-    // If user accepted the event, sync it to their personal Google Calendar
-    if (response === "accepted") {
-      try {
-        const { Connector } = await import("../models/index.js");
-        const userConnector = await Connector.findOne({
-          user: userId,
-          type: "google_calendar",
-          status: "active",
-          scope: "personal",
-        });
-
-        if (userConnector) {
-          const { google } = await import("googleapis");
-          const oauth2Client = new google.auth.OAuth2(
-            process.env.GOOGLE_CLIENT_ID,
-            process.env.GOOGLE_CLIENT_SECRET,
-            process.env.GOOGLE_REDIRECT_URI
-          );
-
-          oauth2Client.setCredentials({
-            access_token: userConnector.config.accessToken,
-            refresh_token: userConnector.config.refreshToken,
-            expiry_date: userConnector.config.expiryDate,
-          });
-
-          const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-          const googleEventData = {
-            summary: event.title,
-            description: `${event.description || ""}\n\nOrganizer: ${event.createdBy.name} (${event.createdBy.email})`,
-            location: event.location || "",
-            start: {
-              dateTime: event.startDate.toISOString(),
-              timeZone: "UTC",
-            },
-            end: {
-              dateTime: event.endDate.toISOString(),
-              timeZone: "UTC",
-            },
-          };
-
-          // Add Meet link if present
-          if (event.meetingLink) {
-            googleEventData.description += `\n\nMeeting Link: ${event.meetingLink}`;
-            if (event.meetingLink.includes('meet.google.com')) {
-              googleEventData.conferenceData = {
-                conferenceSolution: {
-                  key: { type: "hangoutsMeet" },
-                },
-                entryPoints: [{
-                  entryPointType: "video",
-                  uri: event.meetingLink,
-                }],
-              };
-            }
-          }
-
-          const createdGoogleEvent = await calendar.events.insert({
-            calendarId: "primary",
-            resource: googleEventData,
-            conferenceDataVersion: 1,
-          });
-
-          
-          // Store the user-specific Google Calendar event ID in metadata
-          if (!event.metadata) event.metadata = {};
-          if (!event.metadata.userGoogleEventIds) event.metadata.userGoogleEventIds = {};
-          event.metadata.userGoogleEventIds[userId.toString()] = createdGoogleEvent.data.id;
-          await event.save();
-        }
-      } catch (syncError) {
-        // Silent fail
-        // Don't fail the request if sync fails
-      }
-
-      // Send acceptance confirmation email
-      try {
-        const { sendSimpleEmail } = await import("../utils/mailService.js");
-        const Workspace = (await import("../models/workspace.js")).default;
-        const workspace = await Workspace.findById(event.workspace);
-
-        await sendSimpleEmail({
-          to: event.createdBy.email,
-          subject: `${attendee.user.name} accepted: ${event.title}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-                <h1 style="color: white; margin: 0;">✅ Event Accepted</h1>
-              </div>
-              <div style="padding: 30px; background: #f8f9fa;">
-                <p style="color: #666; line-height: 1.6;">
-                  <strong>${attendee.user.name}</strong> has accepted your event invitation.
-                </p>
-                <div style="background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="color: #333; margin-bottom: 15px;">${event.title}</h3>
-                  <p style="margin: 5px 0;"><strong>Time:</strong> ${new Date(event.startDate).toLocaleString()}</p>
-                  ${event.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${event.location}</p>` : ''}
-                  ${event.meetingLink ? `<p style="margin: 5px 0;"><strong>Meeting Link:</strong> <a href="${event.meetingLink}" style="color: #667eea;">${event.meetingLink}</a></p>` : ''}
-                </div>
-                <a href="${process.env.CLIENT_URL}/calendar?event=${event._id}" 
-                   style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px;">
-                  View Event
-                </a>
-              </div>
-            </div>
-          `,
-          text: `${attendee.user.name} has accepted your event invitation for "${event.title}" scheduled at ${new Date(event.startDate).toLocaleString()}.`
-        });
-      } catch (emailError) {
-        // Silent fail
-      }
-    }
 
     res.json({
       success: true,
@@ -902,140 +653,6 @@ export const updateAttendeeResponse = async (req, res) => {
   } catch (error) {
     console.error("❌ Error updating attendee response:", error.message);
     res.status(500).json({ error: "Failed to update attendee response" });
-  }
-};
-
-/**
- * Get calendar integrations
- * GET /api/calendar/integrations
- */
-export const getCalendarIntegrations = async (req, res) => {
-  try {
-    const userId = req.auth._id;
-
-    console.log(`\n🔗 Fetching calendar integrations for user: ${userId}`);
-
-    const integrations = await CalendarIntegration.find({
-      user: userId,
-      isActive: true,
-    }).select("-accessToken -refreshToken"); // Don't expose tokens
-
-
-    res.json({
-      success: true,
-      data: integrations,
-    });
-  } catch (error) {
-    console.error("❌ Error fetching calendar integrations:", error.message);
-    res.status(500).json({ error: "Failed to fetch calendar integrations" });
-  }
-};
-
-/**
- * Connect Google Calendar
- * POST /api/calendar/integrations/google
- */
-export const connectGoogleCalendar = async (req, res) => {
-  try {
-    const userId = req.auth._id;
-    const { accessToken, refreshToken, expiresIn, calendarId } = req.body;
-
-
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
-
-    const integration = new CalendarIntegration({
-      user: userId,
-      provider: "google",
-      accessToken,
-      refreshToken,
-      expiresAt,
-      calendarId,
-      isVerified: true,
-    });
-
-    await integration.save();
-
-
-    res.status(201).json({
-      success: true,
-      data: {
-        ...integration.toObject(),
-        accessToken: undefined,
-        refreshToken: undefined,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Error connecting Google Calendar:", error.message);
-    res.status(500).json({ error: "Failed to connect Google Calendar" });
-  }
-};
-
-/**
- * Connect Outlook Calendar
- * POST /api/calendar/integrations/outlook
- */
-export const connectOutlookCalendar = async (req, res) => {
-  try {
-    const userId = req.auth._id;
-    const { accessToken, refreshToken, expiresIn, calendarId } = req.body;
-
-
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
-
-    const integration = new CalendarIntegration({
-      user: userId,
-      provider: "outlook",
-      accessToken,
-      refreshToken,
-      expiresAt,
-      calendarId,
-      isVerified: true,
-    });
-
-    await integration.save();
-
-
-    res.status(201).json({
-      success: true,
-      data: {
-        ...integration.toObject(),
-        accessToken: undefined,
-        refreshToken: undefined,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Error connecting Outlook Calendar:", error.message);
-    res.status(500).json({ error: "Failed to connect Outlook Calendar" });
-  }
-};
-
-/**
- * Sync external calendar
- * POST /api/calendar/sync
- */
-export const syncExternalCalendar = async (req, res) => {
-  try {
-    const userId = req.auth._id;
-    const { provider, workspaceId } = req.body;
-
-
-    let result;
-    if (provider === "google") {
-      result = await syncGoogleCalendar(userId, workspaceId);
-    } else if (provider === "outlook") {
-      result = await syncOutlookCalendar(userId, workspaceId);
-    } else {
-      return res.status(400).json({ error: "Invalid provider" });
-    }
-
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    console.error("❌ Error syncing external calendar:", error.message);
-    res.status(500).json({ error: "Failed to sync external calendar" });
   }
 };
 
@@ -1117,10 +734,6 @@ export default {
   removeEventAttendee,
   updateAttendeeResponse,
   updateEventResponse,
-  getCalendarIntegrations,
-  connectGoogleCalendar,
-  connectOutlookCalendar,
-  syncExternalCalendar,
   checkUserAvailability,
   findMeetingTime,
   exportCalendar,

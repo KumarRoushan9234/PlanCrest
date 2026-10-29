@@ -87,7 +87,7 @@ const DirectMessageModal = ({ isOpen, onClose, onSuccess }) => {
 
         {/* Modal */}
         <motion.div
-          className="relative bg-[#1a1b1d] rounded-xl border border-gray-800/50 shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
+          className="relative bg-gray-800 rounded-xl border border-gray-800/50 shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}

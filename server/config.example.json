@@ -1,0 +1,28 @@
+{
+  "_readme": "Copy to config.local.json (git-ignored). Same names as .env. Environment variables and .env take priority over this file. Remove keys you do not use.",
+
+  "DATABASE": "mongodb://127.0.0.1:27017/plancrest",
+  "JWT_SECRET": "",
+  "ENCRYPTION_KEY": "",
+  "CLIENT_URL": "http://localhost:5173",
+  "API_PUBLIC_URL": "http://localhost:8000",
+
+  "EMAIL_SERVICE": "gmail",
+  "EMAIL_USER": "you@gmail.com",
+  "EMAIL_PASS": "16 character Google app password, no spaces",
+  "EMAIL_SENDER_NAME": "PlanCrest",
+
+  "CLOUDINARY_CLOUD_NAME": "",
+  "CLOUDINARY_API_KEY": "",
+  "CLOUDINARY_API_SECRET": "",
+
+  "OPENROUTER_API_KEY": "",
+  "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash",
+
+  "GOOGLE_CLIENT_ID": "",
+  "GOOGLE_CLIENT_SECRET": "",
+  "GITHUB_CLIENT_ID": "",
+  "GITHUB_CLIENT_SECRET": "",
+  "SLACK_CLIENT_ID": "",
+  "SLACK_CLIENT_SECRET": ""
+}

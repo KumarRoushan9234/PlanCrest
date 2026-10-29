@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import React, { useState, useRef, useEffect } from "react";
 import { Send, Paperclip } from "lucide-react";
-import axios from "axios";
+import toast from "react-hot-toast";
 import EmojiPicker from "./EmojiPicker";
 import MentionAutocomplete from "./MentionAutocomplete";
 import { useWorkspace } from "../../../contexts/WorkspaceContext";
 import chatService from "../../../services/chatService";
+import { uploadService } from "../../../services";
 
 /**
  * Message Input Component
@@ -21,10 +22,12 @@ const MessageInput = ({
   const { currentWorkspace } = useWorkspace();
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionPosition, setMentionPosition] = useState(null);
   const textareaRef = useRef(null);
   const inputContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const lastTypingSentRef = useRef(0);
 
@@ -50,7 +53,7 @@ const MessageInput = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if ((message.trim() || attachments.length > 0) && !disabled) {
+    if ((message.trim() || attachments.length > 0) && !disabled && !uploading) {
       onSend(message.trim(), attachments);
       setMessage("");
       setAttachments([]);
@@ -154,6 +157,41 @@ const MessageInput = ({
     }, 0);
   };
 
+  const uploadFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    if (!currentWorkspace?._id) {
+      toast.error("Select a workspace to upload attachments");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const responses = await Promise.all(
+        files.map((file) =>
+          uploadService
+            .uploadChatAttachment({
+              file,
+              workspaceId: currentWorkspace._id,
+            })
+            .then((res) => res?.data)
+        )
+      );
+      const newAttachments = responses.filter(Boolean);
+      if (newAttachments.length > 0) {
+        setAttachments((prev) => [...prev, ...newAttachments]);
+      }
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to upload files";
+      toast.error(message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleEmojiSelect = (emoji) => {
     setMessage((prev) => prev + emoji);
     textareaRef.current?.focus();
@@ -161,60 +199,25 @@ const MessageInput = ({
 
   const handlePaste = (e) => {
     const items = e.clipboardData.items;
+    const files = [];
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
         const file = items[i].getAsFile();
         if (file) {
-          // Handle image paste
-          handleFileSelect({ target: { files: [file] } });
+          files.push(file);
         }
       }
+    }
+    if (files.length > 0) {
+      uploadFiles(files);
     }
   };
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    // Upload files and add to attachments
-    const uploadPromises = files.map(uploadToCloudinary);
-    try {
-      const results = await Promise.all(uploadPromises);
-      const newAttachments = results.filter(Boolean);
-      setAttachments((prev) => [...prev, ...newAttachments]);
-    } catch (error) {
-      console.error("Error uploading files:", error);
-    }
-  };
-
-  const uploadToCloudinary = async (file) => {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append(
-        "upload_preset",
-        import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "plancrest_chat"
-      );
-      formData.append("folder", "chat_attachments");
-
-      const response = await axios.post(
-        `https://api.cloudinary.com/v1_1/${
-          import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "your-cloud-name"
-        }/image/upload`,
-        formData
-      );
-
-      return {
-        url: response.data.secure_url,
-        publicId: response.data.public_id,
-        filename: file.name,
-        mimeType: file.type,
-        size: file.size,
-        thumbnailUrl: response.data.secure_url,
-      };
-    } catch (error) {
-      console.error("Cloudinary upload error:", error);
-      return null;
+    await uploadFiles(files);
+    if (e.target) {
+      e.target.value = "";
     }
   };
 
@@ -246,6 +249,13 @@ const MessageInput = ({
         </div>
       )}
 
+      {uploading && (
+        <div className="mb-2 text-xs text-blue-400 flex items-center gap-2">
+          <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          Uploading attachments...
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="flex gap-2 items-end">
         <div ref={inputContainerRef} className="flex-1 relative">
           <textarea
@@ -274,22 +284,23 @@ const MessageInput = ({
             <EmojiPicker onSelect={handleEmojiSelect} position="top" />
             <motion.button
               type="button"
-              onClick={() => {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.multiple = true;
-                input.accept =
-                  "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip";
-                input.onchange = handleFileSelect;
-                input.click();
-              }}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
+              disabled={uploading}
             >
               <Paperclip className="w-5 h-5" />
             </motion.button>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            multiple
+            onChange={handleFileSelect}
+            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+          />
           {/* Mention Autocomplete */}
           <MentionAutocomplete
             query={mentionQuery}
@@ -304,7 +315,11 @@ const MessageInput = ({
         </div>
         <motion.button
           type="submit"
-          disabled={(!message.trim() && attachments.length === 0) || disabled}
+          disabled={
+            uploading ||
+            (!message.trim() && attachments.length === 0) ||
+            disabled
+          }
           className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

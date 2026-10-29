@@ -29,6 +29,12 @@ import {
 } from "../controllers/chat/index.js";
 
 import { requireSignin, handleAuthError } from "../middlewares/index.js";
+import { requireWorkspaceMember } from "../middlewares/permissions.js";
+import {
+  requireChannelWorkspaceAccess,
+  requireMessageChannelAccess,
+  requireTaskAccess,
+} from "../middlewares/resourceAccess.js";
 import sseManager from "../utils/sseManager.js";
 
 // SSE endpoint for real-time updates
@@ -37,6 +43,7 @@ import sseManager from "../utils/sseManager.js";
 router.get(
   "/workspaces/:workspaceId/events",
   requireSignin,
+  requireWorkspaceMember,
   (req, res) => {
     const { workspaceId } = req.params;
     const userId = req.auth._id.toString();
@@ -95,6 +102,7 @@ router.get(
 router.get(
   "/workspaces/:workspaceId/channels",
   requireSignin,
+  requireWorkspaceMember,
   getWorkspaceChannels,
   handleAuthError
 );
@@ -102,6 +110,7 @@ router.get(
 router.post(
   "/workspaces/:workspaceId/channels",
   requireSignin,
+  requireWorkspaceMember,
   createChannel,
   handleAuthError
 );
@@ -109,6 +118,7 @@ router.post(
 router.get(
   "/channels/:channelId",
   requireSignin,
+  requireChannelWorkspaceAccess,
   getChannel,
   handleAuthError
 );
@@ -116,6 +126,7 @@ router.get(
 router.put(
   "/channels/:channelId/last-selected",
   requireSignin,
+  requireChannelWorkspaceAccess,
   updateLastSelectedChannelForUser,
   handleAuthError
 );
@@ -124,6 +135,7 @@ router.put(
 router.post(
   "/channels/:channelId/typing",
   requireSignin,
+  requireChannelWorkspaceAccess,
   sendTypingIndicator,
   handleAuthError
 );
@@ -131,6 +143,7 @@ router.post(
 router.patch(
   "/channels/:channelId",
   requireSignin,
+  requireChannelWorkspaceAccess,
   updateChannel,
   handleAuthError
 );
@@ -138,6 +151,7 @@ router.patch(
 router.delete(
   "/channels/:channelId",
   requireSignin,
+  requireChannelWorkspaceAccess,
   deleteChannel,
   handleAuthError
 );
@@ -145,6 +159,7 @@ router.delete(
 router.post(
   "/channels/:channelId/members",
   requireSignin,
+  requireChannelWorkspaceAccess,
   addMember,
   handleAuthError
 );
@@ -152,6 +167,7 @@ router.post(
 router.delete(
   "/channels/:channelId/members",
   requireSignin,
+  requireChannelWorkspaceAccess,
   removeMember,
   handleAuthError
 );
@@ -160,6 +176,7 @@ router.delete(
 router.post(
   "/workspaces/:workspaceId/direct-messages",
   requireSignin,
+  requireWorkspaceMember,
   getOrCreateDirectMessage,
   handleAuthError
 );
@@ -168,6 +185,7 @@ router.post(
 router.get(
   "/channels/:channelId/messages",
   requireSignin,
+  requireChannelWorkspaceAccess,
   getChannelMessages,
   handleAuthError
 );
@@ -175,6 +193,7 @@ router.get(
 router.post(
   "/channels/:channelId/messages",
   requireSignin,
+  requireChannelWorkspaceAccess,
   sendMessage,
   handleAuthError
 );
@@ -182,6 +201,7 @@ router.post(
 router.patch(
   "/messages/:messageId",
   requireSignin,
+  requireMessageChannelAccess,
   updateMessage,
   handleAuthError
 );
@@ -189,6 +209,7 @@ router.patch(
 router.delete(
   "/messages/:messageId",
   requireSignin,
+  requireMessageChannelAccess,
   deleteMessage,
   handleAuthError
 );
@@ -196,6 +217,7 @@ router.delete(
 router.post(
   "/messages/:messageId/pin",
   requireSignin,
+  requireMessageChannelAccess,
   pinMessage,
   handleAuthError
 );
@@ -203,6 +225,7 @@ router.post(
 router.post(
   "/messages/:messageId/reactions",
   requireSignin,
+  requireMessageChannelAccess,
   addReaction,
   handleAuthError
 );
@@ -210,6 +233,7 @@ router.post(
 router.delete(
   "/messages/:messageId/reactions",
   requireSignin,
+  requireMessageChannelAccess,
   removeReaction,
   handleAuthError
 );
@@ -217,6 +241,7 @@ router.delete(
 router.get(
   "/messages/:messageId/reactions",
   requireSignin,
+  requireMessageChannelAccess,
   getMessageReactions,
   handleAuthError
 );
@@ -225,6 +250,7 @@ router.get(
 router.post(
   "/channels/:channelId/read",
   requireSignin,
+  requireChannelWorkspaceAccess,
   markAsRead,
   handleAuthError
 );
@@ -233,6 +259,7 @@ router.post(
 router.get(
   "/workspaces/:workspaceId/messages/search",
   requireSignin,
+  requireWorkspaceMember,
   searchMessages,
   handleAuthError
 );
@@ -240,6 +267,7 @@ router.get(
 router.get(
   "/workspaces/:workspaceId/channels/search",
   requireSignin,
+  requireWorkspaceMember,
   searchChannels,
   handleAuthError
 );
@@ -248,6 +276,7 @@ router.get(
 router.get(
   "/tasks/:taskId/thread",
   requireSignin,
+  requireTaskAccess,
   getTaskThread,
   handleAuthError
 );
@@ -255,6 +284,7 @@ router.get(
 router.post(
   "/tasks/:taskId/thread/messages",
   requireSignin,
+  requireTaskAccess,
   sendThreadMessage,
   handleAuthError
 );
@@ -262,6 +292,7 @@ router.post(
 router.get(
   "/tasks/:taskId/thread/messages",
   requireSignin,
+  requireTaskAccess,
   getThreadMessages,
   handleAuthError
 );

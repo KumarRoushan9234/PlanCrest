@@ -1,5 +1,5 @@
-import React, { useState } from "react";
 import { motion } from "framer-motion";
+import React, { useState } from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import {
   Clock,
@@ -15,9 +15,11 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const TaskCard = ({ task, index, onTaskUpdate, currentUser, onTaskClick }) => {
+const getAvatarUrl = (avatar) =>
+  typeof avatar === "string" ? avatar : avatar?.url || null;
+
+const TaskCard = ({ task, index, currentUser, onTaskClick }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
 
   const isAssignedToMe = task.assignee._id === currentUser?._id;
   const isOverdue =
@@ -180,19 +182,25 @@ const TaskCard = ({ task, index, onTaskUpdate, currentUser, onTaskClick }) => {
               )}
 
               {/* Assignee */}
-              <div className="flex items-center space-x-2">
-                <User className="w-3 h-3 text-gray-400" />
+              {task.assignee && (
                 <div className="flex items-center space-x-2">
-                  <img
-                    src={task.assignee.avatar}
-                    alt={task.assignee.name}
-                    className="w-5 h-5 rounded-full"
-                  />
-                  <span className="text-xs text-gray-400">
-                    {task.assignee.name}
-                  </span>
+                  <User className="w-3 h-3 text-gray-400" />
+                  <div className="flex items-center space-x-2">
+                    {getAvatarUrl(task.assignee.avatar) ? (
+                      <img
+                        src={getAvatarUrl(task.assignee.avatar)}
+                        alt={task.assignee.name}
+                        className="w-5 h-5 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-gray-700" />
+                    )}
+                    <span className="text-xs text-gray-400">
+                      {task.assignee.name}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Project */}
               <div className="flex items-center space-x-2 text-xs text-gray-400">

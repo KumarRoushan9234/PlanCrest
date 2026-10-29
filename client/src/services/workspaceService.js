@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+import { API_BASE_URL } from "../config/api";
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
@@ -11,6 +11,36 @@ axios.defaults.timeout = 60000; // 60 seconds timeout for all requests
  * Handles all workspace-related API calls
  */
 export const workspaceService = {
+  // Everything the Overview page needs, scoped to what the user may access
+  getDashboard: async (workspaceId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/workspaces/${workspaceId}/dashboard`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Aggregates for the Analytics page
+  getInsights: async (workspaceId, range = 30) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/workspaces/${workspaceId}/insights?range=${range}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Cancel a pending invitation
+  cancelInvitation: async (workspaceId, invitationId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/workspaces/${workspaceId}/invitations/${invitationId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Create a new workspace
   createWorkspace: async (workspaceData) => {
     try {

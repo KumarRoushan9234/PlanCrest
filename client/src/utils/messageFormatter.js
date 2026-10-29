@@ -3,7 +3,15 @@
  * Format message content for display
  */
 
+import DOMPurify from "dompurify";
 import { parseMarkdown } from "./markdownParser.js";
+
+const escapeHtml = (value) =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 /**
  * Format message content based on format type
@@ -17,18 +25,13 @@ export const formatMessage = (content, format = "plain") => {
   switch (format) {
     case "markdown":
       return parseMarkdown(content);
-    case "html":
-      return content;
     case "plain":
     default:
-      // Escape HTML and preserve line breaks with proper spacing
-      return content
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
+      // Escape HTML (raw HTML is never trusted) and preserve line breaks
+      return escapeHtml(content)
         .replace(/\n\n/g, "<br><br>") // Double line breaks for paragraphs
         .replace(/\n/g, "<br>") // Single line breaks
-        .replace(/  /g, "&nbsp;&nbsp;"); // Preserve double spaces
+        .replace(/ {2}/g, "&nbsp;&nbsp;"); // Preserve double spaces
   }
 };
 
@@ -50,7 +53,7 @@ export const highlightMentions = (content, mentions = []) => {
       const regex = new RegExp(`@${username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, "gi");
       formatted = formatted.replace(
         regex,
-        `<span class="mention bg-blue-500/20 text-blue-400 px-1 rounded">@${username}</span>`
+        `<span class="mention bg-blue-500/20 text-blue-400 px-1 rounded">@${escapeHtml(username)}</span>`
       );
     }
   });
@@ -103,6 +106,7 @@ export const formatFullMessage = (
   let formatted = formatMessage(content, format);
   formatted = highlightMentions(formatted, mentions);
   formatted = highlightTaskMentions(formatted, taskMentions);
-  return formatted;
+  // Final defence: the result is rendered with dangerouslySetInnerHTML
+  return DOMPurify.sanitize(formatted, { ADD_ATTR: ["target"] });
 };
 

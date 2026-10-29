@@ -28,12 +28,10 @@ import {
 } from "lucide-react";
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { projects } = useProject();
-  const [activeTab, setActiveTab] = useState("overview");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -70,7 +68,7 @@ const Dashboard = () => {
         if (activitiesResponse?.success && activitiesResponse?.data) {
           setActivities(activitiesResponse.data);
         }
-      } catch (error) {
+      } catch {
         // Activity endpoint might not exist yet
         setActivities([]);
       }
@@ -85,9 +83,6 @@ const Dashboard = () => {
   // Calculate real stats from data
   const completedTasks = tasks.filter(
     (t) => t.status === "done" || t.status === "completed"
-  ).length;
-  const inProgressTasks = tasks.filter(
-    (t) => t.status === "in-progress"
   ).length;
   const completionRate =
     tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
@@ -163,26 +158,7 @@ const Dashboard = () => {
     return `${days}d ago`;
   }
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Active":
-        return "bg-green-100 text-green-800";
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "Inactive":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -201,7 +177,7 @@ const Dashboard = () => {
     <Layout>
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
-        style={{ backgroundColor: "#171819" }}
+        style={{ backgroundColor: "var(--bg)" }}
       >
         {/* Welcome Section */}
         <div className="mb-8">

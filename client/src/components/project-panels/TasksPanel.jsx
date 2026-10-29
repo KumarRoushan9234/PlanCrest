@@ -52,10 +52,6 @@ const TasksPanel = ({ project, isAdmin }) => {
     setIsTaskModalOpen(true);
   };
 
-  const handleTaskSaved = () => {
-    fetchTasks();
-    setIsTaskModalOpen(false);
-  };
 
   const handleTaskCreated = () => {
     fetchTasks();
@@ -91,31 +87,7 @@ const TasksPanel = ({ project, isAdmin }) => {
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case "in-progress":
-        return <Clock className="w-4 h-4 text-blue-500" />;
-      case "blocked":
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Circle className="w-4 h-4 text-gray-500" />;
-    }
-  };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-500";
-      case "medium":
-        return "bg-yellow-500";
-      case "low":
-        return "bg-green-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
 
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch =

@@ -6,4 +6,6 @@ export { analyticsService } from './analyticsService';
 export { activityService } from './activityService';
 export { notificationService } from './notificationService';
 export { calendarService } from './calendarService';
+export { uploadService } from './uploadService';
 
+export { aiService } from './aiService';

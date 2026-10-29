@@ -1,584 +1,527 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { useParams, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  Calendar,
-  Clock,
-  Users,
-  CheckCircle2,
-  Circle,
-  Flag,
-  Tag,
-  MessageSquare,
-  Paperclip,
-  MoreVertical,
-  Edit3,
-  Trash2,
-  Copy,
-  Share2,
-  Loader2,
-  BarChart3,
-  Activity,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { Activity, AlertTriangle, Archive, CalendarDays, Check, ExternalLink, MessageSquare, Pencil, Plus, Send, Share2, Sparkles, Trash2, UserPlus, X } from "lucide-react";
 import Layout from "../components/common-afterauth/Layout";
-import { projectService } from "../services/projectService";
-import { unmaskId, maskId } from "../utils/idMasker";
-import TaskSidebar from "../components/sidebar/TaskSidebar";
 import TaskChatSidebar from "../components/sidebar/TaskChatSidebar";
+import ActivityFeed from "../components/activity/ActivityFeed";
+import { CustomFields, Dependencies, RepeatSetting, TimeTracker } from "../components/work/TaskWorkPanels";
+import SendToModal from "../components/integrations/SendToModal";
+import ProviderIcon from "../components/integrations/ProviderIcon";
+import { aiService, taskService } from "../services";
+import { projectService } from "../services/projectService";
+import { useAuth } from "../contexts/AuthContext";
+import { maskId, unmaskId } from "../utils/idMasker";
+import {
+  Avatar,
+  Badge,
+  Banner,
+  Button,
+  Card,
+  CardHead,
+  EmptyState,
+  Menu,
+  PRIORITY_META,
+  Progress,
+  STATUS_META,
+  Skeleton,
+  formatDate,
+  timeAgo,
+} from "../components/ui";
+
+function Property({ label, children }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "92px minmax(0, 1fr)", alignItems: "center", gap: 10, minHeight: 32 }}>
+      <span className="pc-dim" style={{ fontSize: 12.5 }}>{label}</span>
+      <div style={{ minWidth: 0 }}>{children}</div>
+    </div>
+  );
+}
 
 const TaskDetailPage = () => {
   const { maskedTaskId, maskedProjectId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const taskId = unmaskId(maskedTaskId);
-  const projectId = maskedProjectId ? unmaskId(maskedProjectId) : null;
 
   const [task, setTask] = useState(null);
   const [project, setProject] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showTaskSidebar, setShowTaskSidebar] = useState(false);
-  const [showChatSidebar, setShowChatSidebar] = useState(false);
-  const [subtasks, setSubtasks] = useState([]);
+  const [members, setMembers] = useState([]);
   const [comments, setComments] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (taskId) {
-      fetchTaskDetails();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [title, setTitle] = useState("");
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [desc, setDesc] = useState("");
+  const [newSubtask, setNewSubtask] = useState("");
+  const [newComment, setNewComment] = useState("");
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [suggestions, setSuggestions] = useState(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const commentRef = useRef(null);
+
+  const canManage = project?.userRole === "owner" || project?.userRole === "admin";
+
+  const load = useCallback(async () => {
+    try {
+      const res = await taskService.getTask(taskId);
+      setTask(res.data);
+      return res.data;
+    } catch (e) {
+      setError(e?.error || "This task doesn't exist or you don't have access to it.");
+      return null;
     }
   }, [taskId]);
 
-  const fetchTaskDetails = async () => {
-    try {
+  useEffect(() => {
+    let alive = true;
+    (async () => {
       setLoading(true);
-      const response = await projectService.getTask(taskId);
-      setTask(response.data);
-      setSubtasks(response.data.subtasks || []);
-
-      // Fetch project details
-      const projectIdToFetch = projectId || response.data.project?._id;
-      if (projectIdToFetch) {
-        const projectResponse = await projectService.getProject(
-          projectIdToFetch
-        );
-        setProject(projectResponse.data);
-      }
-
-      // Fetch comments
-      try {
-        const commentsResponse = await projectService.getTaskComments(taskId);
-        setComments(commentsResponse.data || []);
-      } catch (err) {
-        console.error("Error fetching comments:", err);
-      }
-    } catch (error) {
-      console.error("Error fetching task:", error);
-      alert(
-        "Failed to load task. You may not have permission to view this task."
-      );
-      navigate("/projects");
-    } finally {
+      const t = await load();
+      if (!t || !alive) return setLoading(false);
+      const pid = maskedProjectId ? unmaskId(maskedProjectId) : t.project?._id;
+      const [p, m, c, a] = await Promise.allSettled([
+        projectService.getProject(pid),
+        projectService.getProjectMembers(pid),
+        projectService.getTaskComments(taskId),
+        taskService.getTaskActivity(taskId),
+      ]);
+      if (!alive) return;
+      if (p.status === "fulfilled") setProject(p.value.data);
+      if (m.status === "fulfilled") setMembers((m.value.data || []).map((x) => x.user).filter(Boolean));
+      if (c.status === "fulfilled") setComments(c.value.data || []);
+      if (a.status === "fulfilled") setActivity(a.value.data || []);
       setLoading(false);
+    })();
+    aiService.getStatus().then((s) => alive && setAiEnabled(Boolean(s.enabled))).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [taskId, maskedProjectId, load]);
+
+  const refreshActivity = () => taskService.getTaskActivity(taskId).then((r) => setActivity(r.data || [])).catch(() => {});
+
+  const patch = async (changes, { silent = false } = {}) => {
+    const previous = task;
+    setTask((t) => ({ ...t, ...changes }));
+    try {
+      await taskService.updateTask(taskId, changes);
+      if (!silent) toast.success("Saved", { duration: 1200 });
+      refreshActivity();
+    } catch (e) {
+      setTask(previous);
+      toast.error(e?.error || "Couldn't save the change");
     }
   };
 
-  const handleBack = () => {
-    if (project) {
-      const maskedProjId = maskId(project._id);
-      navigate(`/project/${maskedProjId}`);
-    } else {
-      navigate("/projects");
+  const setStatus = async (status) => {
+    const previous = task;
+    setTask((t) => ({ ...t, status }));
+    try {
+      await taskService.updateTaskStatus(taskId, status);
+      refreshActivity();
+    } catch (e) {
+      setTask(previous);
+      toast.error(e?.error || "Couldn't change the status");
     }
   };
 
-  const handleTaskUpdate = (updatedTask) => {
-    setTask(updatedTask);
-    fetchTaskDetails(); // Refresh to get updated data
+  const saveTitle = async () => {
+    setEditingTitle(false);
+    const next = title.trim();
+    if (next && next !== task.title) await patch({ title: next });
   };
 
-  const handleTaskDelete = () => {
-    if (project) {
-      const maskedProjId = maskId(project._id);
-      navigate(`/project/${maskedProjId}`);
-    } else {
-      navigate("/projects");
+  const saveDesc = async () => {
+    setEditingDesc(false);
+    if (desc !== (task.description || "")) await patch({ description: desc });
+  };
+
+  // subtasks
+  const subtasks = task?.subtasks || [];
+  const done = subtasks.filter((s) => s.isCompleted).length;
+
+  const toggleSubtask = async (s) => {
+    setTask((t) => ({ ...t, subtasks: t.subtasks.map((x) => (x._id === s._id ? { ...x, isCompleted: !x.isCompleted } : x)) }));
+    try {
+      await taskService.updateSubtask(s._id, { isCompleted: !s.isCompleted });
+    } catch (e) {
+      load();
+      toast.error(e?.error || "Couldn't update the subtask");
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority?.toLowerCase()) {
-      case "high":
-        return "text-red-400 bg-red-500/10 border-red-500/20";
-      case "medium":
-        return "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
-      case "low":
-        return "text-blue-400 bg-blue-500/10 border-blue-500/20";
-      default:
-        return "text-gray-400 bg-gray-500/10 border-gray-500/20";
+  const addSubtask = async (e) => {
+    e?.preventDefault();
+    const text = newSubtask.trim();
+    if (!text) return;
+    setNewSubtask("");
+    try {
+      const res = await taskService.createSubtask(taskId, { title: text });
+      setTask((t) => ({ ...t, subtasks: [...(t.subtasks || []), res.data] }));
+    } catch (err) {
+      setNewSubtask(text);
+      toast.error(err?.error || "Couldn't add the subtask");
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "done":
-      case "completed":
-        return "text-green-400 bg-green-500/10 border-green-500/20";
-      case "in_progress":
-      case "in progress":
-        return "text-blue-400 bg-blue-500/10 border-blue-500/20";
-      case "todo":
-      case "to-do":
-        return "text-gray-400 bg-gray-500/10 border-gray-500/20";
-      case "in_review":
-        return "text-purple-400 bg-purple-500/10 border-purple-500/20";
-      case "blocked":
-        return "text-red-400 bg-red-500/10 border-red-500/20";
-      default:
-        return "text-gray-400 bg-gray-500/10 border-gray-500/20";
+  const removeSubtask = async (s) => {
+    setTask((t) => ({ ...t, subtasks: t.subtasks.filter((x) => x._id !== s._id) }));
+    try {
+      await taskService.deleteSubtask(s._id);
+    } catch (e) {
+      load();
+      toast.error(e?.error || "Couldn't delete the subtask");
     }
   };
 
-  const formatDate = (date) => {
-    if (!date) return "Not set";
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
+  const suggest = async () => {
+    setSuggesting(true);
+    try {
+      const res = await aiService.breakdownTask(taskId);
+      setSuggestions(res.subtasks);
+    } catch (e) {
+      toast.error(e?.error || "The assistant couldn't suggest subtasks");
+    } finally {
+      setSuggesting(false);
+    }
   };
 
-  const formatDateTime = (date) => {
-    if (!date) return "";
-    return new Date(date).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+  const addSuggestions = async () => {
+    try {
+      for (const s of suggestions) await taskService.createSubtask(taskId, { title: s.title, description: s.description });
+      setSuggestions(null);
+      toast.success("Subtasks added");
+      load();
+    } catch (e) {
+      toast.error(e?.error || "Couldn't add the subtasks");
+    }
   };
 
-  if (loading) {
+  // assignees
+  const assignments = task?.assignments || [];
+  const assignedIds = useMemo(() => new Set(assignments.map((a) => a.user?._id)), [assignments]);
+
+  const assign = async (member) => {
+    setAssignOpen(false);
+    try {
+      await taskService.assignTask(taskId, { userId: member._id, role: "assignee" });
+      await load();
+      refreshActivity();
+    } catch (e) {
+      toast.error(e?.error || "Couldn't assign that person");
+    }
+  };
+
+  const unassign = async (assignment) => {
+    setTask((t) => ({ ...t, assignments: t.assignments.filter((a) => a._id !== assignment._id) }));
+    try {
+      await taskService.unassignTask(assignment._id);
+    } catch (e) {
+      load();
+      toast.error(e?.error || "Couldn't unassign");
+    }
+  };
+
+  // comments
+  const postComment = async () => {
+    const content = newComment.trim();
+    if (!content) return;
+    setNewComment("");
+    try {
+      const res = await projectService.createTaskComment(taskId, { content });
+      setComments((c) => [...c, res.data]);
+      refreshActivity();
+    } catch (e) {
+      setNewComment(content);
+      toast.error(e?.error || "Couldn't post the comment");
+    }
+  };
+
+  const deleteComment = async (c) => {
+    setComments((list) => list.filter((x) => x._id !== c._id));
+    try {
+      await projectService.deleteTaskComment(c._id);
+    } catch (e) {
+      toast.error(e?.error || "Couldn't delete the comment");
+      projectService.getTaskComments(taskId).then((r) => setComments(r.data || []));
+    }
+  };
+
+  const archive = async () => {
+    if (!window.confirm("Archive this task? It will be removed from boards and lists.")) return;
+    try {
+      await taskService.deleteTask(taskId);
+      toast.success("Task archived");
+      navigate(project ? `/project/${maskId(project._id)}` : "/projects", { replace: true });
+    } catch (e) {
+      toast.error(e?.error || "Couldn't archive the task");
+    }
+  };
+
+  if (error) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-gray-950">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+        <div className="pc-page narrow">
+          <Banner tone="error" icon={AlertTriangle} action={<Button size="sm" onClick={() => navigate("/projects")}>Back to projects</Button>}>{error}</Banner>
         </div>
       </Layout>
     );
   }
 
-  if (!task) {
+  if (loading || !task) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-gray-950">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Task Not Found
-            </h2>
-            <p className="text-gray-400 mb-6">
-              The task you're looking for doesn't exist or you don't have
-              permission to view it.
-            </p>
-            <button
-              onClick={() => navigate("/projects")}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Back to Projects
-            </button>
+        <div className="pc-page">
+          <Skeleton h={24} w="30%" />
+          <div className="pc-split">
+            <Skeleton h={420} />
+            <Skeleton h={320} />
           </div>
         </div>
       </Layout>
     );
   }
+
+  const overdue = task.dueDate && task.status !== "done" && new Date(task.dueDate) < new Date();
+  const candidates = members.filter((m) => !assignedIds.has(m._id));
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-950">
-        {/* Header Section - SMALLER */}
-        <div className="border-b border-gray-800 bg-gradient-to-r from-gray-950 to-gray-900">
-          <div className="w-full px-4 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-xs"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back</span>
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowChatSidebar(true)}
-                  className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-all shadow-lg shadow-purple-500/20 text-xs"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <MessageSquare className="w-3 h-3" />
-                    <span>Chat</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setShowTaskSidebar(true)}
-                  className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all shadow-lg shadow-blue-500/20 text-xs"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <Edit3 className="w-3 h-3" />
-                    <span>Edit</span>
-                  </div>
-                </button>
-              </div>
-            </div>
+      <div className="pc-page">
+        <nav className="pc-crumbs" aria-label="Breadcrumb">
+          <a href="/projects" onClick={(e) => { e.preventDefault(); navigate("/projects"); }}>Projects</a>
+          <span>/</span>
+          {project && <a href={`/project/${maskId(project._id)}`} onClick={(e) => { e.preventDefault(); navigate(`/project/${maskId(project._id)}`); }}>{project.name}</a>}
+          <span>/</span>
+          <span className="pc-mono">{task.taskKey}</span>
+        </nav>
 
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  {task.status === "done" ? (
-                    <CheckCircle2 className="w-6 h-6 text-green-500" />
-                  ) : (
-                    <Circle className="w-6 h-6 text-gray-500" />
-                  )}
-                  <div>
-                    <h1 className="text-lg font-bold text-white mb-0.5">
-                      {task.title}
-                    </h1>
-                    <p className="text-[10px] text-gray-400">
-                      Task Key:{" "}
-                      <span className="font-mono text-gray-300">
-                        {task.taskKey}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${getStatusColor(
-                      task.status
-                    )}`}
-                  >
-                    {task.status}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${getPriorityColor(
-                      task.priority
-                    )}`}
-                  >
-                    {task.priority}
-                  </span>
-                  {project && (
-                    <span className="text-[10px] text-gray-400">
-                      Project:{" "}
-                      <span className="text-gray-300">{project.name}</span>
-                    </span>
-                  )}
-                  <span className="text-[10px] text-gray-400">
-                    Created {formatDate(task.createdAt)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Content Area - SMALLER */}
-        <div className="w-full px-4 py-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Main Content - 2 columns - SMALLER */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Description - SMALLER */}
-              <motion.div
-                className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-all"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <h2 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-gray-400" />
-                  Description
-                </h2>
-                <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">
-                  {task.description || "No description provided"}
-                </p>
-              </motion.div>
-
-              {/* Subtasks Overview - SMALLER */}
-              {subtasks && subtasks.length > 0 && (
-                <motion.div
-                  className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-all"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <h2 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-gray-400" />
-                    Subtasks ({
-                      subtasks.filter((s) => s.isCompleted).length
-                    } / {subtasks.length})
-                  </h2>
-                  <div className="space-y-1.5">
-                    {subtasks.slice(0, 5).map((subtask) => (
-                      <div
-                        key={subtask._id}
-                        className="flex items-center gap-2 p-2 bg-gray-900/50 rounded-lg hover:bg-gray-900 transition-colors"
-                      >
-                        {subtask.isCompleted ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        )}
-                        <span
-                          className={`flex-1 text-xs ${
-                            subtask.isCompleted
-                              ? "line-through text-gray-500"
-                              : "text-white"
-                          }`}
-                        >
-                          {subtask.title}
-                        </span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${getPriorityColor(
-                            subtask.priority
-                          )}`}
-                        >
-                          {subtask.priority}
-                        </span>
-                      </div>
-                    ))}
-                    {subtasks.length > 5 && (
-                      <p className="text-[10px] text-gray-500 text-center pt-1.5">
-                        +{subtasks.length - 5} more subtasks
-                      </p>
-                    )}
-                  </div>
-                </motion.div>
+        <div className="pc-split">
+          <div className="pc-stack">
+            <Card>
+              {editingTitle ? (
+                <input
+                  className="pc-input lg"
+                  style={{ fontSize: 20, fontWeight: 600, height: 46 }}
+                  autoFocus
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={saveTitle}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") setEditingTitle(false);
+                  }}
+                  maxLength={200}
+                />
+              ) : (
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: "-0.015em", cursor: "text", display: "flex", gap: 10, alignItems: "flex-start" }} onClick={() => { setTitle(task.title); setEditingTitle(true); }} title="Click to edit">
+                  <span style={{ flex: 1, overflowWrap: "anywhere" }}>{task.title}</span>
+                  <Pencil size={14} className="pc-dim" style={{ marginTop: 8 }} />
+                </h1>
               )}
 
-              {/* Activity/Comments Section - SMALLER */}
-              <motion.div
-                className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-all"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <h2 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
-                  Recent Activity
-                </h2>
-                {comments && comments.length > 0 ? (
-                  <div className="space-y-2">
-                    {comments.slice(0, 3).map((comment) => (
-                      <div
-                        key={comment._id}
-                        className="p-2 bg-gray-900/50 rounded-lg"
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-semibold text-[10px] flex-shrink-0">
-                            {comment.author?.name?.charAt(0).toUpperCase() ||
-                              "?"}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-xs font-medium text-white">
-                                {comment.author?.name || "Unknown"}
-                              </span>
-                              <span className="text-[10px] text-gray-500">
-                                {formatDateTime(comment.createdAt)}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-300 line-clamp-2">
-                              {comment.content}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {comments.length > 3 && (
-                      <p className="text-[10px] text-gray-500 text-center pt-1.5">
-                        +{comments.length - 3} more comments
-                      </p>
-                    )}
+              <div style={{ marginTop: 16 }}>
+                <div className="pc-label" style={{ marginBottom: 6 }}>Description</div>
+                {editingDesc ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <textarea className="pc-textarea" style={{ minHeight: 140 }} autoFocus value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Add more detail, links, or acceptance criteria" />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Button size="sm" variant="primary" onClick={saveDesc}>Save</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingDesc(false)}>Cancel</Button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-center py-4">
-                    <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-1.5" />
-                    <p className="text-xs text-gray-500">
-                      No comments yet. Open the sidebar to add comments.
-                    </p>
+                  <div onClick={() => { setDesc(task.description || ""); setEditingDesc(true); }} style={{ cursor: "text", padding: "8px 10px", margin: "0 -10px", borderRadius: 8, whiteSpace: "pre-wrap", lineHeight: 1.6, color: task.description ? "var(--text)" : "var(--dim)", minHeight: 40 }} className="hover:bg-white/5">
+                    {task.description || "Click to add a description"}
                   </div>
                 )}
-              </motion.div>
-            </div>
+              </div>
+            </Card>
 
-            {/* Sidebar - 1 column - SMALLER */}
-            <div className="space-y-3">
-              {/* Details Card - SMALLER */}
-              <motion.div
-                className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-all"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                  Details
-                </h3>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wider">
-                      Due Date
-                    </p>
-                    <div className="flex items-center gap-1.5 text-white">
-                      <Calendar className="w-3 h-3 text-gray-500" />
-                      <span className="text-xs font-medium">
-                        {formatDate(task.dueDate)}
-                      </span>
-                    </div>
+            <Card>
+              <CardHead icon={Check} title={`Subtasks${subtasks.length ? ` · ${done}/${subtasks.length}` : ""}`}>
+                {aiEnabled && (
+                  <Button size="sm" icon={Sparkles} loading={suggesting} onClick={suggest}>Suggest with AI</Button>
+                )}
+              </CardHead>
+              {subtasks.length > 0 && <Progress value={(done / subtasks.length) * 100} className="mb-2" />}
+              <ul className="pc-list" style={{ margin: "0 -8px" }}>
+                {subtasks.map((s) => (
+                  <li key={s._id} className="pc-row" style={{ cursor: "default" }}>
+                    <input type="checkbox" checked={Boolean(s.isCompleted)} onChange={() => toggleSubtask(s)} style={{ accentColor: "var(--blue)", width: 15, height: 15 }} aria-label={`Mark “${s.title}” ${s.isCompleted ? "incomplete" : "complete"}`} />
+                    <span className="grow" style={{ textDecoration: s.isCompleted ? "line-through" : "none", color: s.isCompleted ? "var(--dim)" : "var(--text)" }}>
+                      <b style={{ whiteSpace: "normal", fontWeight: 400 }}>{s.title}</b>
+                    </span>
+                    <button className="pc-btn ghost icon sm" onClick={() => removeSubtask(s)} aria-label={`Delete “${s.title}”`}>
+                      <Trash2 size={13} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <form onSubmit={addSubtask} style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input className="pc-input" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} placeholder="Add a subtask" maxLength={200} />
+                <Button type="submit" icon={Plus} disabled={!newSubtask.trim()}>Add</Button>
+              </form>
+
+              {suggestions && (
+                <div className="pc-banner info" style={{ marginTop: 12, flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Sparkles size={14} /> <b style={{ fontWeight: 600 }}>Suggested subtasks</b>
+                    <span style={{ flex: 1 }} />
+                    <button className="pc-btn ghost icon sm" onClick={() => setSuggestions(null)} aria-label="Dismiss"><X size={14} /></button>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wider">
-                      Created
-                    </p>
-                    <div className="flex items-center gap-1.5 text-white">
-                      <Clock className="w-3 h-3 text-gray-500" />
-                      <span className="text-xs font-medium">
-                        {formatDate(task.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wider">
-                      Last Updated
-                    </p>
-                    <div className="flex items-center gap-1.5 text-white">
-                      <Clock className="w-3 h-3 text-gray-500" />
-                      <span className="text-xs font-medium">
-                        {formatDate(task.updatedAt)}
-                      </span>
-                    </div>
-                  </div>
-                  {task.createdBy && (
-                    <div>
-                      <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wider">
-                        Created By
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-[10px]">
-                          {task.createdBy?.name?.charAt(0).toUpperCase() || "?"}
+                  <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, color: "var(--text)" }}>
+                    {suggestions.map((s, i) => (
+                      <li key={i}>
+                        <b style={{ fontWeight: 500 }}>{s.title}</b>
+                        <div className="pc-muted" style={{ fontSize: 12.5 }}>{s.description}</div>
+                      </li>
+                    ))}
+                  </ol>
+                  <div><Button size="sm" variant="primary" onClick={addSuggestions}>Add all {suggestions.length}</Button></div>
+                </div>
+              )}
+            </Card>
+
+            <Card>
+              <CardHead icon={MessageSquare} title={`Comments${comments.length ? ` · ${comments.length}` : ""}`}>
+                <Button size="sm" onClick={() => setChatOpen(true)}>Open discussion</Button>
+              </CardHead>
+              {comments.length === 0 ? (
+                <p className="pc-muted" style={{ margin: "0 0 12px", fontSize: 13 }}>No comments yet. Start the conversation.</p>
+              ) : (
+                <ul className="pc-list" style={{ display: "grid", gap: 14, marginBottom: 14 }}>
+                  {comments.map((c) => (
+                    <li key={c._id} style={{ display: "flex", gap: 10 }}>
+                      <Avatar user={c.author} size="sm" />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                          <b style={{ fontSize: 13, fontWeight: 600 }}>{c.author?.name}</b>
+                          <span className="pc-dim" style={{ fontSize: 12 }}>{timeAgo(c.createdAt)}</span>
+                          {(c.author?._id === user?._id || canManage) && (
+                            <button className="pc-link" style={{ marginLeft: "auto", color: "var(--dim)", fontSize: 12 }} onClick={() => deleteComment(c)}>Delete</button>
+                          )}
                         </div>
-                        <span className="text-xs text-white font-medium">
-                          {task.createdBy?.name || "Unknown"}
-                        </span>
+                        <div style={{ fontSize: 13.5, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{c.content}</div>
                       </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div style={{ display: "flex", gap: 10 }}>
+                <Avatar user={user} size="sm" />
+                <div style={{ flex: 1, display: "grid", gap: 8 }}>
+                  <textarea
+                    ref={commentRef}
+                    className="pc-textarea"
+                    style={{ minHeight: 64 }}
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={(e) => (e.ctrlKey || e.metaKey) && e.key === "Enter" && postComment()}
+                    placeholder="Write a comment…  (Ctrl+Enter to send)"
+                  />
+                  <div><Button size="sm" variant="primary" icon={Send} disabled={!newComment.trim()} onClick={postComment}>Comment</Button></div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <div className="pc-stack">
+            <Card>
+              <CardHead title="Details" />
+              <div style={{ display: "grid", gap: 6 }}>
+                <Property label="Status">
+                  <select className="pc-select" style={{ height: 30 }} value={task.status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
+                    {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                </Property>
+                <Property label="Priority">
+                  <select className="pc-select" style={{ height: 30 }} value={task.priority} onChange={(e) => patch({ priority: e.target.value })} aria-label="Priority">
+                    {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                </Property>
+                <Property label="Due date">
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="date" className="pc-input" style={{ height: 30 }} value={task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : ""} onChange={(e) => patch({ dueDate: e.target.value || null })} aria-label="Due date" />
+                    {overdue && <Badge tone="red">Overdue</Badge>}
+                  </div>
+                </Property>
+                <Property label="Assignees">
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {assignments.map((a) => (
+                      <span key={a._id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Avatar user={a.user} size="sm" />
+                        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13 }}>{a.user?.name}</span>
+                        <button className="pc-btn ghost icon sm" onClick={() => unassign(a)} aria-label={`Unassign ${a.user?.name}`}><X size={13} /></button>
+                      </span>
+                    ))}
+                    <div style={{ position: "relative" }}>
+                      <Button size="sm" icon={UserPlus} onClick={() => setAssignOpen((o) => !o)} disabled={candidates.length === 0}>Assign</Button>
+                      <Menu open={assignOpen} onClose={() => setAssignOpen(false)}>
+                        {candidates.map((m) => (
+                          <button key={m._id} onClick={() => assign(m)}>
+                            <Avatar user={m} size="sm" /> {m.name}
+                          </button>
+                        ))}
+                      </Menu>
                     </div>
-                  )}
-                </div>
-              </motion.div>
+                  </div>
+                </Property>
+                <Property label="Repeats"><RepeatSetting key={task._id + (task.recurrence?.frequency || "")} task={task} onChanged={load} /></Property>
+                <Property label="Project"><span style={{ fontSize: 13 }}>{project?.name ?? task.project?.name}</span></Property>
+                <Property label="Created">
+                  <span className="pc-muted" style={{ fontSize: 13 }}>{formatDate(task.createdAt, { month: "short", day: "numeric", year: "numeric" })} by {task.createdBy?.name}</span>
+                </Property>
+                {task.dueDate && <Property label="Due on"><span className="inline-flex items-center gap-2 pc-muted" style={{ fontSize: 13 }}><CalendarDays size={13} />{formatDate(task.dueDate, { weekday: "long", month: "long", day: "numeric" })}</span></Property>}
+              </div>
+            </Card>
 
-              {/* Quick Stats Card - SMALLER */}
-              <motion.div
-                className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-all"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">
-                  <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
-                  Quick Stats
-                </h3>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg">
-                    <span className="text-xs text-gray-400">Subtasks</span>
-                    <span className="text-xs font-bold text-white">
-                      {subtasks?.length || 0}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg">
-                    <span className="text-xs text-gray-400">Comments</span>
-                    <span className="text-xs font-bold text-white">
-                      {comments?.length || 0}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg">
-                    <span className="text-xs text-gray-400">Completion</span>
-                    <span className="text-xs font-bold text-white">
-                      {subtasks?.length > 0
-                        ? Math.round(
-                            (subtasks.filter((s) => s.isCompleted).length /
-                              subtasks.length) *
-                              100
-                          )
-                        : 0}
-                      %
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
+            <CustomFields task={task} project={project} onChanged={load} />
+            <TimeTracker taskId={taskId} />
+            <Dependencies taskId={taskId} projectId={project?._id ?? task.project?._id ?? task.project} onChanged={load} />
 
-              {/* Action Card - SMALLER */}
-              <motion.div
-                className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-all"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <h3 className="text-sm font-bold text-white mb-2">
-                  Quick Actions
-                </h3>
-                <div className="space-y-1.5">
-                  <button
-                    onClick={() => setShowChatSidebar(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors mb-2"
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    <span className="text-xs font-medium">Open Chat</span>
-                  </button>
-                  <button
-                    onClick={() => setShowTaskSidebar(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                    <span className="text-xs font-medium">Edit Task</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      const maskedProjId = maskId(project._id);
-                      const maskedTskId = maskId(task._id);
-                      const url = `${window.location.origin}/project/${maskedProjId}/task/${maskedTskId}`;
-                      navigator.clipboard.writeText(url);
-                      alert("Link copied to clipboard!");
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span className="text-xs font-medium">Copy Link</span>
-                  </button>
-                </div>
-              </motion.div>
-            </div>
+            <Card>
+              <CardHead icon={Activity} title="Activity" />
+              {activity.length === 0 ? <EmptyState icon={Activity} title="No activity yet" /> : <ActivityFeed items={activity.slice(0, 12)} />}
+            </Card>
+
+            {task.externalLinks?.length > 0 && (
+              <Card>
+                <CardHead icon={ExternalLink} title="Linked items" />
+                <ul className="pc-list" style={{ margin: "0 -8px" }}>
+                  {task.externalLinks.map((l) => (
+                    <li key={l.externalId}>
+                      <a className="pc-row" href={l.url} target="_blank" rel="noreferrer">
+                        <ProviderIcon id={l.provider} size={22} />
+                        <span className="grow"><b>{l.key || l.title}</b><small>{l.title}</small></span>
+                        <ExternalLink size={13} />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            <Button icon={Share2} onClick={() => setSendOpen(true)}>Send to GitHub, Jira or Trello</Button>
+
+            {(canManage || task.createdBy?._id === user?._id) && (
+              <Button variant="danger" icon={Archive} onClick={archive}>Archive task</Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Task Sidebar */}
-      {task && project && (
-        <TaskSidebar
-          isOpen={showTaskSidebar}
-          onClose={() => setShowTaskSidebar(false)}
-          task={task}
-          project={project}
-          onUpdate={handleTaskUpdate}
-          onDelete={handleTaskDelete}
-        />
-      )}
-
-      {/* Chat Sidebar */}
-      {task && project && (
-        <TaskChatSidebar
-          isOpen={showChatSidebar}
-          onClose={() => setShowChatSidebar(false)}
-          task={task}
-        />
-      )}
+      <SendToModal open={sendOpen} onClose={() => setSendOpen(false)} task={task} workspaceId={project?.workspace?._id ?? project?.workspace} onSent={load} />
+      <TaskChatSidebar isOpen={chatOpen} onClose={() => setChatOpen(false)} task={task} />
     </Layout>
   );
 };
-
-// Import FileText icon
-import { FileText } from "lucide-react";
 
 export default TaskDetailPage;

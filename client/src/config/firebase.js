@@ -1,28 +1,24 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
-import { GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+/**
+ * Google sign-in is optional. Fill in the VITE_FIREBASE_* variables in
+ * client/.env (and FIREBASE_PROJECT_ID on the server) to enable it.
+ */
 const firebaseConfig = {
-  apiKey: "AIzaSyCnUfGISgRiwzWNl_TB0Zp_R4L5jGshdJ4",
-  authDomain: "metabees-client.firebaseapp.com",
-  projectId: "metabees-client",
-  storageBucket: "metabees-client.firebasestorage.app",
-  messagingSenderId: "150491440209",
-  appId: "1:150491440209:web:1417e37e969d3304a30470",
-  measurementId: "G-KBXHZTDH4L"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const auth = getAuth(app);
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId
+);
 
-// Initialize Google Auth Provider
-const googleProvider = new GoogleAuthProvider();
+const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 
-export { auth, googleProvider, analytics };
+export const auth = app ? getAuth(app) : null;
+export const googleProvider = app ? new GoogleAuthProvider() : null;
+
 export default app;

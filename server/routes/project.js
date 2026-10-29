@@ -34,6 +34,10 @@ import {
   requireProjectAdmin,
   requireWorkspaceOwnerOrAdmin,
 } from "../middlewares/permissions.js";
+import {
+  requireBoardAccess,
+  requireColumnAccess,
+} from "../middlewares/resourceAccess.js";
 
 // Project CRUD
 router.post(
@@ -126,24 +130,28 @@ router.post(
 router.get(
   "/boards/:boardId/columns",
   requireSignin,
+  requireBoardAccess,
   getBoardColumns,
   handleAuthError
 );
 router.post(
   "/boards/:boardId/columns",
   requireSignin,
+  requireBoardAccess,
   createColumn,
   handleAuthError
 );
 router.put(
   "/columns/:columnId",
   requireSignin,
+  requireColumnAccess,
   updateColumn,
   handleAuthError
 );
 router.delete(
   "/columns/:columnId",
   requireSignin,
+  requireColumnAccess,
   deleteColumn,
   handleAuthError
 );

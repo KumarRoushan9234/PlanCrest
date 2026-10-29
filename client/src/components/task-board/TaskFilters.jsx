@@ -12,9 +12,8 @@ import {
   AlertTriangle
 } from "lucide-react";
 
-const TaskFilters = ({ filters, onFilterChange, projects, currentWorkspace }) => {
+const TaskFilters = ({ filters, onFilterChange }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeFilters, setActiveFilters] = useState(0);
 
   const filterOptions = {
     status: [
@@ -60,7 +59,7 @@ const TaskFilters = ({ filters, onFilterChange, projects, currentWorkspace }) =>
 
   const getActiveFilterCount = () => {
     let count = 0;
-    Object.entries(filters).forEach(([key, value]) => {
+    Object.entries(filters).forEach(([, value]) => {
       if (value !== "all" && value !== "") count++;
     });
     return count;

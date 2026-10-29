@@ -9,7 +9,7 @@ import User from "../models/user.js";
  */
 export const requireWorkspaceMember = async (req, res, next) => {
   try {
-    const { workspaceId } = req.params;
+    const workspaceId = req.params.workspaceId || req.scopedWorkspaceId;
     const userId = req.auth._id;
 
     // Fetch workspace once
@@ -72,7 +72,7 @@ export const requireWorkspaceAdmin = async (req, res, next) => {
     }
 
     // Otherwise fetch it
-    const { workspaceId } = req.params;
+    const workspaceId = req.params.workspaceId || req.scopedWorkspaceId;
     const userId = req.auth._id;
 
     const workspace = await Workspace.findById(workspaceId);
@@ -114,7 +114,7 @@ export const requireWorkspaceAdmin = async (req, res, next) => {
  */
 export const requireProjectAccess = async (req, res, next) => {
   try {
-    const { projectId } = req.params;
+    const projectId = req.params.projectId || req.scopedProjectId;
     const userId = req.auth._id;
 
     // Fetch project once
@@ -278,6 +278,21 @@ export const canEditTask = async (req, res, next) => {
     // Task creator can edit
     if (task && task.createdBy.toString() === userId.toString()) {
       return next();
+    }
+
+    // Clients are external collaborators: view-only unless the workspace opts in
+    if (req.workspaceMember?.role === "client") {
+      if (req.workspace?.settings?.clientPermissions?.canEditTasks === true) return next();
+      return res.status(403).json({
+        error: "Access denied. Clients can view tasks but not edit them.",
+      });
+    }
+
+    // Viewers on a project can read but not change tasks
+    if (req.projectMember?.role === "viewer") {
+      return res.status(403).json({
+        error: "Access denied. You have view-only access to this project.",
+      });
     }
 
     // Check project permissions

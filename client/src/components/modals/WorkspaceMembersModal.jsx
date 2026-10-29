@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -11,7 +11,6 @@ import {
   Search,
 } from "lucide-react";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
-import { useAuth } from "../../contexts/AuthContext";
 import UserAvatar from "../UserAvatar";
 
 const WorkspaceMembersModal = ({ isOpen, onClose }) => {
@@ -22,7 +21,6 @@ const WorkspaceMembersModal = ({ isOpen, onClose }) => {
     updateWorkspaceMember,
     loading,
   } = useWorkspace();
-  const { user: currentUser } = useAuth();
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 

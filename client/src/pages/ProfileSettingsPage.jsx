@@ -1,568 +1,247 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import {
-  User,
-  Mail,
-  Lock,
-  Save,
-  Eye,
-  EyeOff,
-  CheckCircle,
-  Bell,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Layout } from "../components/common-afterauth";
-import { notificationService } from "../services";
+import { Bell, Camera, Eye, EyeOff, Lock, Monitor, Moon, Palette, Sun, User } from "lucide-react";
+import Layout from "../components/common-afterauth/Layout";
+import { useAuth } from "../contexts/AuthContext";
+import { notificationService, uploadService } from "../services";
+import { getThemePreference, setThemePreference } from "../utils/theme";
+import { Avatar, Badge, Button, Card, CardHead, Field, PageHead, Tabs } from "../components/ui";
+
+const DEFAULT_NOTIFICATIONS = {
+  email: { taskAssigned: true, taskDue: true, taskCompleted: false, comments: true, mentions: true, projectCreated: true, deadlineReminder: true, eventReminder: true },
+  inApp: { taskAssigned: true, taskDue: true, taskCompleted: true, mentions: true, comments: true, deadlineReminder: true, eventReminder: true, projectInvite: true },
+  push: { taskAssigned: true, taskCompleted: false, projectInvite: true, workspaceInvite: true, deadlineReminder: true, eventReminder: true },
+};
+
+const NOTIFICATION_LABELS = {
+  taskAssigned: ["Task assigned to me", "When someone assigns you a task."],
+  taskDue: ["Task due soon", "When a task you own is about to be due."],
+  taskCompleted: ["Task completed", "When a task you follow is marked done."],
+  comments: ["Comments", "New comments on tasks you follow."],
+  mentions: ["Mentions", "When someone @mentions you."],
+  projectCreated: ["New projects", "When a project is created in your workspace."],
+  projectInvite: ["Project invitations", "When you're added to a project."],
+  deadlineReminder: ["Deadline reminders", "A heads-up before a deadline."],
+  eventReminder: ["Event reminders", "A heads-up before calendar events."],
+};
+
+const THEMES = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+];
+
+const PasswordField = ({ label, value, onChange, autoComplete, hint }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <Field label={label} hint={hint}>
+      <div style={{ position: "relative" }}>
+        <input className="pc-input" type={show ? "text" : "password"} value={value} onChange={onChange} autoComplete={autoComplete} style={{ paddingRight: 36 }} />
+        <button type="button" className="pc-btn ghost icon sm" style={{ position: "absolute", right: 4, top: 4 }} onClick={() => setShow((s) => !s)} aria-label={show ? "Hide password" : "Show password"}>
+          {show ? <EyeOff size={13} /> : <Eye size={13} />}
+        </button>
+      </div>
+    </Field>
+  );
+};
+
+const Switch = ({ checked, onChange, label }) => (
+  <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={onChange}
+    style={{ width: 34, height: 20, borderRadius: 10, border: "1px solid var(--line)", background: checked ? "var(--blue, #4d8dff)" : "var(--panel2, var(--panel))", position: "relative", flexShrink: 0, cursor: "pointer", padding: 0 }}>
+    <span style={{ position: "absolute", top: 2, left: checked ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+  </button>
+);
 
 const ProfileSettingsPage = () => {
-  const { user, updateProfile, changePassword } = useAuth();
-  const [activeTab, setActiveTab] = useState("profile");
-  const [loading, setLoading] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { user, updateProfile, changePassword, setUserData } = useAuth();
+  const [tab, setTab] = useState("profile");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [theme, setTheme] = useState(getThemePreference);
+  const [profile, setProfile] = useState({ name: user?.name || "", gender: user?.gender || "not specified" });
+  const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
+  const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATIONS);
+  const fileRef = useRef(null);
 
-  // Profile form state
-  const [profileData, setProfileData] = useState({
-    name: user?.name || "",
-    gender: user?.gender || "not specified",
-  });
-
-  // Password form state
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-
-  // Notification settings state
-  const [notificationSettings, setNotificationSettings] = useState({
-    email: {
-      taskAssigned: true,
-      taskDue: true,
-      taskCompleted: false,
-      comments: true,
-      mentions: true,
-      projectCreated: true,
-      deadlineReminder: true,
-      eventReminder: true,
-    },
-    inApp: {
-      taskAssigned: true,
-      taskDue: true,
-      taskCompleted: true,
-      mentions: true,
-      comments: true,
-      deadlineReminder: true,
-      eventReminder: true,
-      projectInvite: true,
-    },
-    push: {
-      taskAssigned: true,
-      taskCompleted: false,
-      projectInvite: true,
-      workspaceInvite: true,
-      deadlineReminder: true,
-      eventReminder: true,
-    },
-  });
-
-  // Fetch notification settings on mount
   useEffect(() => {
-    const fetchNotificationSettings = async () => {
-      try {
-        const response = await notificationService.getNotificationSettings();
-        if (response?.success && response?.data) {
-          setNotificationSettings(response.data);
-        }
-      } catch (error) {
-        console.error("Error fetching notification settings:", error);
-      }
-    };
+    setProfile({ name: user?.name || "", gender: user?.gender || "not specified" });
+  }, [user?.name, user?.gender]);
 
-    if (activeTab === "notifications") {
-      fetchNotificationSettings();
-    }
-  }, [activeTab]);
+  useEffect(() => {
+    if (tab !== "notifications") return;
+    notificationService
+      .getNotificationSettings()
+      .then((res) => res?.data && setNotifications({ ...DEFAULT_NOTIFICATIONS, ...res.data }))
+      .catch(() => {});
+  }, [tab]);
 
-  const handleProfileSubmit = async (e) => {
+  const saveProfile = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
+    if (!profile.name.trim()) return toast.error("Name can't be empty");
+    setSaving(true);
     try {
-      await updateProfile(profileData);
-      toast.success("Profile updated successfully!");
-    } catch (error) {
-      console.error("Profile update error:", error);
+      await updateProfile({ ...profile, name: profile.name.trim() });
+      toast.success("Profile updated");
+    } catch {
+      // the auth context already surfaces the error
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handlePasswordSubmit = async (e) => {
+  const savePassword = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
+    if (passwords.next.length < 8) return toast.error("The new password must be at least 8 characters");
+    if (passwords.next !== passwords.confirm) return toast.error("The new passwords don't match");
+    setSaving(true);
     try {
-      if (passwordData.newPassword !== passwordData.confirmPassword) {
-        toast.error("New passwords do not match");
-        return;
-      }
-
-      if (passwordData.newPassword.length < 6) {
-        toast.error("New password must be at least 6 characters long");
-        return;
-      }
-
-      await changePassword({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-      });
-
-      toast.success("Password changed successfully!");
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } catch (error) {
-      console.error("Password change error:", error);
+      await changePassword({ currentPassword: passwords.current, newPassword: passwords.next });
+      toast.success("Password changed");
+      setPasswords({ current: "", next: "", confirm: "" });
+    } catch {
+      // the auth context already surfaces the error
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleProfileChange = (e) => {
-    setProfileData({
-      ...profileData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handlePasswordChange = (e) => {
-    setPasswordData({
-      ...passwordData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleNotificationSettingsSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const saveNotifications = async () => {
+    setSaving(true);
     try {
-      await notificationService.updateNotificationSettings(
-        notificationSettings
-      );
-      toast.success("Notification settings updated successfully!");
-    } catch (error) {
-      console.error("Notification settings update error:", error);
-      toast.error("Failed to update notification settings");
+      await notificationService.updateNotificationSettings(notifications);
+      toast.success("Notification preferences saved");
+    } catch {
+      toast.error("Couldn't save notification preferences");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleNotificationToggle = (category, setting) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [setting]: !prev[category][setting],
-      },
-    }));
+  const toggle = (group, key) => setNotifications((n) => ({ ...n, [group]: { ...n[group], [key]: !n[group][key] } }));
+
+  const uploadAvatar = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Choose an image file");
+    if (file.size > 5 * 1024 * 1024) return toast.error("The image must be under 5 MB");
+    setUploading(true);
+    try {
+      const res = await uploadService.uploadProfilePhoto(file);
+      if (res?.success && res?.data?.user) {
+        setUserData(res.data.user);
+        toast.success("Profile photo updated");
+      } else {
+        toast.error("Couldn't update your photo");
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Couldn't upload the photo");
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const pickTheme = (value) => {
+    setTheme(value);
+    setThemePreference(value);
+  };
+
+  const groupRows = (group) =>
+    Object.keys(notifications[group] || {})
+      .filter((key) => NOTIFICATION_LABELS[key])
+      .map((key) => (
+        <div key={key} className="pc-row" style={{ cursor: "default", justifyContent: "space-between" }}>
+          <span className="grow"><b>{NOTIFICATION_LABELS[key][0]}</b><small>{NOTIFICATION_LABELS[key][1]}</small></span>
+          <Switch checked={Boolean(notifications[group][key])} onChange={() => toggle(group, key)} label={NOTIFICATION_LABELS[key][0]} />
+        </div>
+      ));
 
   return (
     <Layout>
-      <div
-        className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8"
-        style={{ backgroundColor: "#171819" }}
-      >
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Profile Settings
-          </h1>
-          <p className="text-gray-400">
-            Manage your account settings and preferences
-          </p>
-        </div>
+      <div className="pc-page" style={{ maxWidth: 760 }}>
+        <PageHead title="Settings" sub="Your profile, appearance, security and notifications." />
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: "profile", label: "Profile", icon: <User size={13} /> },
+            { value: "appearance", label: "Appearance", icon: <Palette size={13} /> },
+            { value: "security", label: "Security", icon: <Lock size={13} /> },
+            { value: "notifications", label: "Notifications", icon: <Bell size={13} /> },
+          ]}
+        />
 
-        {/* Tabs */}
-        <div className="mb-8">
-          <div className="border-b border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab("profile")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "profile"
-                    ? "border-blue-500 text-blue-400"
-                    : "border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300"
-                }`}
-              >
-                <User className="w-4 h-4 inline mr-2" />
-                Profile Information
-              </button>
-              <button
-                onClick={() => setActiveTab("password")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "password"
-                    ? "border-blue-500 text-blue-400"
-                    : "border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300"
-                }`}
-              >
-                <Lock className="w-4 h-4 inline mr-2" />
-                Change Password
-              </button>
-              <button
-                onClick={() => setActiveTab("notifications")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "notifications"
-                    ? "border-blue-500 text-blue-400"
-                    : "border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300"
-                }`}
-              >
-                <Bell className="w-4 h-4 inline mr-2" />
-                Notifications
-              </button>
-            </nav>
-          </div>
-        </div>
-
-        {/* Profile Tab */}
-        {activeTab === "profile" && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <form onSubmit={handleProfileSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Name Field */}
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={profileData.name}
-                    onChange={handleProfileChange}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
-
-                {/* Email Field (Read-only) */}
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="email"
-                      id="email"
-                      value={user?.email || ""}
-                      className="w-full pl-10 pr-3 py-2 bg-gray-600 border border-gray-600 rounded-lg text-gray-300 cursor-not-allowed"
-                      disabled
-                    />
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                    </div>
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Email cannot be changed
-                  </p>
-                </div>
-
-                {/* Gender Field */}
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="gender"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    Gender
-                  </label>
-                  <select
-                    id="gender"
-                    name="gender"
-                    value={profileData.gender}
-                    onChange={handleProfileChange}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="not specified">Not Specified</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
-                </div>
+        {tab === "profile" && (
+          <Card>
+            <CardHead icon={User} title="Profile" />
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+              <Avatar user={user} size="xl" />
+              <div>
+                <Button icon={Camera} loading={uploading} onClick={() => fileRef.current?.click()}>Change photo</Button>
+                <div className="pc-dim" style={{ marginTop: 6 }}>JPG, PNG or GIF up to 5 MB.</div>
+                <input ref={fileRef} type="file" accept="image/*" hidden onChange={uploadAvatar} />
               </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors"
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  {loading ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
+            </div>
+            <form onSubmit={saveProfile} style={{ display: "grid", gap: 14 }}>
+              <Field label="Full name"><input className="pc-input" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} maxLength={80} /></Field>
+              <Field label="Email" hint="Your email is your sign-in and can't be changed here.">
+                <input className="pc-input" value={user?.email || ""} disabled />
+              </Field>
+              <Field label="Gender">
+                <select className="pc-select" value={profile.gender} onChange={(e) => setProfile((p) => ({ ...p, gender: e.target.value }))}>
+                  <option value="not specified">Prefer not to say</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </Field>
+              <div><Button variant="primary" type="submit" loading={saving}>Save changes</Button></div>
             </form>
-          </div>
+          </Card>
         )}
 
-        {/* Password Tab */}
-        {activeTab === "password" && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <form onSubmit={handlePasswordSubmit} className="space-y-6">
-              <div className="space-y-4">
-                {/* Current Password */}
-                <div>
-                  <label
-                    htmlFor="currentPassword"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    Current Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type={showCurrentPassword ? "text" : "password"}
-                      id="currentPassword"
-                      name="currentPassword"
-                      value={passwordData.currentPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter current password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowCurrentPassword(!showCurrentPassword)
-                      }
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                    >
-                      {showCurrentPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* New Password */}
-                <div>
-                  <label
-                    htmlFor="newPassword"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type={showNewPassword ? "text" : "password"}
-                      id="newPassword"
-                      name="newPassword"
-                      value={passwordData.newPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter new password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                    >
-                      {showNewPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Must be at least 6 characters long
-                  </p>
-                </div>
-
-                {/* Confirm Password */}
-                <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-gray-300 mb-2"
-                  >
-                    Confirm New Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      value={passwordData.confirmPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Confirm new password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors"
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  ) : (
-                    <Lock className="w-4 h-4 mr-2" />
-                  )}
-                  {loading ? "Changing..." : "Change Password"}
+        {tab === "appearance" && (
+          <Card>
+            <CardHead icon={Palette} title="Theme" />
+            <p className="pc-muted" style={{ marginTop: 0 }}>Choose how PlanCrest looks. System follows your device setting.</p>
+            <div className="pc-grid pc-cols-3">
+              {THEMES.map(({ value, label, icon: Icon }) => (
+                <button key={value} type="button" className={`pc-chip ${theme === value ? "on" : ""}`} style={{ justifyContent: "center", padding: "18px 10px", flexDirection: "column", gap: 8 }} aria-pressed={theme === value} onClick={() => pickTheme(value)}>
+                  <Icon size={18} />
+                  {label}
                 </button>
-              </div>
-            </form>
-          </div>
+              ))}
+            </div>
+          </Card>
         )}
 
-        {/* Notifications Tab */}
-        {activeTab === "notifications" && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <form
-              onSubmit={handleNotificationSettingsSubmit}
-              className="space-y-8"
-            >
-              {/* Email Notifications */}
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Mail className="w-5 h-5 mr-2" />
-                  Email Notifications
-                </h3>
-                <div className="space-y-3">
-                  {Object.keys(notificationSettings.email).map((setting) => (
-                    <label
-                      key={setting}
-                      className="flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650"
-                    >
-                      <span className="text-sm text-gray-300 capitalize">
-                        {setting.replace(/([A-Z])/g, " $1").trim()}
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.email[setting]}
-                        onChange={() =>
-                          handleNotificationToggle("email", setting)
-                        }
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-gray-800"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
+        {tab === "security" && (
+          <Card>
+            <CardHead icon={Lock} title="Change password" />
+            {user?.authProvider === "google" || user?.googleId ? (
+              <p className="pc-muted" style={{ margin: 0 }}>You sign in with Google, so there's no PlanCrest password to change.</p>
+            ) : (
+              <form onSubmit={savePassword} style={{ display: "grid", gap: 14 }}>
+                <PasswordField label="Current password" value={passwords.current} autoComplete="current-password" onChange={(e) => setPasswords((p) => ({ ...p, current: e.target.value }))} />
+                <PasswordField label="New password" hint="At least 8 characters." value={passwords.next} autoComplete="new-password" onChange={(e) => setPasswords((p) => ({ ...p, next: e.target.value }))} />
+                <PasswordField label="Confirm new password" value={passwords.confirm} autoComplete="new-password" onChange={(e) => setPasswords((p) => ({ ...p, confirm: e.target.value }))} />
+                <div><Button variant="primary" type="submit" loading={saving} disabled={!passwords.current || !passwords.next}>Update password</Button></div>
+              </form>
+            )}
+          </Card>
+        )}
 
-              {/* In-App Notifications */}
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Bell className="w-5 h-5 mr-2" />
-                  In-App Notifications
-                </h3>
-                <div className="space-y-3">
-                  {Object.keys(notificationSettings.inApp).map((setting) => (
-                    <label
-                      key={setting}
-                      className="flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650"
-                    >
-                      <span className="text-sm text-gray-300 capitalize">
-                        {setting.replace(/([A-Z])/g, " $1").trim()}
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.inApp[setting]}
-                        onChange={() =>
-                          handleNotificationToggle("inApp", setting)
-                        }
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-gray-800"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Push Notifications */}
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Bell className="w-5 h-5 mr-2" />
-                  Push Notifications
-                </h3>
-                <div className="space-y-3">
-                  {Object.keys(notificationSettings.push).map((setting) => (
-                    <label
-                      key={setting}
-                      className="flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650"
-                    >
-                      <span className="text-sm text-gray-300 capitalize">
-                        {setting.replace(/([A-Z])/g, " $1").trim()}
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.push[setting]}
-                        onChange={() =>
-                          handleNotificationToggle("push", setting)
-                        }
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-gray-800"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end pt-4 border-t border-gray-700">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors"
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  {loading ? "Saving..." : "Save Settings"}
-                </button>
-              </div>
-            </form>
+        {tab === "notifications" && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <Card>
+              <CardHead icon={Bell} title="In-app"><Badge>Bell menu</Badge></CardHead>
+              <div style={{ display: "grid", gap: 2 }}>{groupRows("inApp")}</div>
+            </Card>
+            <Card>
+              <CardHead icon={Bell} title="Email"><Badge>Inbox</Badge></CardHead>
+              <div style={{ display: "grid", gap: 2 }}>{groupRows("email")}</div>
+            </Card>
+            <div><Button variant="primary" loading={saving} onClick={saveNotifications}>Save preferences</Button></div>
           </div>
         )}
       </div>

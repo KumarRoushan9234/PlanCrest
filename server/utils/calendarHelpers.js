@@ -1,5 +1,4 @@
 import CalendarEvent from "../models/calendarEvent.js";
-import CalendarIntegration from "../models/calendarIntegration.js";
 import { sendCalendarEventEmail, sendEventReminderEmail } from "./emailTemplates.js";
 import { createCalendarNotification } from "./notificationHelpers.js";
 
@@ -243,78 +242,6 @@ export const exportCalendarData = async (workspaceId, startDate, endDate) => {
 };
 
 /**
- * Sync Google Calendar
- * Note: This is a placeholder. Actual implementation requires Google Calendar API setup
- */
-export const syncGoogleCalendar = async (userId, workspaceId) => {
-  try {
-    const integration = await CalendarIntegration.findOne({
-      user: userId,
-      workspace: workspaceId,
-      provider: "google",
-      isActive: true,
-    });
-    
-    if (!integration) {
-      throw new Error("Google Calendar integration not found");
-    }
-    
-    // Check if token needs refresh
-    if (integration.needsRefresh()) {
-      // TODO: Implement token refresh logic with Google OAuth
-    }
-    
-    // Update sync status
-    integration.syncStatus.lastSyncAt = new Date();
-    integration.syncStatus.nextSyncAt = integration.calculateNextSync();
-    await integration.save();
-    
-    return {
-      success: true,
-      message: "Google Calendar sync initiated (API implementation pending)",
-    };
-  } catch (error) {
-    throw error;
-  }
-};
-
-/**
- * Sync Outlook Calendar
- * Note: This is a placeholder. Actual implementation requires Microsoft Graph API setup
- */
-export const syncOutlookCalendar = async (userId, workspaceId) => {
-  try {
-    const integration = await CalendarIntegration.findOne({
-      user: userId,
-      workspace: workspaceId,
-      provider: "outlook",
-      isActive: true,
-    });
-    
-    if (!integration) {
-      throw new Error("Outlook Calendar integration not found");
-    }
-    
-    // Check if token needs refresh
-    if (integration.needsRefresh()) {
-      // TODO: Implement token refresh logic with Microsoft OAuth
-    }
-    
-    // Update sync status
-    integration.syncStatus.lastSyncAt = new Date();
-    integration.syncStatus.nextSyncAt = integration.calculateNextSync();
-    await integration.save();
-    
-    return {
-      success: true,
-      message: "Outlook Calendar sync initiated (API implementation pending)",
-    };
-  } catch (error) {
-    throw error;
-  }
-};
-
-/**
  * Get user availability for a time range
  */
 export const getUserAvailability = async (userId, workspaceId, startDate, endDate) => {
@@ -400,8 +327,6 @@ export default {
   sendEventReminders,
   updateEventAttendees,
   exportCalendarData,
-  syncGoogleCalendar,
-  syncOutlookCalendar,
   getUserAvailability,
   findOptimalMeetingTime,
 };

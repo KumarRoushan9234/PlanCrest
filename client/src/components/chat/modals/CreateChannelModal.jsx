@@ -191,14 +191,14 @@ const CreateChannelModal = ({
 
         {/* Modal */}
         <motion.div
-          className="relative bg-[#1a1b1d] rounded-xl border border-gray-800/50 shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
+          className="relative bg-gray-800 rounded-xl border border-gray-800/50 shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-800/50 sticky top-0 bg-[#1a1b1d] z-10">
+          <div className="flex items-center justify-between p-6 border-b border-gray-800/50 sticky top-0 bg-gray-800 z-10">
             <h2 className="text-xl font-semibold text-white">Create Channel</h2>
             <motion.button
               onClick={onClose}
@@ -483,7 +483,7 @@ const CreateChannelModal = ({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-4 sticky bottom-0 bg-[#1a1b1d] pb-2">
+            <div className="flex gap-3 pt-4 sticky bottom-0 bg-gray-800 pb-2">
               <motion.button
                 type="button"
                 onClick={onClose}

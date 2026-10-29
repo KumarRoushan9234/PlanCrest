@@ -7,7 +7,6 @@ import { useChatRealtime } from "../../hooks/useChatRealtime";
 import MessageList from "../chat/messages/MessageList";
 import MessageInput from "../chat/input/MessageInput";
 import { EmptyState, LoadingState } from "../chat/shared";
-import { formatMessageTime } from "../../utils/dateFormatter";
 import toast from "react-hot-toast";
 
 /**
@@ -77,7 +76,7 @@ const TaskChatSidebar = ({ isOpen, onClose, task }) => {
         )
       );
       toast.success("Message updated");
-    } catch (error) {
+    } catch {
       toast.error("Failed to update message");
     }
   };
@@ -93,7 +92,7 @@ const TaskChatSidebar = ({ isOpen, onClose, task }) => {
         )
       );
       toast.success("Message deleted");
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete message");
     }
   };
@@ -114,7 +113,7 @@ const TaskChatSidebar = ({ isOpen, onClose, task }) => {
           return msg;
         })
       );
-    } catch (error) {
+    } catch {
       toast.error("Failed to add reaction");
     }
   };

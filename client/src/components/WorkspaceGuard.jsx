@@ -5,7 +5,7 @@ import { CreateWorkspaceModal } from "./modals";
 import { AuthLoader } from "./loaders";
 
 const WorkspaceGuard = ({ children }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { workspaces, loading: workspaceLoading } = useWorkspace();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
