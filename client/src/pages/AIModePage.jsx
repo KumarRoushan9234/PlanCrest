@@ -39,8 +39,8 @@ const Assistant = ({ workspaceId, onActivity }) => {
     setInput("");
     setSending(true);
     try {
-      const { reply, actions } = await aiService.chat(workspaceId, history.map(({ role, content: c }) => ({ role, content: c })));
-      setMessages([...history, { role: "assistant", content: reply, actions }]);
+      const { reply, actions, model } = await aiService.chat(workspaceId, history.map(({ role, content: c }) => ({ role, content: c })));
+      setMessages([...history, { role: "assistant", content: reply, actions, model }]);
       if (actions?.length) toast.success(`Created ${actions.length} task${actions.length > 1 ? "s" : ""}`);
       onActivity();
     } catch (error) {
@@ -82,6 +82,7 @@ const Assistant = ({ workspaceId, onActivity }) => {
               }}
             >
               {m.role === "user" ? <span style={{ whiteSpace: "pre-wrap" }}>{m.content}</span> : <Markdown text={m.content} />}
+              {m.model && <div className="pc-dim" style={{ fontSize: 11, marginTop: 6 }}>{m.model}</div>}
               {m.actions?.map((a) => (
                 <Link key={a.taskId} className="pc-link" style={{ display: "block", marginTop: 6, fontSize: 12 }} to={`/project/${maskId(a.projectId)}/task/${maskId(a.taskId)}`}>
                   Created {a.taskKey}: {a.title}
@@ -219,14 +220,19 @@ const AIModePage = () => {
     <Layout>
       <div className="pc-page">
         <PageHead title="AI Mode" sub="An assistant that knows your workspace.">
-          {status?.enabled && <Badge tone="blue"><Sparkles size={11} /> {status.model}</Badge>}
+          {status?.enabled && (
+            <Badge tone="blue" title={(status.providers || []).map((p) => `${p.name}: ${p.models.join(", ")}`).join("
+")}>
+              <Sparkles size={11} /> {(status.providers || []).map((p) => p.name).join(" → ") || status.model}
+            </Badge>
+          )}
         </PageHead>
 
         {status === null || !workspaceId ? (
           <Skeleton h={300} />
         ) : !status.enabled ? (
           <Banner tone="warn" icon={Sparkles}>
-            AI Mode isn't set up yet. Set <code>OPENROUTER_API_KEY</code> and <code>OPENROUTER_MODEL</code> in <code>server/.env</code> and restart the server.
+            AI Mode isn't set up yet. Add an API key and model list for OpenRouter, GroqCloud or DeepSeek in <code>server/.env</code> (see <code>.env.example</code>) and restart the server.
           </Banner>
         ) : (
           <>

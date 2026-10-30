@@ -8,6 +8,8 @@ process.env.JWT_SECRET = "test-secret-test-secret-test-secret-1234";
 process.env.NODE_ENV = "test";
 process.env.EMAIL_USER = "";
 process.env.EMAIL_PASS = "";
+// Never reach real AI providers from tests
+for (const k of ["OPENROUTER_API_KEY", "GROQCLOUD_API_KEY", "DEEPSEEK_API_KEY", "OPENROUTER_MODELS", "GROQCLOUD_MODELS", "DEEPSEEK_MODELS", "LLM_FALLBACK_ORDER"]) process.env[k] = "";
 
 let mongod;
 let app;
@@ -125,6 +127,10 @@ describe("AI Mode (OpenRouter)", () => {
       req.on("data", (c) => (body += c));
       req.on("end", () => {
         const payload = JSON.parse(body);
+        if (payload.model === "vendor/missing-model") {
+          res.statusCode = 404;
+          return res.end(JSON.stringify({ error: { message: "model not found" } }));
+        }
         seen.push({ auth: req.headers.authorization, model: payload.model, tools: payload.tools?.length || 0 });
         const calledTool = payload.messages.some((m) => m.role === "tool");
         const message = calledTool
@@ -137,7 +143,8 @@ describe("AI Mode (OpenRouter)", () => {
     await new Promise((r) => server.listen(0, r));
     process.env.OPENROUTER_BASE_URL = `http://127.0.0.1:${server.address().port}`;
     process.env.OPENROUTER_API_KEY = "test-key";
-    process.env.OPENROUTER_MODEL = "vendor/test-model";
+    process.env.OPENROUTER_MODELS = "vendor/missing-model,vendor/test-model";
+    process.env.LLM_FALLBACK_ORDER = "openrouter";
     // client.js reads the base URL at import time, so load a fresh app instance
     owner = await makeUser("Aiowner");
     const ws = await request(app).post("/api/workspaces").set(as(owner)).send({ name: "AI Co" });
@@ -150,13 +157,17 @@ describe("AI Mode (OpenRouter)", () => {
   it("reports the model from the environment", async () => {
     const res = await request(app).get("/api/ai/status").set(as(owner));
     assert.equal(res.body.enabled, true);
-    assert.equal(res.body.model, "vendor/test-model");
+    assert.equal(res.body.model, "vendor/missing-model");
+    assert.deepEqual(res.body.providers[0].models, ["vendor/missing-model", "vendor/test-model"]);
+    assert.ok(!JSON.stringify(res.body).includes("test-key"), "status must not leak keys");
   });
 
   it("runs the tool loop and returns the final answer", async () => {
     const res = await request(app).post(`/api/ai/workspaces/${workspace._id}/chat`).set(as(owner)).send({ messages: [{ role: "user", content: "How many projects?" }] });
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal(res.body.reply, "You have 1 project.");
+    // The first model 404s, so the answer must come from the fallback model
+    assert.equal(res.body.model, "openrouter/vendor/test-model");
     assert.equal(seen[0].auth, "Bearer test-key");
     assert.equal(seen[0].model, "vendor/test-model");
     assert.ok(seen[0].tools > 0);

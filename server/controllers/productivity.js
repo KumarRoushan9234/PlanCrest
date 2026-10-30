@@ -262,6 +262,8 @@ export const setCustomFieldDefs = async (req, res) => {
 export const setCustomFieldValues = async (req, res) => {
   try {
     const task = await Task.findById(req.params.taskId);
+    if (!task) return res.status(404).json({ error: "Task not found" });
+    if (!task.customFields) task.customFields = new Map();
     const project = await Project.findById(task.project).select("customFieldDefs");
     const allowed = new Map(project.customFieldDefs.map((d) => [d.key, d]));
     for (const [key, value] of Object.entries(req.body?.values || {})) {

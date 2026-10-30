@@ -220,11 +220,14 @@ export const exportCalendarData = async (workspaceId, startDate, endDate) => {
         icsContent.push(`LOCATION:${event.location}`);
       }
       icsContent.push(`STATUS:${event.status.toUpperCase()}`);
-      icsContent.push(`ORGANIZER:CN=${event.createdBy.name}:MAILTO:${event.createdBy.email}`);
+      if (event.createdBy) {
+        icsContent.push(`ORGANIZER:CN=${event.createdBy.name}:MAILTO:${event.createdBy.email}`);
+      }
       
       for (const attendee of event.attendees) {
+        if (!attendee.user) continue;
         icsContent.push(
-          `ATTENDEE;CN=${attendee.user.name};PARTSTAT=${attendee.response.toUpperCase()}:MAILTO:${attendee.user.email}`
+          `ATTENDEE;CN=${attendee.user.name};PARTSTAT=${(attendee.response || "needs-action").toUpperCase()}:MAILTO:${attendee.user.email}`
         );
       }
       

@@ -2,7 +2,7 @@ import { z } from "zod";
 import AiUsage from "../models/aiUsage.js";
 import Task from "../models/task.js";
 import Subtask from "../models/subtask.js";
-import { createCompletion, describeAiError, getAiModel, isAiEnabled } from "../utils/ai/client.js";
+import { createCompletion, describeAiError, getAiModel, getProviderChain, isAiEnabled } from "../utils/ai/client.js";
 import { TOOL_DEFINITIONS, findTasks, runTool } from "../utils/ai/workspaceTools.js";
 
 const MAX_TOOL_ROUNDS = 8;
@@ -33,7 +33,7 @@ const recordUsage = (ctx, feature, usage, extra = {}) =>
     user: ctx.userId,
     workspace: ctx.workspace._id,
     feature,
-    model: getAiModel(),
+    model: usage.model || getAiModel(),
     inputTokens: usage.input,
     outputTokens: usage.output,
     ...extra,
@@ -55,16 +55,17 @@ const sanitizeHistory = (messages) => {
 /** Run the model with the workspace tools until it produces a final answer. */
 const runAssistant = async (ctx, system, history) => {
   const messages = [{ role: "system", content: system }, ...history];
-  const usage = { input: 0, output: 0 };
+  const usage = { input: 0, output: 0, model: null };
   let toolCalls = 0;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const { message, usage: u } = await createCompletion({ messages, tools: TOOL_DEFINITIONS, maxTokens: 2000 });
+    const { message, usage: u, provider, model } = await createCompletion({ messages, tools: TOOL_DEFINITIONS, maxTokens: 2000 });
     usage.input += u.input;
     usage.output += u.output;
+    usage.model = `${provider}/${model}`;
 
     const calls = message.tool_calls || [];
-    if (!calls.length) return { reply: (message.content || "").trim() || "Done.", usage, toolCalls };
+    if (!calls.length) return { reply: (message.content || "").trim() || "Done.", usage, toolCalls, model: usage.model };
 
     messages.push({ role: "assistant", content: message.content || null, tool_calls: calls });
     for (const call of calls) {
@@ -84,13 +85,19 @@ const runAssistant = async (ctx, system, history) => {
 };
 
 export const getAiStatus = (req, res) => {
-  res.json({ enabled: isAiEnabled(), model: isAiEnabled() ? getAiModel() : null });
+  const chain = getProviderChain();
+  res.json({
+    enabled: chain.length > 0,
+    model: chain[0]?.models[0] || null,
+    // Names only, never keys
+    providers: chain.map((p) => ({ name: p.label, models: p.models })),
+  });
 };
 
 export const requireAiEnabled = (req, res, next) => {
   if (!isAiEnabled()) {
     return res.status(503).json({
-      error: "AI Mode is not configured. Set OPENROUTER_API_KEY and OPENROUTER_MODEL on the server to enable it.",
+      error: "AI Mode is not configured. Set an API key and model list for at least one provider (OPENROUTER_*, GROQCLOUD_* or DEEPSEEK_*) on the server.",
     });
   }
   next();
@@ -110,7 +117,7 @@ export const chat = async (req, res) => {
       toolCalls: result.toolCalls,
       actionsTaken: ctx.actions.length,
     });
-    res.json({ reply: result.reply, actions: ctx.actions });
+    res.json({ reply: result.reply, actions: ctx.actions, model: result.model });
   } catch (error) {
     console.error("AI chat error:", error.message);
     const { status, message } = describeAiError(error);
@@ -130,7 +137,7 @@ export const planDay = async (req, res) => {
       });
     }
 
-    const { message, usage } = await createCompletion({
+    const { message, usage, provider, model } = await createCompletion({
       messages: [
         { role: "system", content: baseSystemPrompt(ctx) },
         {
@@ -144,7 +151,7 @@ export const planDay = async (req, res) => {
         },
       ],
     });
-    recordUsage(ctx, "plan_day", usage);
+    recordUsage(ctx, "plan_day", { ...usage, model: `${provider}/${model}` });
     res.json({ reply: (message.content || "").trim() || "I couldn't build a plan right now.", taskCount: tasks.length });
   } catch (error) {
     console.error("AI plan-day error:", error.message);
@@ -167,7 +174,7 @@ export const breakdownTask = async (req, res) => {
     const task = await Task.findById(req.params.taskId).lean();
     const existing = await Subtask.find({ task: task._id }).select("title").lean();
 
-    const { message, usage } = await createCompletion({
+    const { message, usage, provider, model } = await createCompletion({
       json: true,
       messages: [
         {
@@ -184,7 +191,7 @@ export const breakdownTask = async (req, res) => {
         },
       ],
     });
-    recordUsage(ctx, "task_breakdown", usage);
+    recordUsage(ctx, "task_breakdown", { ...usage, model: `${provider}/${model}` });
 
     let suggestions = null;
     try {

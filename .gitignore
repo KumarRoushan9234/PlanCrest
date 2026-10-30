@@ -32,4 +32,3 @@ Thumbs.db
 # Optional JSON settings file (see server/config.example.json)
 config.local.json
 
-/.github

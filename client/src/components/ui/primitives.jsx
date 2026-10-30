@@ -97,7 +97,7 @@ export function Tabs({ value, onChange, tabs }) {
   );
 }
 
-export const Badge = ({ tone = "", children, className = "" }) => <span className={cn("pc-badge", tone, className)}>{children}</span>;
+export const Badge = ({ tone = "", children, className = "", ...rest }) => <span className={cn("pc-badge", tone, className)} {...rest}>{children}</span>;
 
 export function Avatar({ user, name, src, size = "", className = "" }) {
   const url = src ?? avatarUrl(user);

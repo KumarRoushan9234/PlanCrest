@@ -276,8 +276,16 @@ export const updateTask = async (req, res) => {
     if (title) task.title = title;
     if (description !== undefined) task.description = description;
     if (column) task.column = column;
-    if (priority) task.priority = priority;
-    if (status) task.status = status;
+    if (priority) {
+      if (!["low", "medium", "high"].includes(priority)) return res.status(400).json({ error: "Priority must be low, medium or high" });
+      task.priority = priority;
+    }
+    if (status) {
+      if (!["backlog", "todo", "in_progress", "in_review", "done", "blocked", "cancelled"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      task.status = status;
+    }
     if (dueDate !== undefined) task.dueDate = dueDate;
     if (startDate !== undefined) task.startDate = startDate;
     if (estimatedTime) task.estimatedTime = estimatedTime;
@@ -1070,6 +1078,10 @@ export const updateTaskStatus = async (req, res) => {
     const { taskId } = req.params;
     const { status, columnId } = req.body;
     const userId = req.auth._id;
+    const VALID_STATUSES = ["backlog", "todo", "in_progress", "in_review", "done", "blocked", "cancelled"];
+    if (!VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `Status must be one of: ${VALID_STATUSES.join(", ")}` });
+    }
 
     console.log(`\n📋 Updating task status: ${taskId} to ${status}`);
 

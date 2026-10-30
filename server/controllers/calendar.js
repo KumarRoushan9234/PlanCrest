@@ -710,7 +710,13 @@ export const exportCalendar = async (req, res) => {
     const { startDate, endDate } = req.query;
 
 
-    const icsData = await exportCalendarData(workspaceId, startDate, endDate);
+    // Default to a window around today so a plain download works
+    const from = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 86400000);
+    const to = endDate ? new Date(endDate) : new Date(Date.now() + 365 * 86400000);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return res.status(400).json({ error: "startDate and endDate must be valid dates" });
+    }
+    const icsData = await exportCalendarData(workspaceId, from, to);
 
 
     res.setHeader("Content-Type", "text/calendar");

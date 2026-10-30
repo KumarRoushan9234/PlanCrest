@@ -41,5 +41,8 @@
   "description": "PlanCrest web app (React + Vite)",
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.0"
   }
 }

@@ -1,8 +1,38 @@
-# PlanCrest
+<p align="center">
+  <img src="client/public/logo.svg" width="64" height="64" alt="PlanCrest logo" />
+</p>
 
-Open-source project management for teams: boards, tasks, calendar, docs, chat, time tracking and an AI assistant in one self-hostable workspace.
+<h1 align="center">PlanCrest</h1>
 
-[MIT licensed](LICENSE) · Built with React, Express and MongoDB
+<p align="center">
+  Open source project management for teams: boards, tasks, calendar, docs, chat, time tracking and an AI assistant in one self hostable workspace.
+</p>
+
+<p align="center">
+  <a href="LICENSE">MIT license</a> · React · Express · MongoDB · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/DEPLOYMENT.md">Deployment</a>
+</p>
+
+![PlanCrest dashboard](docs/screenshots/dashboard.png)
+
+## Screenshots
+
+All screenshots are from the built in demo (`npm run dev:demo`), signed in as the demo owner.
+
+| | |
+| --- | --- |
+| ![Project board](docs/screenshots/project-board.png) **Project board** with drag and drop columns | ![Timeline](docs/screenshots/project-timeline.png) **Timeline (Gantt) view** |
+| ![Task detail](docs/screenshots/task-detail.png) **Task detail** with time tracking, dependencies and repeat | ![Automations](docs/screenshots/project-automations.png) **Automations and custom fields** |
+| ![Chat](docs/screenshots/chat.png) **Team chat** with channels | ![Calendar](docs/screenshots/calendar.png) **Calendar** with events and due dates |
+| ![Goals](docs/screenshots/goals.png) **Goals** with measurable targets | ![Workload](docs/screenshots/workload.png) **Workload** per person |
+| ![Timesheet](docs/screenshots/timesheet.png) **Timesheet** | ![Integrations](docs/screenshots/integrations.png) **Integrations hub** |
+| ![AI Mode](docs/screenshots/ai-mode.png) **AI Mode** | ![Settings](docs/screenshots/profile-settings.png) **Settings** with theme picker |
+| ![Light theme](docs/screenshots/dashboard-light.png) **Light theme** | ![Landing page](docs/screenshots/landing.png) **Landing page** |
+
+<p align="center">
+  <img src="docs/screenshots/mobile-dashboard.png" width="260" alt="Dashboard on a phone" />
+  &nbsp;
+  <img src="docs/screenshots/mobile-task.png" width="260" alt="Task on a phone" />
+</p>
 
 ## Features
 
@@ -60,7 +90,7 @@ npm install
 npm run dev:demo
 ```
 
-`dev:demo` starts the API on a throwaway in-memory MongoDB filled with demo data, so nothing is written anywhere. The first run downloads a MongoDB binary.
+`dev:demo` starts the API on a throwaway in-memory MongoDB filled with demo data, so nothing is written anywhere. The first run downloads a MongoDB binary. Then start the client and sign in with `alex@plancrest.demo` / `PlanCrest-demo-1`.
 
 ### Docker
 
@@ -73,7 +103,9 @@ The web app is served on http://localhost:8080 and the API on http://localhost:8
 
 ## Configuration
 
-Everything is configured through environment variables; see [`server/.env.example`](server/.env.example) and [`client/.env.example`](client/.env.example).
+Everything is configured through environment variables; see [`server/.env.example`](server/.env.example) and [`client/.env.example`](client/.env.example). If you prefer a file, put the same keys in `server/config.local.json` (template: [`server/config.example.json`](server/config.example.json)); `.env` and real environment variables take priority. Both files are git ignored.
+
+For production settings and a go live checklist, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 | Variable | Purpose |
 | --- | --- |
