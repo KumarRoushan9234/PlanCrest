@@ -1,0 +1,159 @@
+/* Base layer: variables used by the pc-* component CSS, resets, scrollbars, motion. */
+:root {
+  --bg: #000000;
+  --panel: #181818;
+  --panel-2: #1f1f1f;
+  --inset: #000000;
+  --hover: #1f1f1f;
+  --line: #272727;
+  --line-2: #313131;
+  --text: #ececef;
+  --sub: #9ea2ae;
+  --dim: #6c7180;
+  --blue: #2563eb;
+  --blue-h: #1d4ed8;
+  --link: #4d8dff;
+  --tint: #7ea6f5;
+  --green: #3fb97f;
+  --green-t: #6fdb9f;
+  --red: #e5675f;
+  --red-t: #ff8f8a;
+  --amber: #e8a93a;
+  --focus: #4d8dff;
+  --ring: 0 0 0 3px rgba(77, 141, 255, 0.25);
+  /* brand tier (landing + auth) */
+  --brand-page: #000000;
+  --brand-card: #181818;
+  --brand-lav: #cfabff;
+  --brand-pink: #f7c6d9;
+  --brand-sky: #87ccff;
+  --brand-mint: #00ddb3;
+  --wash: rgba(255, 255, 255, 0.05);
+  --wash-0: rgba(255, 255, 255, 0.02);
+  --wash-2: rgba(255, 255, 255, 0.07);
+  --line-3: #3a3f4d;
+  --card-h: #1f1f1f;
+  --card-h2: #272727;
+  --btn-h: #272727;
+  --track: #272727;
+  --thead: #131209;
+  --skel: #272727;
+  --blue-bd: #2c4a85;
+  --blue-bd2: #22304d;
+  --blue-t: #cfe0ff;
+  --amber-t: #f4c35b;
+  --glow: transparent;
+  --scroll: #2a2e39;
+  /* gray scale consumed by Tailwind utilities (see @theme in index.css) */
+  --g50: #f4f5f7; --g100: #ececef; --g200: #dfe1e7; --g300: #c4c7d0; --g400: #9ea2ae;
+  --g500: #6c7180; --g600: #353a47; --g700: #262a35; --g800: #121318; --g900: #0c0d11; --g950: #08090c;
+  --white: #ffffff;
+  color-scheme: dark;
+}
+
+/* Light theme: same variable names, light values. Set via <html data-theme="light"> */
+:root[data-theme="light"] {
+  --bg: #ececec;
+  --panel: #ffffff;
+  --panel-2: #f5f5f5;
+  --inset: #f5f5f5;
+  --hover: #f0f0f0;
+  --line: #e2e2e2;
+  --line-2: #d5d9e2;
+  --text: #14161c;
+  --sub: #5b6170;
+  --dim: #8890a0;
+  --blue: #2563eb;
+  --blue-h: #1d4ed8;
+  --link: #2563eb;
+  --tint: #2563eb;
+  --green: #2f9c68;
+  --green-t: #1f8a58;
+  --red: #d03b3b;
+  --red-t: #c23333;
+  --amber: #c88a1f;
+  --focus: #2563eb;
+  --ring: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  --wash: rgba(15, 23, 42, 0.05);
+  --wash-0: rgba(15, 23, 42, 0.02);
+  --wash-2: rgba(15, 23, 42, 0.08);
+  --line-3: #c3c9d4;
+  --card-h: #fbfbfd;
+  --card-h2: #f4f6fa;
+  --btn-h: #e8ebf1;
+  --track: #e6e9ef;
+  --thead: #f4f5f8;
+  --skel: #e9ecf2;
+  --blue-bd: #bcd0fb;
+  --blue-bd2: #cfdcfa;
+  --blue-t: #1d4ed8;
+  --amber-t: #a16a0c;
+  --glow: rgba(37, 99, 235, 0.06);
+  --scroll: #cfd4de;
+  --g50: #10121a; --g100: #1a1d26; --g200: #2c303c; --g300: #434858; --g400: #5f6574;
+  --g500: #8a90a0; --g600: #d3d8e1; --g700: #e6e9ef; --g800: #ffffff; --g900: #f6f7f9; --g950: #eef0f5;
+  --white: #11141b;
+  color-scheme: light;
+}
+
+/* Legacy utility-styled components: keep white text on accent fills in light mode */
+:root[data-theme="light"] :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-purple-500, .bg-purple-600, .bg-green-600, .bg-red-600, .bg-red-500) { color: #fff; }
+:root[data-theme="light"] :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-purple-500, .bg-purple-600, .bg-green-600, .bg-red-600, .bg-red-500) :is(.text-white, svg) { color: #fff; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; font-size: 15px; }
+:root { --ease: cubic-bezier(0.22, 1, 0.36, 1); }
+h1, h2, h3 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+a { color: inherit; }
+::selection { background: rgba(77, 141, 255, 0.35); color: #fff; }
+
+/* thin, quiet scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
+
+/* one consistent keyboard focus style */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+input::placeholder, textarea::placeholder { color: var(--dim); }
+input[type="date"], input[type="time"], input[type="datetime-local"] { color-scheme: dark; }
+
+/* legacy helpers still referenced by older components */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.animate-fadeIn { animation: pc-in 0.25s ease-out; }
+
+@keyframes pc-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pc-spin { to { transform: rotate(360deg); } }
+@keyframes pc-sheen { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes pc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

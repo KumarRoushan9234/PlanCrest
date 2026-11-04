@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 32px;">PlanCrest</h1>
+        </div>
+        
+        <div style="padding: 40px 30px;">
+            <h1 style="color: #333; font-size: 24px; margin-top: 0;">⏰ Task Deadline Approaching!</h1>
+            
+            <p style="color: #666; line-height: 1.6;">Hi {{assigneeName}},</p>
+            
+            <p style="color: #666; line-height: 1.6;">
+                This is a friendly reminder that the task <strong>{{taskTitle}}</strong> is due <strong>{{dueDateFormatted}}</strong>.
+            </p>
+            
+            <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                <h3 style="margin: 0 0 10px 0; color: #856404;">{{taskTitle}}</h3>
+                {{#if taskDescription}}
+                <p style="margin: 0 0 15px 0; color: #856404;">{{taskDescription}}</p>
+                {{/if}}
+                <div style="font-size: 13px; color: #856404;">
+                    <p style="margin: 5px 0;"><strong>Task ID:</strong> {{taskKey}}</p>
+                    <p style="margin: 5px 0;"><strong>Project:</strong> {{projectName}}</p>
+                    <p style="margin: 5px 0;"><strong>Due Date:</strong> {{dueDate}}</p>
+                    <p style="margin: 5px 0;"><strong>Time Remaining:</strong> {{timeRemaining}}</p>
+                    <p style="margin: 5px 0;"><strong>Current Status:</strong> {{status}}</p>
+                </div>
+            </div>
+            
+            <p style="color: #666; line-height: 1.6;">
+                Please make sure to complete this task before the deadline to keep the project on track.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{taskUrl}}" style="display: inline-block; padding: 14px 35px; background-color: #ffc107; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    View Task
+                </a>
+            </div>
+            
+            <p style="color: #999; font-size: 13px; margin-top: 30px;">
+                Need an extension? Contact your project lead to discuss adjusting the deadline.
+            </p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #e9ecef;">
+            <p>© {{year}} PlanCrest. All rights reserved.</p>
+            <p><a href="{{notificationSettingsUrl}}" style="color: #667eea; text-decoration: none;">Manage reminder settings</a></p>
+        </div>
+    </div>
+</body>
+</html>
+

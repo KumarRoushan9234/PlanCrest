@@ -1,0 +1,21 @@
+import { motion } from "framer-motion";
+import React from "react";
+
+/**
+ * Chat Area Component
+ * Main chat area container
+ */
+const ChatArea = ({ children, className = "" }) => {
+  return (
+    <motion.div
+      className={`flex-1 flex flex-col bg-gray-900 ${className}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+export default ChatArea;

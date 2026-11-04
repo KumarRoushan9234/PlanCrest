@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 32px;">PlanCrest</h1>
+        </div>
+        
+        <div style="padding: 40px 30px;">
+            <h1 style="color: #333; font-size: 24px; margin-top: 0;">✅ New Task Assigned to You!</h1>
+            
+            <p style="color: #666; line-height: 1.6;">Hi {{assigneeName}},</p>
+            
+            <p style="color: #666; line-height: 1.6;">
+                You have been assigned a new task by <strong>{{assignedBy}}</strong> in project <strong>{{projectName}}</strong>.
+            </p>
+            
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid {{priorityColor}};">
+                <h3 style="margin: 0 0 10px 0; color: #333;">{{taskTitle}}</h3>
+                {{#if taskDescription}}
+                <p style="margin: 0 0 15px 0; color: #666;">{{taskDescription}}</p>
+                {{/if}}
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 13px; color: #666;">
+                    <span><strong>Task ID:</strong> {{taskKey}}</span>
+                    <span><strong>Priority:</strong> <span style="color: {{priorityColor}};">{{priority}}</span></span>
+                    {{#if dueDate}}
+                    <span><strong>Due Date:</strong> {{dueDate}}</span>
+                    {{/if}}
+                    <span><strong>Status:</strong> {{status}}</span>
+                </div>
+            </div>
+            
+            <p style="color: #666; line-height: 1.6;">
+                Click the button below to view the task details and start working on it.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{taskUrl}}" style="display: inline-block; padding: 14px 35px; background-color: #667eea; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    View Task
+                </a>
+            </div>
+            
+            <p style="color: #999; font-size: 13px; margin-top: 30px;">
+                Need help? Contact your project lead or check our help center.
+            </p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #e9ecef;">
+            <p>© {{year}} PlanCrest. All rights reserved.</p>
+            <p>You're receiving this email because you're a member of {{workspaceName}}.</p>
+        </div>
+    </div>
+</body>
+</html>
+

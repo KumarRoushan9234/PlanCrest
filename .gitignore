@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+coverage/
+
+# Environment files hold secrets. Only the *.example templates are committed.
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.sw?
+
+# Local tooling
+.claude/
+.mongodb-binaries/
+
+.github/
+
+# Optional JSON settings file (see server/config.example.json)
+config.local.json
+
+
+# AI assistant notes (kept locally)
+CLAUDE.md
+AGENTS.md
+
+# Temporary history-cleaning clone (move or delete when done)
+plancrest-clean/

@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/*
+ * PlanCrest design tokens.
+ * Re-maps Tailwind's gray / blue / purple / status scales to the console palette
+ * (blue-black surfaces, hairline borders, one blue accent), so every utility
+ * class already used across the app (bg-gray-800, border-gray-700, ...) renders
+ * in the new design without touching each component.
+ */
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-brand: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-gray-50: var(--g50);
+  --color-gray-100: var(--g100);
+  --color-gray-200: var(--g200);
+  --color-gray-300: var(--g300);
+  --color-gray-400: var(--g400);
+  --color-gray-500: var(--g500);
+  --color-gray-600: var(--g600);
+  --color-gray-700: var(--g700);
+  --color-gray-800: var(--g800);
+  --color-gray-900: var(--g900);
+  --color-gray-950: var(--g950);
+  --color-white: var(--white);
+
+  --color-blue-300: #a9c4fa;
+  --color-blue-400: #7ea6f5;
+  --color-blue-500: #4d8dff;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e3a8a;
+  --color-blue-900: #172554;
+
+  --color-purple-300: #dcc6ff;
+  --color-purple-400: #cfabff;
+  --color-purple-500: #a98af0;
+  --color-purple-600: #7c5ce0;
+  --color-purple-700: #6745c4;
+  --color-purple-800: #4c3294;
+  --color-purple-900: #2d1f5c;
+
+  --color-green-300: #a6ecc4;
+  --color-green-400: #6fdb9f;
+  --color-green-500: #3fb97f;
+  --color-green-600: #2f9c68;
+  --color-green-700: #257d53;
+
+  --color-red-300: #ffc2bf;
+  --color-red-400: #ff8f8a;
+  --color-red-500: #e5675f;
+  --color-red-600: #d03b3b;
+  --color-red-700: #a92f2f;
+
+  --color-yellow-400: #f4c35b;
+  --color-yellow-500: #e8a93a;
+  --color-yellow-600: #c88a1f;
+}
+
+@import "./styles/base.css";
+@import "./styles/components.css";
+@import "./styles/shell.css";
+@import "./styles/brand.css";
